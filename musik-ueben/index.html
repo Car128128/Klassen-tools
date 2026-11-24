@@ -1,0 +1,26 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Musik üben</title>
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Musik üben">
+<link rel="apple-touch-icon" href="icons/tastenlauf-180.png">
+<style>
+:root{--bg:#eef0f5;--card:#fff;--ink:#161b2b;--muted:#5b6377;--line:#d4d8e2;--acc:#8f5600;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#0f121a;--card:#181d29;--ink:#e6e9f0;--muted:#949cb0;--line:#2b3242;--acc:#f2b544;color-scheme:dark}}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,system-ui,sans-serif}
+main{max-width:720px;margin:0 auto;padding:max(32px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) 40px max(16px,env(safe-area-inset-left))}
+h1{font-size:32px;margin:0 0 4px;letter-spacing:-.02em}p{color:var(--muted);margin:0 0 24px}
+a.app{display:flex;gap:18px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;color:inherit;text-decoration:none;margin-bottom:14px;-webkit-tap-highlight-color:transparent}
+a.app img{width:72px;height:72px;border-radius:16px;flex:none}a.app b{font-size:22px;display:block}a.app span{color:var(--muted)}
+.tip{font-size:14px;border-top:1px solid var(--line);padding-top:16px;margin-top:24px}
+</style></head><body><main>
+<h1>Musik üben</h1><p>Wähle eine App. Das Mikrofon hört zu, wenn du spielst.</p>
+<a class="app" href="tastenlauf.html"><img src="icons/tastenlauf-192.png" alt=""><div><b>Tastenlauf</b><span>Klavier lernen mit fallenden Noten</span></div></a>
+<a class="app" href="saitenlauf.html"><img src="icons/saitenlauf-192.png" alt=""><div><b>Saitenlauf</b><span>Gitarre lernen, mit Stimmgerät</span></div></a>
+<p class="tip"><b>Als App installieren:</b> Öffne eine App, tippe in Safari auf <b>Teilen</b> und dann auf <b>Zum Home-Bildschirm</b>. Sie bekommt ein eigenes Symbol, startet im Vollbild und funktioniert nach dem ersten Öffnen auch ohne Internet. Am Computer (Chrome oder Edge) gibt es dafür das Installieren-Symbol in der Adressleiste.</p>
+</main><script>
+/* Offline-Speicher (Service Worker): nur auf einer echten Web-Adresse, nicht in der Claude-Ansicht */
+if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')&&window.top===window.self){
+  window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})});
+}
+</script>
+</body></html>
