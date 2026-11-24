@@ -178,6 +178,43 @@
   .bar button:active { background: rgba(255, 255, 255, .3); }
   .bar :focus-visible { outline: 3px solid #ffd54a; outline-offset: 2px; }
 
+  /* ---------- Gemalte Fische ---------- */
+  .fishbox { margin: 0 0 14px; padding: 12px 14px; background: #fff; border-radius: 14px; border: 2px solid var(--cream-dark); }
+  .fishbox .field-label { margin-bottom: 2px; }
+  .fishbox .hint { margin: 0 0 6px; }
+  .photo-btn {
+    display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%;
+    min-height: 52px; margin: 4px 0 2px; padding: 8px 14px;
+    font: inherit; font-weight: 700; color: #fff; background: var(--teal);
+    border: 0; border-radius: 14px; cursor: pointer;
+  }
+  .photo-btn svg { width: 24px; height: 24px; flex: none; }
+  .photo-btn:active { transform: translateY(1px); }
+  .linkbtn.danger { color: #9a2a12; margin: 0; }
+  .file-input { position: fixed; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+
+  .modal {
+    position: fixed; inset: 0; z-index: 20;
+    display: flex; align-items: center; justify-content: center;
+    padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
+    background: rgba(4, 28, 44, .55);
+  }
+  .modal-box {
+    width: min(560px, 100%); max-height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    background: var(--cream); border-radius: 24px; padding: 20px 22px 16px;
+    box-shadow: 0 20px 50px rgba(0, 25, 45, .45);
+  }
+  .modal-box h2 { margin: 0 0 4px; font-size: 1.6rem; color: #0a5a61; }
+  .pm-stage {
+    position: relative; margin: 10px 0 14px; border-radius: 16px; overflow: hidden;
+    background: linear-gradient(180deg, #6fd6ea, #1a86b5);
+    aspect-ratio: 16 / 9; max-height: 34vh; max-height: 34dvh; width: 100%; display: flex; align-items: center; justify-content: center;
+  }
+  .pm-stage canvas { max-width: 86%; max-height: 86%; }
+  .pm-busy { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; }
+  .modal-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
+  .modal-actions .start { flex: 1 1 200px; margin: 6px 0 4px; }
+
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
   @media (max-width: 640px), (orientation: portrait) and (max-width: 900px) {
@@ -245,15 +282,54 @@
   <button type="button" class="start" id="startBtn">Aquarium starten</button>
   <p class="msg error" id="errorMsg" role="alert" hidden></p>
   <p class="msg info" id="infoMsg" role="status" hidden></p>
-  <p class="privacy">Das Mikrofon misst lokal. Ton und Pegelverlauf werden weder gespeichert noch übertragen.</p>
+  <div class="fishbox">
+    <span class="field-label">Gemalte Fische</span>
+    <p class="hint" id="fishCount">Belohnung für leise Kinder: Sie malen einen Fisch, du fotografierst ihn, und er fällt ins Riff.</p>
+    <button type="button" class="photo-btn" id="photoBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg>
+      Gemalten Fisch fotografieren
+    </button>
+    <button type="button" class="linkbtn danger" id="clearFishBtn" hidden>Alle gemalten Fische entfernen</button>
+  </div>
+
+  <p class="privacy">Das Mikrofon misst lokal. Ton und Pegelverlauf werden weder gespeichert noch übertragen. Von Fotos bleibt nur der ausgeschnittene Fisch, gespeichert nur auf diesem Gerät. Nichts wird verschickt.</p>
 
 </main>
 
 <div class="bar" id="bar" hidden>
   <span class="dot" aria-hidden="true"></span>
   <span class="bar-text" id="barText">Stillarbeit · Mikro an</span>
+  <button type="button" id="barPhotoBtn">Fisch-Foto</button>
   <button type="button" id="fsBtn">Vollbild</button>
   <button type="button" id="stopBtn">Stopp</button>
+</div>
+
+<input type="file" class="file-input" id="photoInput" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true">
+
+<div class="modal" id="photoModal" role="dialog" aria-modal="true" aria-labelledby="pmTitle" hidden>
+  <div class="modal-box">
+    <h2 id="pmTitle">Dein Fisch</h2>
+    <p class="hint" id="pmHint">So wird der Fisch ausgeschnitten.</p>
+    <div class="pm-stage"><canvas id="pmCanvas" width="10" height="10"></canvas><div class="pm-busy" id="pmBusy" hidden>Fisch wird ausgeschnitten …</div></div>
+    <div class="field">
+      <label class="field-label" for="pmCut">Papier entfernen</label>
+      <div class="range-row"><input type="range" id="pmCut" min="0" max="100" step="1" value="50" aria-describedby="pmCutHint"></div>
+      <p class="hint" id="pmCutHint">Bleibt Papier übrig, schieb nach rechts. Fehlen Teile vom Fisch, schieb nach links.</p>
+    </div>
+    <fieldset class="field">
+      <legend>Der Kopf zeigt nach</legend>
+      <div class="seg">
+        <label><input type="radio" name="pmFace" value="-1"><span>links</span></label>
+        <label><input type="radio" name="pmFace" value="1" checked><span>rechts</span></label>
+      </div>
+    </fieldset>
+    <p class="msg error" id="pmError" role="alert" hidden></p>
+    <div class="modal-actions">
+      <button type="button" class="linkbtn" id="pmCancel">Abbrechen</button>
+      <button type="button" class="linkbtn" id="pmRetake">Neues Foto</button>
+      <button type="button" class="start" id="pmOk">Ins Riff!</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -561,17 +637,20 @@
     bar.hidden = true;
     card.hidden = false;
     S.loudFor = 0; S.shoutFor = 0; S.tooLoud = false;
+    wakeDrawn();
     if (reason) { infoMsg.textContent = reason; infoMsg.hidden = false; }
     if (wasRun) startBtn.focus({ preventScroll: true });
   }
 
   stopBtn.addEventListener('click', () => stopAll(null));
   document.addEventListener('keydown', (e) => {
+    if (!photoModal.hidden) return;
     if (e.key === 'Escape' && mode === 'run' && !document.fullscreenElement && !document.webkitFullscreenElement) stopAll(null);
   });
 
   // Mikrofon aus bei Tabwechsel und beim Verlassen der Seite
   document.addEventListener('visibilitychange', () => {
+    if (document.hidden && pickerOpen) return;   // Kamera ist offen, Aquarium läuft weiter
     if (document.hidden && (stream || micPending)) {
       stopAll('Das Mikrofon ist aus, weil der Tab gewechselt wurde. Starte das Aquarium neu, wenn ihr weiterarbeitet.');
     }
@@ -1671,13 +1750,16 @@
       S.loudFor += dt;
       S.shoutFor = level >= shoutLevel(lim) ? S.shoutFor + dt : 0;
       if (!S.allDone && (S.loudFor >= CFG.allFleeAfter || S.shoutFor >= CFG.shoutTime)) {
-        fleeAll(); S.allDone = true; S.partialDone = true;
+        fleeAll(); hideDrawn(); S.allDone = true; S.partialDone = true;
       } else if (!S.partialDone && S.loudFor > CFG.shortNoise) {
         fleePartial(); S.partialDone = true;
       }
       if (S.loudFor >= CFG.resetQuiet) S.quietTime = 0;
+      S.calmFor = 0;
     } else {
       S.loudFor = 0; S.shoutFor = 0; S.partialDone = false; S.allDone = false;
+      S.calmFor = (S.calmFor || 0) + dt;
+      if (S.calmFor >= 2) wakeDrawn();
       if (activeAnimals().length < CFG.maxAnimals) {
         const deep = level <= lim - CFG.deepMargin;
         S.addProgress += dt / (deep ? CFG.addEveryDeep : CFG.addEvery);
@@ -1801,6 +1883,469 @@
     ctx.restore();
   }
 
+
+  /* =========================================================
+     Gemalte Fische: Foto, Ausschneiden, Speichern
+     Das Foto wird nur im Speicher verarbeitet. Gespeichert wird
+     ausschließlich der ausgeschnittene Fisch, nur auf diesem Gerät.
+     ========================================================= */
+  const DRAWN_MAX = 12;
+  const DRAWN_KEY = 'fluesterriff-fische-v1';
+  const photoBtn = $('photoBtn');
+  const barPhotoBtn = $('barPhotoBtn');
+  const photoInput = $('photoInput');
+  const photoModal = $('photoModal');
+  const pmCanvas = $('pmCanvas');
+  const pmBusy = $('pmBusy');
+  const pmCut = $('pmCut');
+  const pmError = $('pmError');
+  const pmHint = $('pmHint');
+  const pmOk = $('pmOk');
+  const pmCancel = $('pmCancel');
+  const pmRetake = $('pmRetake');
+  const fishCount = $('fishCount');
+  const clearFishBtn = $('clearFishBtn');
+  const faceRadios = Array.from(document.querySelectorAll('input[name="pmFace"]'));
+
+  const drawnFish = [];     // Fische im Bild
+  let pickerOpen = false;
+  let returnFocus = null;
+  let work = null;          // { data, w, h, paper } des aktuellen Fotos
+  let cutResult = null;     // { canvas, w, h }
+
+  function loadStored() {
+    try {
+      const raw = localStorage.getItem(DRAWN_KEY);
+      const arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr.filter((f) => f && typeof f.src === 'string' && f.src.indexOf('data:image/png;base64,') === 0).slice(-DRAWN_MAX) : [];
+    } catch (_) { return []; }
+  }
+  function saveStored() {
+    const arr = drawnFish.filter((f) => f.state !== 'leave').map((f) => ({ src: f.src, face: f.imgFace }));
+    try { localStorage.setItem(DRAWN_KEY, JSON.stringify(arr)); return true; }
+    catch (_) { return false; }
+  }
+  function keptCount() { return drawnFish.filter((f) => f.state !== 'leave').length; }
+  function updateFishUI() {
+    const n = keptCount();
+    fishCount.textContent = n === 0
+      ? 'Belohnung für leise Kinder: Sie malen einen Fisch, du fotografierst ihn, und er fällt ins Riff.'
+      : (n === 1 ? '1 gemalter Fisch' : n + ' gemalte Fische') + ' im Riff (höchstens ' + DRAWN_MAX + '). Ein neuer Fisch kommt jederzeit dazu.';
+    clearFishBtn.hidden = n === 0;
+    clearFishBtn.textContent = 'Alle gemalten Fische entfernen';
+    clearArmed = false;
+  }
+
+  // ---------- Foto holen ----------
+  function openPicker(e) {
+    returnFocus = e && e.currentTarget;
+    pickerOpen = true;
+    photoInput.value = '';
+    primeAudio();
+    try { photoInput.click(); } catch (_) { pickerOpen = false; }
+  }
+  photoBtn.addEventListener('click', openPicker);
+  barPhotoBtn.addEventListener('click', openPicker);
+  pmRetake.addEventListener('click', () => openPicker({ currentTarget: returnFocus }));
+  photoInput.addEventListener('cancel', () => { pickerOpen = false; });
+  window.addEventListener('focus', () => { setTimeout(() => { if (!photoInput.files || !photoInput.files.length) pickerOpen = false; }, 1500); });
+  photoInput.addEventListener('change', () => {
+    pickerOpen = false;
+    const file = photoInput.files && photoInput.files[0];
+    photoInput.value = '';
+    if (!file) return;
+    showModal();
+    pmBusy.hidden = false;
+    pmError.hidden = true;
+    pmOk.disabled = true;
+    const fr = new FileReader();
+    fr.onerror = () => photoFailed('Das Foto konnte nicht gelesen werden. Versuche es noch einmal.');
+    fr.onload = () => {
+      const img = new Image();
+      img.onerror = () => photoFailed('Dieses Bildformat kann der Browser nicht öffnen. Fotografiere den Fisch bitte direkt mit der Kamera.');
+      img.onload = () => {
+        try { prepareWork(img); runCut(); }
+        catch (_) { photoFailed('Das Foto konnte nicht verarbeitet werden. Versuche es noch einmal.'); }
+        img.onerror = null;
+      };
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
+
+  function showModal() {
+    if (!photoModal.hidden) return;
+    photoModal.hidden = false;
+    cutResult = null;
+    faceRadios.forEach((r) => { r.checked = r.value === '1'; });
+    pmCut.value = '50';
+    pmCanvas.width = 10; pmCanvas.height = 10;
+    setTimeout(() => pmOk.focus({ preventScroll: true }), 30);
+  }
+  function closeModal() {
+    photoModal.hidden = true;
+    work = null; cutResult = null;
+    pmCanvas.width = 10; pmCanvas.height = 10;
+    const f = returnFocus && !returnFocus.closest('[hidden]') ? returnFocus : (mode === 'run' ? stopBtn : startBtn);
+    try { f.focus({ preventScroll: true }); } catch (_) { /* egal */ }
+  }
+  function photoFailed(text) {
+    pmBusy.hidden = true;
+    pmError.textContent = text;
+    pmError.hidden = false;
+    pmOk.disabled = true;
+  }
+  pmCancel.addEventListener('click', closeModal);
+  photoModal.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeModal(); return; }
+    if (e.key === 'Tab') {        // Fokus im Dialog halten
+      const f = Array.from(photoModal.querySelectorAll('button, input')).filter((x) => !x.disabled && x.offsetParent !== null);
+      if (!f.length) return;
+      const first = f[0], lastEl = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); lastEl.focus(); }
+      else if (!e.shiftKey && document.activeElement === lastEl) { e.preventDefault(); first.focus(); }
+    }
+  });
+
+  // ---------- Ausschneiden ----------
+  function prepareWork(img) {
+    const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+    if (!iw || !ih) throw new Error('leer');
+    const k = Math.min(1, 720 / Math.max(iw, ih));
+    const w = Math.max(1, Math.round(iw * k)), h = Math.max(1, Math.round(ih * k));
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const g = c.getContext('2d');
+    g.drawImage(img, 0, 0, w, h);
+    const data = g.getImageData(0, 0, w, h).data;
+    // Papierfarbe: Median am Bildrand
+    const band = Math.max(2, Math.round(Math.min(w, h) * 0.04));
+    const rs = [], gs = [], bs = [];
+    for (let y = 0; y < h; y += 2) {
+      for (let x = 0; x < w; x += 2) {
+        if (x >= band && x < w - band && y >= band && y < h - band) continue;
+        const i = (y * w + x) * 4;
+        rs.push(data[i]); gs.push(data[i + 1]); bs.push(data[i + 2]);
+      }
+    }
+    const med = (a) => { a.sort((p, q) => p - q); return a[a.length >> 1] || 0; };
+    const paper = [med(rs), med(gs), med(bs)];
+    work = { data, w, h, paper };
+  }
+
+  function runCut() {
+    if (!work) return;
+    const { data, w, h, paper } = work;
+    const N = w * h;
+    const s = clamp(+pmCut.value / 100, 0, 1);
+    const pl = Math.max(30, (paper[0] + paper[1] + paper[2]) / 3);
+    const dTh = 26 + 80 * s;                // Farbabstand zum Papier (helligkeitsbereinigt)
+    const lumTh = 0.74 - 0.32 * s;          // so dunkel darf Papier im Schatten werden
+    const cand = new Uint8Array(N);
+    for (let i = 0, j = 0; i < N; i++, j += 4) {
+      const r = data[j], g = data[j + 1], b = data[j + 2];
+      const l = (r + g + b) / 3 + 0.01;
+      const ratio = l / pl;
+      if (ratio < lumTh) continue;
+      const k = pl / l;
+      const d = Math.abs(r * k - paper[0]) + Math.abs(g * k - paper[1]) + Math.abs(b * k - paper[2]);
+      if (d < dTh) cand[i] = 1;
+    }
+    // Papier = vom Rand aus erreichbare papierartige Pixel
+    const bg = new Uint8Array(N);
+    const q = new Int32Array(N);
+    let qh = 0, qt = 0;
+    const seed = (i) => { if (cand[i] && !bg[i]) { bg[i] = 1; q[qt++] = i; } };
+    for (let x = 0; x < w; x++) { seed(x); seed((h - 1) * w + x); }
+    for (let y = 0; y < h; y++) { seed(y * w); seed(y * w + w - 1); }
+    while (qh < qt) {
+      const i = q[qh++], x = i % w;
+      if (x > 0) seed(i - 1);
+      if (x < w - 1) seed(i + 1);
+      if (i >= w) seed(i - w);
+      if (i < N - w) seed(i + w);
+    }
+    // Zusammenhängende Teile finden, Krümel und Tischkanten weglassen
+    const lab = new Int32Array(N);
+    const comps = [];
+    let next = 1;
+    for (let i0 = 0; i0 < N; i0++) {
+      if (bg[i0] || lab[i0]) continue;
+      let size = 0, edge = false, minX = w, minY = h, maxX = 0, maxY = 0;
+      qh = 0; qt = 0; q[qt++] = i0; lab[i0] = next;
+      while (qh < qt) {
+        const i = q[qh++], x = i % w, y = (i - x) / w;
+        size++;
+        if (x === 0 || y === 0 || x === w - 1 || y === h - 1) edge = true;
+        if (x < minX) minX = x; if (x > maxX) maxX = x;
+        if (y < minY) minY = y; if (y > maxY) maxY = y;
+        if (x > 0 && !bg[i - 1] && !lab[i - 1]) { lab[i - 1] = next; q[qt++] = i - 1; }
+        if (x < w - 1 && !bg[i + 1] && !lab[i + 1]) { lab[i + 1] = next; q[qt++] = i + 1; }
+        if (i >= w && !bg[i - w] && !lab[i - w]) { lab[i - w] = next; q[qt++] = i - w; }
+        if (i < N - w && !bg[i + w] && !lab[i + w]) { lab[i + w] = next; q[qt++] = i + w; }
+      }
+      comps.push({ id: next, size, edge, minX, minY, maxX, maxY });
+      next++;
+    }
+    let pool = comps.filter((c) => !c.edge);
+    if (!pool.length) pool = comps;
+    if (!pool.length) { showCutProblem('Auf dem Foto wurde kein Fisch gefunden. Schieb den Regler nach links oder mache ein neues Foto.'); return; }
+    const main = pool.reduce((a, b) => (b.size > a.size ? b : a));
+    if (main.size < N * 0.004) { showCutProblem('Auf dem Foto wurde kein Fisch gefunden. Schieb den Regler nach links oder mache ein neues Foto.'); return; }
+    const keep = new Uint8Array(next);
+    let bx0 = w, by0 = h, bx1 = 0, by1 = 0;
+    pool.forEach((c) => {
+      if (c === main || c.size >= Math.max(main.size * 0.03, 25)) {
+        keep[c.id] = 1;
+        bx0 = Math.min(bx0, c.minX); by0 = Math.min(by0, c.minY);
+        bx1 = Math.max(bx1, c.maxX); by1 = Math.max(by1, c.maxY);
+      }
+    });
+    const pad = 3;
+    bx0 = Math.max(0, bx0 - pad); by0 = Math.max(0, by0 - pad);
+    bx1 = Math.min(w - 1, bx1 + pad); by1 = Math.min(h - 1, by1 + pad);
+    const cw = bx1 - bx0 + 1, ch = by1 - by0 + 1;
+    // Alpha mit weicher Kante
+    const alpha = new Float32Array(cw * ch);
+    for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) {
+      const i = (y + by0) * w + (x + bx0);
+      alpha[y * cw + x] = keep[lab[i]] ? 1 : 0;
+    }
+    const out = new ImageData(cw, ch);
+    const od = out.data;
+    for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) {
+      let a = alpha[y * cw + x];
+      if (a) {
+        let sum = 0, cnt = 0;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+          const xx = x + dx, yy = y + dy;
+          if (xx < 0 || yy < 0 || xx >= cw || yy >= ch) continue;
+          sum += alpha[yy * cw + xx]; cnt++;
+        }
+        a = Math.max(0.35, sum / cnt);
+      }
+      const si = ((y + by0) * w + (x + bx0)) * 4, oi = (y * cw + x) * 4;
+      od[oi] = data[si]; od[oi + 1] = data[si + 1]; od[oi + 2] = data[si + 2];
+      od[oi + 3] = Math.round(a * 255);
+    }
+    const tmp = document.createElement('canvas');
+    tmp.width = cw; tmp.height = ch;
+    tmp.getContext('2d').putImageData(out, 0, 0);
+    const k = Math.min(1, 360 / Math.max(cw, ch));
+    const fw = Math.max(1, Math.round(cw * k)), fh = Math.max(1, Math.round(ch * k));
+    const fc = document.createElement('canvas');
+    fc.width = fw; fc.height = fh;
+    const fg = fc.getContext('2d');
+    fg.imageSmoothingQuality = 'high';
+    fg.drawImage(tmp, 0, 0, fw, fh);
+    cutResult = { canvas: fc, w: fw, h: fh };
+    pmBusy.hidden = true;
+    pmError.hidden = true;
+    pmOk.disabled = false;
+    const big = cw * ch > N * 0.9;
+    pmHint.textContent = big
+      ? 'Fast das ganze Foto ist übrig geblieben. Schieb den Regler nach rechts oder fotografiere mit etwas Papier rund um den Fisch.'
+      : 'So wird der Fisch ausgeschnitten.';
+    drawPreview();
+  }
+  function showCutProblem(text) {
+    cutResult = null;
+    pmCanvas.width = 10; pmCanvas.height = 10;
+    pmBusy.hidden = true;
+    pmError.textContent = text;
+    pmError.hidden = false;
+    pmOk.disabled = true;
+  }
+  function drawPreview() {
+    if (!cutResult) return;
+    pmCanvas.width = cutResult.w; pmCanvas.height = cutResult.h;
+    const g = pmCanvas.getContext('2d');
+    g.clearRect(0, 0, cutResult.w, cutResult.h);
+    g.drawImage(cutResult.canvas, 0, 0);
+  }
+  let cutTimer = 0;
+  pmCut.addEventListener('input', () => {
+    clearTimeout(cutTimer);
+    cutTimer = setTimeout(() => { try { runCut(); } catch (_) { showCutProblem('Das Ausschneiden hat nicht geklappt. Mache bitte ein neues Foto.'); } }, 60);
+  });
+
+  pmOk.addEventListener('click', () => {
+    if (!cutResult) return;
+    const face = +(faceRadios.find((r) => r.checked) || faceRadios[1]).value || 1;
+    let src;
+    try { src = cutResult.canvas.toDataURL('image/png'); } catch (_) { src = null; }
+    if (!src) { photoFailed('Der Fisch konnte nicht übernommen werden. Versuche es noch einmal.'); return; }
+    closeModal();
+    tryResume();
+    addDrawn(src, face, true);
+  });
+
+  let clearArmed = false, clearTimer = 0;
+  clearFishBtn.addEventListener('click', () => {
+    if (!clearArmed) {
+      clearArmed = true;
+      clearFishBtn.textContent = 'Wirklich alle entfernen? Nochmal tippen.';
+      clearTimeout(clearTimer);
+      clearTimer = setTimeout(updateFishUI, 4000);
+      return;
+    }
+    drawnFish.forEach((f) => leaveDrawn(f));
+    try { localStorage.removeItem(DRAWN_KEY); } catch (_) { /* egal */ }
+    updateFishUI();
+  });
+
+  // ---------- Fische im Riff ----------
+  function addDrawn(src, imgFace, falling) {
+    const img = new Image();
+    const f = {
+      src, imgFace: imgFace < 0 ? -1 : 1, img, ready: false, ar: 0.6,
+      sf: rand(0.92, 1.08), spd: rand(0.85, 1.15), ph: Math.random() * 6.28,
+      bobPh: Math.random() * 6.28, retarget: rand(4, 9), glow: 0, rot: 0, splashed: false,
+      state: falling ? 'fall' : 'swim', gone: false
+    };
+    img.onload = () => { f.ar = clamp((img.naturalHeight || 1) / (img.naturalWidth || 1), 0.2, 2.2); f.ready = true; };
+    img.src = src;
+    placeDrawn(f, falling);
+    drawnFish.push(f);
+    // Zu viele? Der älteste schwimmt freundlich davon
+    while (keptCount() > DRAWN_MAX) {
+      const old = drawnFish.find((x) => x.state !== 'leave');
+      leaveDrawn(old);
+    }
+    if (falling) {
+      if (!saveStored()) { infoMsg.textContent = 'Der Fisch schwimmt mit, konnte auf diesem Gerät aber nicht dauerhaft gespeichert werden.'; infoMsg.hidden = false; }
+    }
+    updateFishUI();
+  }
+  function drawnLen(f) { return 130 * U * f.sf; }
+  function placeDrawn(f, falling) {
+    const len = drawnLen(f);
+    f.targetY = sandY * rand(0.28, 0.72);
+    f.dir = Math.random() < 0.5 ? 1 : -1;
+    f.face = f.dir;
+    if (falling) {
+      f.x = W * rand(0.22, 0.78);
+      f.y = f.baseY = -len * 0.7;
+      f.vy = 520 * U;
+      f.vx = 0;
+      f.rot = rand(-0.5, 0.5);
+    } else {
+      f.x = W * rand(0.15, 0.85);
+      f.y = f.baseY = f.targetY;
+      f.vy = 0;
+      f.vx = f.dir * 40 * U;
+    }
+  }
+  function leaveDrawn(f) {
+    if (!f || f.state === 'leave') return;
+    f.state = 'leave';
+    f.leaveDir = f.x < W / 2 ? -1 : 1;
+  }
+  function hideDrawn() {
+    drawnFish.forEach((f) => {
+      if (f.state === 'swim' || f.state === 'fall') {
+        f.state = 'hide';
+        const h = homes.length ? homes[Math.floor(Math.random() * homes.length)] : { x: f.x, y: sandY };
+        f.hideX = clamp(h.x + rand(-40, 40) * U, 40 * U, W - 40 * U);
+      }
+    });
+  }
+  function wakeDrawn() {
+    drawnFish.forEach((f) => {
+      if (f.state === 'hide') { f.state = 'swim'; f.targetY = sandY * rand(0.28, 0.72); f.retarget = rand(5, 10); f.glow = 1.2; }
+    });
+  }
+  function updateDrawn(f, dt) {
+    const M = reduced ? 0.55 : 1;
+    const len = drawnLen(f);
+    const hgt = len * f.ar;
+    f.ph += dt * (f.state === 'leave' ? 11 : f.state === 'hide' ? 3 : 6) * (reduced ? 0.7 : 1);
+    f.bobPh += dt * 0.8 * M;
+    if (f.glow > 0) f.glow = Math.max(0, f.glow - dt * 0.5);
+    if (f.state === 'fall') {
+      if (!f.splashed && f.y > hgt * 0.2) {
+        f.splashed = true;
+        for (let i = 0; i < 14; i++) bubbles.push({ x: f.x + rand(-0.5, 0.5) * len, y: f.y + rand(-10, 30) * U, r: rand(2.5, 7) * U, vy: rand(25, 70) * U, ph: Math.random() * 6.28 });
+      }
+      const terminal = (f.y < 0 ? 520 : 90) * U;
+      f.vy += (terminal - f.vy) * Math.min(1, dt * (f.y < 0 ? 0.5 : 2.2));
+      f.y += f.vy * dt * (reduced ? 0.8 : 1);
+      f.baseY = f.y;
+      f.rot += (Math.sin(T * 2.4 + f.bobPh) * 0.22 - f.rot) * Math.min(1, dt * 1.5);
+      f.x += Math.sin(T * 1.3 + f.ph) * 12 * U * dt;
+      if (f.y >= f.targetY) { f.state = 'swim'; f.glow = 2.2; f.vx = f.dir * 20 * U; }
+      return;
+    }
+    f.rot += (0 - f.rot) * Math.min(1, dt * 2);
+    let tv;
+    if (f.state === 'leave') {
+      tv = f.leaveDir * 420 * U;
+      f.vx += (tv - f.vx) * Math.min(1, dt * 1.5);
+      if (f.x < -len || f.x > W + len) f.gone = true;
+    } else if (f.state === 'hide') {
+      const want = sandY + hgt * 0.15;
+      f.baseY += (want - f.baseY) * Math.min(1, dt * 1.2);
+      const dx = f.hideX - f.x;
+      tv = clamp(dx * 1.5, -160 * U, 160 * U);
+      f.vx += (tv - f.vx) * Math.min(1, dt * 2);
+    } else {
+      f.retarget -= dt;
+      if (f.retarget <= 0) { f.targetY = sandY * rand(0.28, 0.72); f.retarget = rand(6, 14); }
+      f.baseY += (f.targetY - f.baseY) * Math.min(1, dt * 0.35 * M);
+      const m = len * 0.55 + 24 * U;
+      if (f.dir > 0 && f.x > W - m) f.dir = -1;
+      else if (f.dir < 0 && f.x < m) f.dir = 1;
+      tv = f.dir * 44 * U * f.spd * M;
+      f.vx += (tv - f.vx) * Math.min(1, dt * 0.7);
+    }
+    f.x += f.vx * dt;
+    const bob = (f.state === 'hide' ? 3 : 9) * U * (reduced ? 0.6 : 1);
+    f.y = f.baseY + Math.sin(f.bobPh) * bob;
+    if (Math.abs(f.vx) > 4 * U) {
+      const want = f.vx > 0 ? 1 : -1;
+      f.face += (want - f.face) * Math.min(1, dt * (f.state === 'leave' ? 6 : 2.4));
+    }
+  }
+  function updateDrawnAll(dt) {
+    for (let i = drawnFish.length - 1; i >= 0; i--) {
+      updateDrawn(drawnFish[i], dt);
+      if (drawnFish[i].gone) drawnFish.splice(i, 1);
+    }
+  }
+  function drawDrawn(f) {
+    if (!f.ready) return;
+    const img = f.img;
+    const iw = img.naturalWidth, ih = img.naturalHeight;
+    const len = drawnLen(f), hgt = len * f.ar;
+    // Kopf zeigt in Schwimmrichtung; beim Wenden wird der Fisch schmal
+    let sx = f.face * f.imgFace;
+    if (Math.abs(sx) < 0.06) sx = sx < 0 ? -0.06 : 0.06;
+    ctx.save();
+    ctx.translate(f.x, f.y);
+    ctx.rotate(f.rot);
+    if (f.glow > 0) {
+      const r = len * 0.75;
+      const gr = ctx.createRadialGradient(0, 0, len * 0.1, 0, 0, r);
+      gr.addColorStop(0, 'rgba(255, 250, 210, ' + (0.55 * Math.min(1, f.glow)) + ')');
+      gr.addColorStop(1, 'rgba(255, 250, 210, 0)');
+      ctx.fillStyle = gr;
+      ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.scale(sx, 1);
+    const n = 18;
+    const amp = (f.state === 'leave' ? 0.12 : f.state === 'fall' ? 0.05 : 0.08) * (reduced ? 0.5 : 1);
+    const sw = iw / n, dw = len / n;
+    for (let i = 0; i < n; i++) {
+      // u = 0 am Kopf, 1 an der Schwanzflosse
+      const pos = (i + 0.5) / n;
+      const u = f.imgFace > 0 ? 1 - pos : pos;
+      const dy = Math.sin(f.ph - u * 2.6) * amp * hgt * u * u;
+      ctx.drawImage(img, i * sw, 0, sw + (i < n - 1 ? 0.5 : 0), ih, -len / 2 + i * dw, -hgt / 2 + dy, dw + 0.6, hgt);
+    }
+    ctx.restore();
+  }
+
+
   /* =========================================================
      Hauptschleife
      ========================================================= */
@@ -1824,6 +2369,7 @@
     }
     if (mode !== 'run' && S.animals.length < CFG.startAnimals) addAnimal();
     updateShark(dt);
+    updateDrawnAll(dt);
     updateParticles(dt);
 
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -1834,6 +2380,7 @@
     anemones.forEach(drawAnemone);
     drawShark();
     S.animals.forEach(drawAnimal);
+    drawnFish.forEach(drawDrawn);
     drawTrails();
     ctx.drawImage(layerFront, 0, 0, W, H);
     weedsFront.forEach(drawWeed);
@@ -1868,6 +2415,8 @@
   updateLimitUI();
   readSettings();
   resetRiff(true);
+  loadStored().forEach((f) => addDrawn(f.src, f.face, false));
+  updateFishUI();
   requestAnimationFrame(frame);
 })();
 </script>
