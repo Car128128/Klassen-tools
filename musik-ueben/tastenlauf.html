@@ -1,0 +1,1118 @@
+<!doctype html><html lang="de"><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style></head><body>
+<title>Tastenlauf</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Tastenlauf">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="format-detection" content="telephone=no">
+<link rel="apple-touch-icon" href="icons/tastenlauf-180.png">
+<link rel="icon" type="image/png" href="icons/tastenlauf-192.png">
+<link rel="manifest" href="tastenlauf.webmanifest">
+<meta name="theme-color" content="#eef0f5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f121a" media="(prefers-color-scheme: dark)">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: one-column practice room, sibling of Saitenlauf. Header with mic + MIDI switches, then one of four views: learning path, player (falling-note stage ending on a playable keyboard), free play, progress. The stage is a physical object: same dark board in both themes. */
+:root{
+  --bg:#eef0f5; --surface:#ffffff; --soft:#e4e7ef; --ink:#161b2b; --muted:#5b6377; --line:#d4d8e2;
+  --accent:#8f5600; --accent-fill:#f2b544; --on-accent:#221500; --lh:#13798a; --lh-fill:#62c9d9;
+  --ok:#17804a; --bad:#c3352b; --warn:#a15c00;
+  --f-display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --f-body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f121a; --surface:#181d29; --soft:#202636; --ink:#e6e9f0; --muted:#949cb0; --line:#2b3242;
+  --accent:#f2b544; --accent-fill:#f2b544; --on-accent:#221500; --lh:#62c9d9; --lh-fill:#62c9d9; --ok:#45cc84; --bad:#ff6d60; --warn:#f2b544; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f121a; --surface:#181d29; --soft:#202636; --ink:#e6e9f0; --muted:#949cb0; --line:#2b3242;
+  --accent:#f2b544; --accent-fill:#f2b544; --on-accent:#221500; --lh:#62c9d9; --lh-fill:#62c9d9; --ok:#45cc84; --bad:#ff6d60; --warn:#f2b544; color-scheme:dark}
+
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.app{max-width:1120px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:18px 48px;display:flex;flex-direction:column;gap:18px}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:var(--accent)}
+:focus-visible{outline:3px solid var(--accent-fill);outline-offset:2px}
+h2,h3{font-family:var(--f-display);letter-spacing:-.01em;text-wrap:balance;margin:0}
+.lbl{font-size:11.5px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:600}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px}
+.brand{display:flex;align-items:center;gap:12px}
+.brand svg{flex:none}
+.brand h1{font-family:var(--f-display);font-weight:800;font-size:clamp(26px,4.6vw,36px);line-height:1;margin:0;letter-spacing:-.025em}
+.brand h1 span{color:var(--accent)}
+.brand p{margin:3px 0 0;color:var(--muted);font-size:13.5px}
+.topr{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center}
+.tabs{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px;gap:2px}
+.tabs button{border:0;background:none;padding:8px 14px;border-radius:999px;font-weight:600;font-size:14px;color:var(--muted);white-space:nowrap}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--bg)}
+.devs{display:flex;gap:8px}
+.micbtn{display:flex;align-items:center;gap:9px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 14px 7px 10px;font-weight:600;font-size:14px;white-space:nowrap}
+.micbtn .dot{width:10px;height:10px;border-radius:50%;background:var(--muted);flex:none}
+.micbtn[data-state="on"] .dot{background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 25%,transparent)}
+.micbtn[data-state="none"] .dot,.micbtn[data-state="starting"] .dot{background:var(--warn)}
+.micbtn[data-state="denied"] .dot,.micbtn[data-state="unsupported"] .dot{background:var(--bad)}
+.meter{width:40px;height:6px;border-radius:3px;background:var(--soft);overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:var(--ok);transition:width .08s linear}
+
+.notice{border:1px solid color-mix(in srgb,var(--warn) 45%,var(--line));background:color-mix(in srgb,var(--accent-fill) 10%,var(--surface));border-radius:12px;padding:12px 16px;font-size:14px}
+.notice b{display:block;margin-bottom:2px}
+
+.btn{border:1px solid var(--line);background:var(--surface);padding:9px 14px;border-radius:10px;font-weight:600;font-size:14px;line-height:1.2}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent-fill);border-color:var(--accent-fill);color:var(--on-accent)}
+.btn.ghost{background:none}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:none;padding:8px 12px;font-weight:600;font-size:13.5px;color:var(--muted);white-space:nowrap}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+
+.hero{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px 20px}
+.next{display:flex;flex-direction:column;gap:10px;min-width:0}
+.next h2{font-size:clamp(24px,3.6vw,32px);line-height:1.05}
+.next p{margin:0;color:var(--muted);max-width:60ch}
+.next .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.minirow{display:flex;flex-wrap:wrap;gap:4px}
+.minirow span{font-family:var(--f-mono);font-size:12px;font-weight:700;padding:2px 7px;border-radius:6px;background:color-mix(in srgb,var(--accent-fill) 22%,var(--surface));color:var(--ink)}
+.minirow span.L{background:color-mix(in srgb,var(--lh-fill) 26%,var(--surface))}
+.mystats{display:grid;grid-template-columns:1fr 1fr;gap:14px 12px;align-content:start}
+.mystats div{display:flex;flex-direction:column;gap:1px}
+.mystats b{font-family:var(--f-mono);font-size:24px;font-variant-numeric:tabular-nums;line-height:1.15}
+.xpbar{grid-column:1/-1;height:8px;background:var(--soft);border-radius:4px;overflow:hidden}
+.xpbar i{display:block;height:100%;background:var(--accent-fill);width:0}
+
+.chapter{display:flex;flex-direction:column;gap:10px}
+.chhead{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.chhead h3{font-size:21px}
+.chhead span{color:var(--muted);font-size:14px}
+.chhead .cnt{margin-left:auto;font-family:var(--f-mono);font-size:13px}
+.lessons{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.lesson{text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:13px 14px;display:flex;flex-direction:column;gap:6px;min-height:112px}
+.lesson:hover:not(:disabled){border-color:var(--accent-fill);box-shadow:0 0 0 1px var(--accent-fill) inset}
+.lesson .n{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.lesson b{font-family:var(--f-display);font-size:17px;line-height:1.15}
+.lesson .meta{margin-top:auto;display:flex;justify-content:space-between;align-items:center;font-size:12.5px;color:var(--muted);gap:6px}
+.hands{display:inline-flex;gap:3px;vertical-align:-1px}
+.hands i{width:9px;height:9px;border-radius:2px;background:var(--line)}
+.hands i.R{background:var(--accent-fill)} .hands i.L{background:var(--lh-fill)}
+.stars{color:var(--accent);letter-spacing:2px;font-size:15px;white-space:nowrap}
+.stars .off{color:var(--line)}
+.lesson:disabled{opacity:.55;cursor:not-allowed}
+.lesson.done{background:color-mix(in srgb,var(--accent-fill) 7%,var(--surface))}
+.lesson .tag{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--accent)}
+.pathopts{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;align-items:center}
+.check{display:flex;gap:8px;align-items:center;cursor:pointer;font-size:14px;color:var(--muted)}
+.check input{width:17px;height:17px;accent-color:var(--accent);margin:0}
+.linkcard{display:flex;gap:14px;align-items:center;text-decoration:none;color:inherit}
+.linkcard:hover{border-color:var(--accent-fill)}
+.linkcard b{font-family:var(--f-display);font-size:18px}
+.linkcard p{margin:0;color:var(--muted);font-size:14px}
+
+.phead{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px}
+.phead .ttl{min-width:0;flex:1}
+.phead h2{font-size:clamp(22px,3.4vw,28px);line-height:1.1}
+.phead .sub{color:var(--muted);font-size:13.5px}
+.hud{display:flex;gap:20px}
+.hud div{display:flex;flex-direction:column;align-items:flex-end}
+.hud b{font-family:var(--f-mono);font-size:22px;font-variant-numeric:tabular-nums;line-height:1.1}
+.hud span{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.stagewrap{position:relative;border-radius:16px;overflow:hidden;background:#121726}
+#stage{display:block;width:100%;height:clamp(330px,58vh,540px);touch-action:none;user-select:none;-webkit-user-select:none}
+.prog{height:4px;background:rgba(255,255,255,.08)}
+.prog i{display:block;height:100%;width:0;background:#f2b544}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,13,22,.62);backdrop-filter:blur(3px);padding:16px}
+.overlay .card{max-width:430px;width:100%;text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center;box-shadow:0 16px 50px rgba(0,0,0,.35)}
+.overlay h2{font-size:26px}
+.overlay p{margin:0;color:var(--muted)}
+.overlay .bigstars{font-size:40px;letter-spacing:6px;color:var(--accent-fill);line-height:1}
+.overlay .bigstars .off{color:var(--line)}
+.overlay .bigscore{font-family:var(--f-mono);font-size:40px;font-weight:700;line-height:1}
+.res{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;width:100%}
+.res div{background:var(--soft);border-radius:10px;padding:8px 4px;display:flex;flex-direction:column}
+.res b{font-family:var(--f-mono);font-size:18px}
+.res span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.overlay .row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.controls{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center}
+.controls .sp{flex:1}
+.ctl{display:flex;align-items:center;gap:6px;font-size:13.5px;color:var(--muted)}
+select{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 10px;max-width:100%}
+.fbline{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline;min-height:1.6em}
+.fbline .say{font-weight:700;font-size:16px}
+.fbline .say.ok{color:var(--ok)} .fbline .say.bad{color:var(--bad)} .fbline .say.info{color:var(--accent)}
+.fbline .heard{color:var(--muted);font-size:14px}
+.pgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+.tip h3,.inp h3{font-size:17px;margin-bottom:4px}
+.tip p,.inp p{margin:0;color:var(--muted);max-width:62ch}
+.inp{display:flex;flex-direction:column;gap:8px}
+.inp .row{display:flex;gap:8px;flex-wrap:wrap}
+.keymap{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:3px;max-width:420px}
+.keymap span{display:flex;flex-direction:column;align-items:center;border:1px solid var(--line);border-radius:6px;padding:2px 0;font-family:var(--f-mono);font-size:12px;font-weight:700}
+.keymap span small{font-family:var(--f-body);font-weight:500;color:var(--muted);font-size:10.5px}
+.keymap span.blk{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.keymap span.blk small{color:var(--bg);opacity:.7}
+.keymap span.gap{border:0}
+
+.free{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:14px}
+.fdisp{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
+.fnote{font-family:var(--f-display);font-weight:800;font-size:clamp(64px,12vw,104px);line-height:.9;letter-spacing:-.03em;min-height:.9em}
+.fnote sub{font-size:.32em;font-weight:700;color:var(--muted);vertical-align:baseline;margin-left:2px}
+.fsrc{color:var(--muted);font-size:14px;min-height:1.5em}
+.hist{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;min-height:26px}
+.hist span{font-family:var(--f-mono);font-size:12.5px;font-weight:700;padding:2px 8px;border-radius:6px;background:var(--soft)}
+.fside{display:flex;flex-direction:column;gap:12px}
+.fside p{margin:0;color:var(--muted);font-size:14px}
+.fkbwrap{border-radius:16px;overflow:hidden;background:#121726}
+#fkb{display:block;width:100%;height:clamp(150px,26vh,210px);touch-action:none;user-select:none;-webkit-user-select:none}
+
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.tile{display:flex;flex-direction:column;gap:2px}
+.tile b{font-family:var(--f-mono);font-size:26px;font-variant-numeric:tabular-nums;line-height:1.15}
+.tile small{color:var(--muted);font-size:12.5px}
+#chart{width:100%;height:auto;display:block}
+.tblwrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line)}
+td{padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td.num,th.num{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.setgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px 24px}
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.field small{color:var(--muted);font-size:12.5px}
+input[type=range]{accent-color:var(--accent);width:100%}
+.danger{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.foot{color:var(--muted);font-size:13px;max-width:75ch;margin:0}
+
+.view{display:flex;flex-direction:column;gap:16px}
+@media (max-width:760px){
+  .hero,.pgrid,.free{grid-template-columns:minmax(0,1fr)}
+  .tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .top{align-items:stretch}
+  .topr{width:100%}
+  .tabs{flex:1 1 100%}
+  .tabs button{flex:1;padding:8px 6px;font-size:13px}
+  .devs{flex:1 1 100%}
+  .devs .micbtn{flex:1;justify-content:center}
+  .hud{width:100%;justify-content:space-between}
+  .hud div{align-items:flex-start}
+  .hud b{font-size:19px}
+  .res b{font-size:16px}
+  #stage{height:clamp(320px,54vh,460px)}
+}
+@media (prefers-reduced-motion: reduce){.meter i{transition:none}}
+/* iPad/Safari: kein Doppeltipp-Zoom, kein grauer Tipp-Schatten, kein Lupen-/Kopiermenü auf Spielflächen */
+html{-webkit-text-size-adjust:100%}
+button,a,select,label,input{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+canvas,.vfb,.vfb button{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <svg width="42" height="42" viewBox="0 0 42 42" aria-hidden="true"><rect width="42" height="42" rx="11" fill="#121726"/><rect x="9" y="6" width="5" height="14" rx="2.5" fill="#f2b544"/><rect x="24" y="10" width="5" height="9" rx="2.5" fill="#62c9d9"/><g fill="#eef0f4"><rect x="6" y="22" width="9" height="14" rx="1.5"/><rect x="16.5" y="22" width="9" height="14" rx="1.5"/><rect x="27" y="22" width="9" height="14" rx="1.5"/></g><g fill="#121726"><rect x="13" y="22" width="5" height="8" rx="1"/><rect x="23.5" y="22" width="5" height="8" rx="1"/></g></svg>
+      <div><h1>Tasten<span>lauf</span></h1><p>Klavier lernen: du spielst, die App hört zu.</p></div>
+    </div>
+    <div class="topr">
+      <nav class="tabs" role="tablist" aria-label="Bereich">
+        <button role="tab" data-view="path" id="t-path">Lernpfad</button>
+        <button role="tab" data-view="free" id="t-free">Freies Spiel</button>
+        <button role="tab" data-view="stats" id="t-stats">Fortschritt</button>
+      </nav>
+      <div class="devs">
+        <button class="micbtn" id="micBtn" data-state="off" aria-live="polite"><span class="dot"></span><span id="micTxt">Mikrofon aus</span><span class="meter" aria-hidden="true"><i id="micLvl"></i></span></button>
+        <button class="micbtn" id="midiBtn" data-state="off" aria-live="polite"><span class="dot"></span><span id="midiTxt">MIDI aus</span></button>
+      </div>
+    </div>
+  </header>
+
+  <div class="notice" id="micNotice" hidden>
+    <b>Das Mikrofon ist hier nicht verfügbar.</b>
+    <span id="micNoticeTxt">Diese Ansicht erlaubt keinen Mikrofonzugriff. Öffne die Datei <b style="display:inline">tastenlauf.html</b> direkt in Chrome, Edge oder Firefox und erlaube dort das Mikrofon. Bis dahin spielst du auf der Bildschirm-Tastatur, mit der Computertastatur oder mit einem MIDI-Keyboard.</span>
+  </div>
+  <div class="notice" id="midiNotice" hidden>
+    <b id="midiNoticeH">MIDI ist hier nicht verfügbar.</b>
+    <span id="midiNoticeTxt"></span>
+  </div>
+
+  <!-- LERNPFAD -->
+  <section class="view" id="v-path">
+    <div class="hero">
+      <div class="card next" id="nextCard"></div>
+      <div class="card mystats" id="myStats"></div>
+    </div>
+    <div class="pathopts">
+      <span class="lbl">Dein Lernpfad · 5 Kapitel</span>
+      <label class="check"><input type="checkbox" id="cUnlock"> Alle Lektionen freischalten</label>
+    </div>
+    <div id="chapters" class="view"></div>
+    <a class="card linkcard" href="saitenlauf.html">
+      <svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true"><rect width="44" height="44" rx="10" fill="#121a28"/><g stroke-linecap="round"><line x1="7" y1="13" x2="37" y2="13" stroke="#e7eaee" stroke-width="1.2"/><line x1="7" y1="19" x2="37" y2="19" stroke="#e7eaee" stroke-width="1.5"/><line x1="7" y1="25" x2="37" y2="25" stroke="#cfa66a" stroke-width="2"/><line x1="7" y1="31" x2="37" y2="31" stroke="#cfa66a" stroke-width="2.6"/></g><circle cx="28" cy="19" r="5" fill="#f2b544"/></svg>
+      <div><b>Lieber Gitarre? Saitenlauf</b><p>Die Schwester-App: gleiche Idee, mit Tabs, Akkorden und Stimmgerät für die Gitarre.</p></div>
+    </a>
+  </section>
+
+  <!-- SPIELER -->
+  <section class="view" id="v-play" hidden>
+    <div class="phead">
+      <button class="btn ghost" id="backBtn">← Lernpfad</button>
+      <div class="ttl"><h2 id="pTitle">Lektion</h2><div class="sub" id="pSub"></div></div>
+      <div class="hud">
+        <div><b id="hScore">0</b><span>Punkte</span></div>
+        <div><b id="hCombo">0</b><span>Serie</span></div>
+        <div><b id="hAcc">–</b><span>Treffer</span></div>
+      </div>
+    </div>
+    <div class="stagewrap">
+      <canvas id="stage" aria-label="Noten fallen auf die Spiellinie über der Klaviatur zu. Tippe die Tasten unten an."></canvas>
+      <div class="prog"><i id="pProg"></i></div>
+      <div class="overlay" id="pOv"><div class="card" id="pOvCard"></div></div>
+    </div>
+    <div class="controls">
+      <button class="btn primary" id="playBtn">▶ Start</button>
+      <button class="btn" id="restartBtn">↺ Neu</button>
+      <button class="btn" id="demoBtn">♪ Vorspielen</button>
+      <div class="seg" role="group" aria-label="Spielmodus"><button data-mode="play" id="mPlay">Mitspielen</button><button data-mode="wait" id="mWait">Warten</button></div>
+      <div class="seg" role="group" aria-label="Hände" id="handSeg"><button data-hands="both" id="hBoth">Beide</button><button data-hands="R" id="hR">Rechts</button><button data-hands="L" id="hL">Links</button></div>
+      <label class="ctl" for="tempoSel">Tempo <select id="tempoSel"><option value="0.5">50 %</option><option value="0.6">60 %</option><option value="0.7">70 %</option><option value="0.8">80 %</option><option value="0.9">90 %</option><option value="1">100 %</option><option value="1.1">110 %</option><option value="1.25">125 %</option></select></label>
+      <label class="check"><input type="checkbox" id="cMetro"> Metronom</label>
+      <span class="sp"></span>
+      <div class="seg" role="group" aria-label="Eingabe"><button data-inp="mic" id="iMic">🎤 Mikrofon</button><button data-inp="midi" id="iMidi">MIDI</button><button data-inp="screen" id="iScreen">Bildschirm</button></div>
+    </div>
+    <div class="fbline"><span class="say" id="pSay"></span><span class="heard" id="pHeard"></span></div>
+    <div class="pgrid">
+      <div class="card tip" id="tipCard"></div>
+      <div class="card inp" id="inpCard"></div>
+    </div>
+  </section>
+
+  <!-- FREIES SPIEL -->
+  <section class="view" id="v-free" hidden>
+    <div class="free">
+      <div class="card fdisp">
+        <span class="lbl">Freies Spiel · Tonerkennung testen</span>
+        <div class="fnote" id="fNote">–</div>
+        <div class="fsrc" id="fSrc">Spiel eine Taste auf deinem Klavier oder hier unten.</div>
+        <div class="hist" id="fHist" aria-label="Zuletzt gespielte Töne"></div>
+      </div>
+      <div class="card fside">
+        <h3>Wozu das gut ist</h3>
+        <p>Hier prüfst du, ob die App dein Klavier richtig hört. Schalte das Mikrofon ein und spiele einzelne Töne: Der Name erscheint groß, die Taste leuchtet auf.</p>
+        <p>Erkennt die App zu wenig, erhöhe unter „Fortschritt“ die Empfindlichkeit oder rück näher ans Instrument. Ein MIDI-Keyboard wird ohne Einstellungen erkannt.</p>
+        <div class="row" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" id="fMic">🎤 Mikrofon einschalten</button><button class="btn" id="fMidi">MIDI verbinden</button></div>
+      </div>
+    </div>
+    <div class="fkbwrap"><canvas id="fkb" aria-label="Klaviatur zum Ausprobieren"></canvas></div>
+  </section>
+
+  <!-- FORTSCHRITT -->
+  <section class="view" id="v-stats" hidden>
+    <div class="tiles" id="tiles"></div>
+    <div class="card">
+      <div class="chhead"><h3>Übungszeit</h3><span>letzte 14 Tage, in Minuten</span></div>
+      <svg id="chart" viewBox="0 0 700 200" role="img" aria-label="Übungsminuten der letzten 14 Tage"></svg>
+    </div>
+    <div class="card">
+      <div class="chhead"><h3>Lektionen</h3></div>
+      <div class="tblwrap"><table id="lessonTbl"></table></div>
+    </div>
+    <div class="card">
+      <div class="chhead"><h3>Einstellungen</h3></div>
+      <div class="setgrid">
+        <div class="field">
+          <label class="lbl" for="sensR">Mikrofon-Empfindlichkeit <span class="mono" id="sensV"></span></label>
+          <input type="range" id="sensR" min="1" max="5" step="1">
+          <small>Höher, wenn leise Töne nicht erkannt werden. Niedriger, wenn Nebengeräusche als Töne zählen.</small>
+        </div>
+        <div class="field">
+          <label class="lbl" for="latR">Verzögerungsausgleich Mikrofon <span class="mono" id="latV"></span></label>
+          <input type="range" id="latR" min="0" max="300" step="10">
+          <small>Gleicht die Zeit aus, bis dein Ton beim Gerät ankommt. Kommen Treffer oft zu spät an, erhöhe den Wert.</small>
+        </div>
+        <div class="field">
+          <span class="lbl">Klaviatur</span>
+          <label class="check"><input type="checkbox" id="cNames"> Notennamen auf den Tasten</label>
+          <label class="check"><input type="checkbox" id="cKeys"> Computertasten anzeigen</label>
+        </div>
+        <div class="field">
+          <span class="lbl">Fortschritt</span>
+          <div class="danger" id="resetBox"><button class="btn" id="resetBtn">Fortschritt löschen</button></div>
+          <small>Dein Fortschritt wird in diesem Browser gespeichert.</small>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <p class="foot">Alle Übungen sind für Tastenlauf geschrieben, die Melodien sind gemeinfreie Volkslieder und Klassik. Die Tonerkennung läuft komplett in deinem Browser, es wird nichts aufgenommen oder gesendet.</p>
+</div>
+
+<script>
+const IOS=/iP(ad|hone|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const IN_CLAUDE=/claude\.ai$|claudeusercontent\.com$/.test(location.hostname)||window.top!==window.self;
+(function(){
+'use strict';
+const $=id=>document.getElementById(id);
+const NN=['C','Cis','D','Dis','E','F','Fis','G','Gis','A','B','H'];
+const pc=m=>((m%12)+12)%12;
+const nn=m=>NN[pc(m)];
+const nno=m=>nn(m)+(Math.floor(m/12)-1);
+const isBlack=m=>[1,3,6,8,10].includes(pc(m));
+const HC={R:'#f2b544',L:'#62c9d9'};
+const HNAME={R:'rechte Hand',L:'linke Hand'};
+const LS='tastenlauf.v1';
+const reduceMotion=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+const coarse=window.matchMedia&&matchMedia('(pointer: coarse)').matches;
+
+/* ================= Speicher ================= */
+const DEF_S={tempo:1,mode:'play',metro:true,latency:90,sens:3,unlockAll:false,input:'screen',hands:'both',names:true,keys:!coarse};
+let P={lessons:{},xp:0,days:{},S:Object.assign({},DEF_S)};
+try{const d=JSON.parse(localStorage.getItem(LS)||'null');if(d){P=Object.assign(P,d);P.S=Object.assign({},DEF_S,d.S||{})}}catch(e){}
+const S=P.S;
+function save(){try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}}
+function todayKey(d){d=d||new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+
+/* ================= Lektionen =================
+   Schreibweise: Ton+Oktave (C4 = mittleres C, H = deutsches H, # = erhöht), /Dauer in Schlägen,
+   Töne mit + verbunden klingen gleichzeitig, - ist eine Pause. r = rechte Hand, l = linke Hand. */
+const CHAPTERS=[
+ {t:'Rechte Hand',s:'Fünf Finger auf den weißen Tasten',L:[
+  {id:'r1',t:'Daumen auf dem C',bpm:60,r:'C4 D4 E4/2 E4 D4 C4/2 C4 D4 E4 D4 C4/4',
+   tip:'Lege den rechten Daumen auf das mittlere C (C4): die weiße Taste direkt links neben den zwei schwarzen Tasten in der Mitte. Zeigefinger auf D, Mittelfinger auf E. Halte die Finger rund, als lägen sie auf einem kleinen Ball.'},
+  {id:'r2',t:'Fünf Finger, fünf Töne',bpm:66,r:'C4 D4 E4 F4 G4/2 -/2 G4 F4 E4 D4 C4/2 -/2 C4 E4 D4 F4 E4 G4/2 -/2 G4 E4 F4 D4 E4 C4/2',
+   tip:'Jeder Finger bekommt eine Taste: Daumen C, Zeigefinger D, Mittelfinger E, Ringfinger F, kleiner Finger G. Die Hand bleibt dabei ruhig liegen.'},
+  {id:'r3',t:'Kleine Sprünge',bpm:70,r:'C4 E4 G4/2 G4 E4 C4/2 D4 F4 E4 G4 F4/2 D4/2 C4 E4 D4 F4 E4 G4/2 C4/4',
+   tip:'Jetzt wird eine Taste übersprungen. Die Finger bleiben trotzdem auf ihren Plätzen, nur der passende Finger drückt.'},
+  {id:'r4',t:'Halbe und ganze Noten',bpm:72,r:'C4/2 D4/2 E4/4 G4/2 F4/2 E4/4 D4 D4 E4 F4 E4/2 D4/2 C4/4',
+   tip:'Lange Balken heißen: Taste gedrückt halten. Zähle leise mit, eine Halbe dauert zwei Schläge, eine Ganze vier.'},
+  {id:'r5',t:'Die C-Dur-Tonleiter',bpm:66,r:'C4 D4 E4 F4 G4 A4 H4 C5/2 -/2 C5 H4 A4 G4 F4 E4 D4 C4/4',
+   tip:'Fingersatz 1 2 3, dann schlüpft der Daumen unter dem Mittelfinger hindurch auf das F: 1 2 3 4 5. Abwärts kreuzt der Mittelfinger über den Daumen.'}
+ ]},
+ {t:'Linke Hand',s:'Der Bass kommt dazu',L:[
+  {id:'h1',t:'Kleiner Finger auf dem C',bpm:60,l:'C3 D3 E3/2 E3 D3 C3/2 C3 D3 E3 D3 C3/4',
+   tip:'Die linke Hand spielt eine Oktave tiefer, auf C3. Hier liegt der kleine Finger (5) auf dem C, der Ringfinger auf D, der Mittelfinger auf E.'},
+  {id:'h2',t:'Fünf Töne links',bpm:64,l:'C3 D3 E3 F3 G3/2 -/2 G3 F3 E3 D3 C3/2 -/2 G3 E3 F3 D3 E3 C3/2 -/2 C3/4',
+   tip:'Bei der linken Hand ist alles gespiegelt: der kleine Finger auf C, der Daumen auf G. Achte darauf, dass auch der vierte Finger kräftig drückt.'},
+  {id:'h3',t:'Grundton und Quinte',bpm:70,l:'C3/2 G3/2 C3/2 G3/2 C3 E3 G3/2 G3 E3 C3/2 C3/2 G3/2 C3/4',
+   tip:'C und G, kleiner Finger und Daumen. Diese beiden Töne sind das Fundament vieler Begleitungen.'},
+  {id:'h4',t:'Entchen in der linken Hand',bpm:84,tag:'Volkslied',l:'C3 D3 E3 F3 G3/2 G3/2 A3 A3 A3 A3 G3/4 A3 A3 A3 A3 G3/4 F3 F3 F3 F3 E3/2 E3/2 D3 D3 D3 D3 C3/4',
+   tip:'Ein bekanntes Lied, diesmal links. Für das A rutscht die Hand kurz eine Taste nach rechts, der Daumen spielt es.'}
+ ]},
+ {t:'Beide Hände',s:'Rechts und links zusammen',L:[
+  {id:'b1',t:'Frage und Antwort',bpm:66,r:'C4 D4 E4 F4 G4/4 -/8 G4 F4 E4 D4 C4/4 -/8',l:'-/8 C3 D3 E3 F3 G3/4 -/8 G3 F3 E3 D3 C3/4',
+   tip:'Die Hände wechseln sich ab: erst rechts, dann links. Lege beide Hände schon vor dem Start auf ihre Plätze.'},
+  {id:'b2',t:'Beide Hände gleich',bpm:58,r:'C4 D4 E4 F4 G4/2 -/2 G4 F4 E4 D4 C4/4',l:'C3 D3 E3 F3 G3/2 -/2 G3 F3 E3 D3 C3/4',
+   tip:'Beide Hände spielen dieselben Töne, eine Oktave auseinander. Rechts beginnt der Daumen, links der kleine Finger.'},
+  {id:'b3',t:'Gegenbewegung',bpm:58,r:'C4 D4 E4 F4 G4/2 -/2 G4 F4 E4 D4 C4/4',l:'G3 F3 E3 D3 C3/2 -/2 C3 D3 E3 F3 G3/4',
+   tip:'Die Hände bewegen sich voneinander weg und wieder zurück. Beide Daumen starten nah beieinander, auf G3 und C4.'},
+  {id:'b4',t:'Melodie mit Bass',bpm:72,tag:'Tastenlauf-Stück',r:'C4 E4 G4/2 F4 D4 G4/2 E4 C4 F4 D4 C4/4',l:'C3/4 G3/4 C3/2 G3/2 C3/4',
+   tip:'Die linke Hand hält lange Töne, während die rechte weiterspielt. Übe erst jede Hand allein (oben bei „Hände“), dann beide zusammen.'}
+ ]},
+ {t:'Akkorde',s:'Drei Töne auf einmal',L:[
+  {id:'k1',t:'Der C-Dur-Dreiklang',bpm:60,r:'C4 E4 G4/2 C4+E4+G4/2 C4+E4+G4/4 C4 E4 G4/2 C4+E4+G4/4',
+   tip:'Daumen, Mittelfinger und kleiner Finger auf C, E und G. Erst einzeln, dann alle drei gleichzeitig. Drücke die Tasten genau zusammen.'},
+  {id:'k2',t:'C und F',bpm:60,r:'C4+E4+G4/4 C4+F4+A4/4 C4+E4+G4/4 C4+F4+A4/4 C4+E4+G4/4',
+   tip:'Für F-Dur bleibt der Daumen auf dem C liegen. Mittelfinger und kleiner Finger rutschen einen Schritt nach oben auf F und A.'},
+  {id:'k3',t:'C, F und G',bpm:60,r:'C4+E4+G4/4 C4+F4+A4/4 H3+D4+G4/4 C4+E4+G4/4 C4+F4+A4/2 H3+D4+G4/2 C4+E4+G4/4',
+   tip:'Für G-Dur bleibt der kleine Finger auf G, der Daumen geht auf H, der Zeigefinger auf D. Mit diesen drei Akkorden begleitest du sehr viele Lieder.'},
+  {id:'k4',t:'A-Moll dazu',bpm:64,r:'C4+E4+G4/4 A3+C4+E4/4 C4+F4+A4/4 H3+D4+G4/4 C4+E4+G4/4',
+   tip:'A-Moll klingt weicher. Von C-Dur aus wandert nur der kleine Finger: Statt G greift jetzt der Daumen das A unterhalb.'},
+  {id:'k5',t:'Gebrochene Akkorde',bpm:72,r:'C4 E4 G4 E4 C4 F4 A4 F4 H3 D4 G4 D4 C4+E4+G4/4',l:'C3/4 F3/4 G3/4 C3/4',
+   tip:'Rechts werden die Akkorde Ton für Ton gespielt, links liegt der Grundton darunter. So klingt eine einfache Liedbegleitung.'}
+ ]},
+ {t:'Melodien',s:'Volkslieder und Klassik',L:[
+  {id:'m1',t:'Alle meine Entchen',bpm:92,tag:'Volkslied',r:'C4 D4 E4 F4 G4/2 G4/2 A4 A4 A4 A4 G4/4 A4 A4 A4 A4 G4/4 F4 F4 F4 F4 E4/2 E4/2 D4 D4 D4 D4 C4/4',
+   tip:'Fünffingerlage auf C, nur für das A streckt sich der kleine Finger eine Taste weiter. Gleiche Töne hintereinander jedes Mal neu anschlagen.'},
+  {id:'m2',t:'Hänschen klein',bpm:96,tag:'Volkslied',r:'G4 E4 E4/2 F4 D4 D4/2 C4 D4 E4 F4 G4 G4 G4/2 G4 E4 E4/2 F4 D4 D4/2 C4 E4 G4 G4 C4/4 D4 D4 D4 D4 D4 E4 F4/2 E4 E4 E4 E4 E4 F4 G4/2 G4 E4 E4/2 F4 D4 D4/2 C4 E4 G4 G4 C4/4',
+   tip:'Das Lied beginnt oben mit dem kleinen Finger auf G. Die Hand bleibt die ganze Zeit in der Fünffingerlage.'},
+  {id:'m3',t:'Bruder Jakob',bpm:96,tag:'Volkslied',r:'C4 D4 E4 C4 C4 D4 E4 C4 E4 F4 G4/2 E4 F4 G4/2 G4/0.5 A4/0.5 G4/0.5 F4/0.5 E4 C4 G4/0.5 A4/0.5 G4/0.5 F4/0.5 E4 C4 C4 G3 C4/2 C4 G3 C4/2',
+   tip:'Neu ist das G3 unter dem mittleren C: Dafür springt der Daumen kurz nach links. Die schnellen Töne in der Mitte sind halb so lang.'},
+  {id:'m4',t:'Morgen kommt der Weihnachtsmann',bpm:96,tag:'Volkslied · Mozart',r:'C4 C4 G4 G4 A4 A4 G4/2 F4 F4 E4 E4 D4 D4 C4/2 G4 G4 F4 F4 E4 E4 D4/2 G4 G4 F4 F4 E4 E4 D4/2 C4 C4 G4 G4 A4 A4 G4/2 F4 F4 E4 E4 D4 D4 C4/2',
+   tip:'Die alte französische Melodie, über die Mozart seine berühmten Variationen schrieb. Der Sprung von C nach G am Anfang geht vom Daumen zum kleinen Finger.'},
+  {id:'m5',t:'Ode an die Freude',bpm:100,tag:'Beethoven',r:'E4 E4 F4 G4 G4 F4 E4 D4 C4 C4 D4 E4 E4/1.5 D4/0.5 D4/2 E4 E4 F4 G4 G4 F4 E4 D4 C4 C4 D4 E4 D4/1.5 C4/0.5 C4/2',l:'C3/4 G3/4 C3/4 G3/4 C3/4 G3/4 C3/4 G3/2 C3/2',
+   tip:'Beethovens Melodie mit einem einfachen Bass: links wechseln nur C und G. Übe zuerst die rechte Hand allein, die App spielt die linke dann für dich.'},
+  {id:'m6',t:'Für Elise, Anfang',bpm:116,bar:3,pick:1,tag:'Beethoven · vereinfacht',r:'E5/0.5 D#5/0.5 E5/0.5 D#5/0.5 E5/0.5 H4/0.5 D5/0.5 C5/0.5 A4/1 -/0.5 C4/0.5 E4/0.5 A4/0.5 H4/1 -/0.5 E4/0.5 G#4/0.5 H4/0.5 C5/1 -/0.5 E4/0.5 E5/0.5 D#5/0.5 E5/0.5 D#5/0.5 E5/0.5 H4/0.5 D5/0.5 C5/0.5 A4/1 -/0.5 C4/0.5 E4/0.5 A4/0.5 H4/1 -/0.5 E4/0.5 C5/0.5 H4/0.5 A4/3',
+   tip:'Die ersten Takte nur mit der rechten Hand. Das Dis ist eine schwarze Taste: Wechsle zwischen E und Dis mit Mittel- und Zeigefinger. Spiel es zuerst langsam im Modus „Warten“.'}
+ ]}
+];
+const ALL=[];CHAPTERS.forEach((c,ci)=>c.L.forEach((x,li)=>{x.ch=ci;x.no=(ci+1)+'.'+(li+1);ALL.push(x)}));
+const NB={C:0,D:2,E:4,F:5,G:7,A:9,H:11,B:10};
+function pm(x){const r=x.match(/^([A-H])(#|b)?(-?\d)$/);if(!r)throw new Error('Note '+x);return 12*(+r[3]+1)+NB[r[1]]+(r[2]==='#'?1:r[2]==='b'?-1:0)}
+function parseVoice(str,hand){
+  let beat=0;const out=[];if(!str)return{notes:out,beats:0};
+  str.trim().split(/\s+/).forEach(tok=>{const [a,dS]=tok.split('/');const d=dS?parseFloat(dS):1;
+    if(a!=='-')a.split('+').forEach(x=>out.push({beat,dur:d,midi:pm(x),hand}));beat+=d});
+  return{notes:out,beats:beat};
+}
+function parseLesson(l){
+  const a=parseVoice(l.r,'R'),b=parseVoice(l.l,'L');
+  const notes=a.notes.concat(b.notes).sort((x,y)=>x.beat-y.beat||x.midi-y.midi);
+  return{notes,beats:Math.max(a.beats,b.beats)};
+}
+ALL.forEach(l=>{const p=parseLesson(l);l.count=p.notes.length;l.beats=p.beats;l.hasR=!!l.r;l.hasL=!!l.l;
+  l.lo=Math.min(...p.notes.map(n=>n.midi));l.hi=Math.max(...p.notes.map(n=>n.midi));l.chords=p.notes.some((n,i)=>i&&p.notes[i-1].beat===n.beat&&p.notes[i-1].hand===n.hand)});
+function lessonStars(id){return (P.lessons[id]&&P.lessons[id].stars)||0}
+function isUnlocked(i){return S.unlockAll||i===0||lessonStars(ALL[i-1].id)>=1||lessonStars(ALL[i].id)>0}
+function starsHTML(n){let h='';for(let i=0;i<3;i++)h+=i<n?'★':'<span class="off">★</span>';return `<span class="stars" aria-label="${n} von 3 Sternen">${h}</span>`}
+function handsHTML(l){return `<span class="hands" aria-hidden="true"><i class="${l.hasL?'L':''}"></i><i class="${l.hasR?'R':''}"></i></span>`}
+function handsTxt(l){return l.hasR&&l.hasL?'Beide Hände':l.hasR?'Rechte Hand':'Linke Hand'}
+function handsShort(l){return l.hasR&&l.hasL?'Beide':l.hasR?'Rechts':'Links'}
+function miniRow(l){
+  const p=parseLesson(l).notes;const groups=[];
+  p.forEach(n=>{const g=groups[groups.length-1];if(g&&g.beat===n.beat&&g.hand===n.hand)g.m.push(n.midi);else groups.push({beat:n.beat,hand:n.hand,m:[n.midi]})});
+  return '<div class="minirow" aria-hidden="true">'+groups.slice(0,16).map(g=>`<span class="${g.hand}">${g.m.map(nn).join('+')}</span>`).join('')+(groups.length>16?'<span>…</span>':'')+'</div>';
+}
+
+/* ================= Klang ================= */
+let ac=null,master=null,wave=null;
+function ensureAC(){
+  try{
+    if(!ac){const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;ac=new C();
+      master=ac.createDynamicsCompressor();master.threshold.value=-16;master.ratio.value=4;master.attack.value=.003;master.release.value=.2;
+      const mg=ac.createGain();mg.gain.value=.85;master.connect(mg);mg.connect(ac.destination)}
+    if(ac.state!=='running'&&ac.state!=='closed')ac.resume().catch(()=>{});return ac;
+  }catch(e){return null}
+}
+function getWave(){
+  if(wave!==null)return wave;
+  try{const amps=[0,1,.52,.3,.2,.13,.08,.05,.035,.02,.012],re=new Float32Array(amps.length),im=new Float32Array(amps);wave=ac.createPeriodicWave(re,im)}catch(e){wave=false}
+  return wave;
+}
+function noteOn(midi,vol,when){
+  const c=ensureAC();if(!c)return null;
+  try{
+    const t=Math.max(c.currentTime,when||0),f=440*Math.pow(2,(midi-69)/12),v=(vol||.5)*(midi<48?1.1:1);
+    const g=c.createGain(),flt=c.createBiquadFilter();flt.type='lowpass';
+    flt.frequency.setValueAtTime(Math.min(10000,f*9),t);flt.frequency.setTargetAtTime(Math.min(6000,f*3.2),t+.01,.3);
+    const w=getWave(),os=[0,1].map(k=>{const o=c.createOscillator();if(w)o.setPeriodicWave(w);else o.type='triangle';o.frequency.value=f*(k?1.0018:1);o.connect(flt);return o});
+    const decay=Math.max(.45,1.7-(midi-48)*.035);
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(v*.42,t+.005);g.gain.setTargetAtTime(v*.16,t+.006,.12);g.gain.setTargetAtTime(0,t+.2,decay);
+    flt.connect(g);g.connect(master);
+    os.forEach(o=>{o.start(t);o.stop(t+.2+decay*5)});
+    return{g,os,t};
+  }catch(e){return null}
+}
+function noteOff(h,when){
+  if(!h||!ac)return;
+  try{const t=Math.max(ac.currentTime,when||0,h.t+.04);h.g.gain.setTargetAtTime(0,t,.07);h.os.forEach(o=>{try{o.stop(t+.6)}catch(e){}})}catch(e){}
+}
+function playNote(midi,dur,when,vol){const h=noteOn(midi,vol,when);if(h)noteOff(h,(when||ac.currentTime)+Math.max(.15,dur))}
+let lastClick=0;
+function click(strong){
+  const c=ensureAC();if(!c)return;lastClick=performance.now();
+  try{const o=c.createOscillator(),g=c.createGain(),t=c.currentTime;o.frequency.value=strong?1650:1100;g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(strong?.3:.18,t+.002);g.gain.exponentialRampToValueAtTime(.0001,t+.05);o.connect(g);g.connect(master);o.start(t);o.stop(t+.06)}catch(e){}
+}
+
+/* ================= Eingaben: gedrückte Tasten ================= */
+const noteListeners=[];
+const down=new Map();   // midi -> {src,h}
+const flash={};         // midi -> Zeitpunkt (Treffer)
+let heard={m:null,t:0}; // vom Mikrofon gehört
+function keyDown(m,src){
+  if(m<21||m>108)return;
+  if(down.has(m)){const d=down.get(m);noteOff(d.h)}
+  let h=null;if(src!=='midi')h=noteOn(m,.55);
+  down.set(m,{src,h});
+  noteListeners.forEach(fn=>fn(m,src));
+}
+function keyUp(m){const d=down.get(m);if(!d)return;noteOff(d.h);down.delete(m)}
+function releaseAll(){[...down.keys()].forEach(keyUp)}
+window.addEventListener('blur',releaseAll);
+
+/* ---------- MIDI ---------- */
+const midiIn={state:'off',access:null,names:[]};
+async function startMidi(){
+  if(midiIn.state==='on')return true;
+  if(!navigator.requestMIDIAccess){setMidiState('unsupported');return false}
+  setMidiState('starting');
+  try{const acc=await navigator.requestMIDIAccess({sysex:false});midiIn.access=acc;acc.onstatechange=bindMidi;bindMidi();return midiIn.state==='on'}
+  catch(e){setMidiState('denied');return false}
+}
+function bindMidi(){
+  const names=[];midiIn.access.inputs.forEach(inp=>{inp.onmidimessage=onMidiMsg;names.push(inp.name||'MIDI-Gerät')});
+  midiIn.names=names;setMidiState(names.length?'on':'none');
+}
+function onMidiMsg(e){
+  const d=e.data;if(!d||d.length<2)return;const cmd=d[0]&0xf0;
+  if(cmd===0x90&&d[2]>0){ensureAC();keyDown(d[1],'midi')}
+  else if(cmd===0x80||(cmd===0x90&&d[2]===0))keyUp(d[1]);
+}
+function setMidiState(s){
+  midiIn.state=s;const b=$('midiBtn');b.dataset.state=s;
+  $('midiTxt').textContent={off:'MIDI aus',starting:'MIDI startet …',on:midiIn.names[0]?shortName(midiIn.names[0]):'MIDI an',none:'Kein MIDI-Gerät',denied:'MIDI gesperrt',unsupported:'Kein MIDI'}[s];
+  const nt=$('midiNotice');
+  if(s==='unsupported'||s==='denied'){nt.hidden=false;$('midiNoticeH').textContent='MIDI ist hier nicht verfügbar.';
+    $('midiNoticeTxt').textContent=s==='unsupported'?(IOS?'Auf iPad und iPhone kann kein Browser MIDI-Keyboards lesen, auch Chrome nicht, weil Apple Web-MIDI nicht freigibt. Nutze hier das Mikrofon (dein Klavier spielt, die App hört zu) oder die Bildschirm-Klaviatur.':'Dein Browser unterstützt kein Web-MIDI. Chrome, Edge und Opera können es, Firefox fragt nach einer Erlaubnis, Safari kann es nicht. In der Claude-Ansicht ist MIDI gesperrt: Öffne dafür tastenlauf.html direkt im Browser.'):'Der Zugriff auf MIDI wurde verweigert. Öffne tastenlauf.html direkt in Chrome oder Edge und erlaube MIDI, wenn der Browser fragt.'}
+  else if(s==='none'){nt.hidden=false;$('midiNoticeH').textContent='Kein MIDI-Keyboard gefunden.';$('midiNoticeTxt').textContent='Verbinde dein Keyboard per USB-Kabel und schalte es ein. Es wird dann automatisch erkannt.'}
+  else nt.hidden=true;
+  if(s==='on'&&S.input!=='midi'){S.input='midi';save()}
+  if(s!=='on'&&S.input==='midi'&&s!=='starting'&&s!=='off'){S.input='screen';save()}
+  renderInputSeg();renderInpCard();
+}
+function shortName(n){return n.length>18?n.slice(0,17)+'…':n}
+
+/* ---------- Mikrofon & Tonerkennung ---------- */
+const mic={state:'off',stream:null,an:null,anF:null,buf:null,fbuf:null,rms:0,rmsSlow:0,f:null,midiF:null,
+  candM:null,candN:0,lastEmit:null,onset:false,silence:0,lastT:0,chroma:null,chromaFrame:-1};
+const GATES=[0,.03,.018,.011,.007,.0045];
+async function startMic(){
+  if(mic.state==='on')return true;
+  const c=ensureAC();
+  if(!c||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){setMicState('unsupported');return false}
+  setMicState('starting');
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+    mic.stream=stream;
+    stream.getAudioTracks().forEach(t=>t.addEventListener('ended',()=>{if(mic.stream===stream)stopMic()}));
+    if(c.state!=='running')c.resume().catch(()=>{});
+    const src=c.createMediaStreamSource(stream);
+    mic.an=c.createAnalyser();mic.an.fftSize=2048;
+    mic.anF=c.createAnalyser();mic.anF.fftSize=8192;mic.anF.smoothingTimeConstant=.35;
+    const sink=c.createGain();sink.gain.value=0;
+    src.connect(mic.an);src.connect(mic.anF);mic.an.connect(sink);mic.anF.connect(sink);sink.connect(c.destination);
+    mic.buf=new Float32Array(mic.an.fftSize);mic.fbuf=new Float32Array(mic.anF.frequencyBinCount);
+    setMicState('on');return true;
+  }catch(e){mic.err=e&&e.name||'';setMicState(e&&e.name==='NotFoundError'?'unsupported':'denied');return false}
+}
+function stopMic(){try{mic.stream&&mic.stream.getTracks().forEach(t=>t.stop())}catch(e){}mic.stream=null;mic.an=null;mic.anF=null;mic.f=null;mic.midiF=null;setMicState('off')}
+function setMicState(s){
+  mic.state=s;$('micBtn').dataset.state=s;
+  $('micTxt').textContent={off:'Mikrofon aus',starting:'Mikrofon startet …',on:'Mikrofon an',denied:'Mikrofon gesperrt',unsupported:'Kein Mikrofon'}[s];
+  $('micNotice').hidden=!(s==='denied'||s==='unsupported');if(s==='denied'||s==='unsupported')$('micNoticeTxt').innerHTML=micHelp(s);
+  if(s==='on'&&S.input!=='mic'){S.input='mic';save()}
+  if(s!=='on'&&s!=='starting'&&S.input==='mic'){S.input=midiIn.state==='on'?'midi':'screen';save()}
+  renderInputSeg();renderInpCard();
+  $('fMic').textContent=s==='on'?'Mikrofon ausschalten':'🎤 Mikrofon einschalten';
+}
+const yd=new Float32Array(1200);
+function yin(b,sr){
+  const W=1024,maxT=Math.min(Math.floor(sr/55),b.length-W-1,1199),minT=Math.floor(sr/1600);
+  yd[0]=1;let run=0;
+  for(let t=1;t<=maxT;t++){let s=0;for(let i=0;i<W;i++){const x=b[i]-b[i+t];s+=x*x}run+=s;yd[t]=run>0?s*t/run:1}
+  let tau=-1;
+  for(let t=minT;t<=maxT;t++){if(yd[t]<.14){while(t+1<=maxT&&yd[t+1]<yd[t])t++;tau=t;break}}
+  if(tau<0){let m=1,mt=-1;for(let t=minT;t<=maxT;t++)if(yd[t]<m){m=yd[t];mt=t}if(m<.3)tau=mt;else return null}
+  const x0=yd[tau-1],x1=yd[tau],x2=tau+1<=maxT?yd[tau+1]:x1,den=x0+x2-2*x1,sh=den?.5*(x0-x2)/den:0;
+  return {f:sr/(tau+sh),conf:1-x1};
+}
+let frameNo=0;
+function micFrame(now){
+  if(mic.state!=='on'||!mic.an)return;
+  if(now-mic.lastT<22)return;const dt=mic.lastT?Math.min(100,now-mic.lastT):22;mic.lastT=now;frameNo++;
+  mic.an.getFloatTimeDomainData(mic.buf);
+  let s=0;for(let i=0;i<mic.buf.length;i++)s+=mic.buf[i]*mic.buf[i];
+  const rms=Math.sqrt(s/mic.buf.length);mic.rms=rms;
+  $('micLvl').style.width=Math.min(100,Math.sqrt(rms)*260)+'%';
+  const gate=GATES[S.sens]||.011;
+  if(rms>gate*1.3&&rms>mic.rmsSlow*1.6){mic.onset=true;mic.candN=0}
+  mic.rmsSlow=mic.rmsSlow*.8+rms*.2;
+  if(rms<gate){mic.silence+=dt;mic.f=null;mic.midiF=null;mic.candN=0;if(mic.silence>140)mic.lastEmit=null;return}
+  mic.silence=0;
+  if(now-lastClick<90)return; // Metronom-Klick nicht als Ton werten
+  const r=yin(mic.buf,ac.sampleRate);
+  if(!r||r.f<60||r.f>1500){mic.f=null;mic.midiF=null;return}
+  mic.f=r.f;mic.midiF=69+12*Math.log2(r.f/440);
+  const m=Math.round(mic.midiF);
+  if(m===mic.candM)mic.candN++;else{mic.candM=m;mic.candN=1}
+  if(mic.candN===2&&(m!==mic.lastEmit||mic.onset)){
+    mic.lastEmit=m;mic.onset=false;heard={m,t:performance.now()};
+    noteListeners.forEach(fn=>fn(m,'mic'));
+  }
+}
+function chroma(){
+  if(!mic.anF)return null;
+  if(mic.chromaFrame===frameNo&&mic.chroma)return mic.chroma;
+  mic.anF.getFloatFrequencyData(mic.fbuf);
+  const sr=ac.sampleRate,n=mic.anF.fftSize,c=new Float32Array(12),fb=mic.fbuf;
+  const k0=Math.ceil(70*n/sr),k1=Math.floor(1400*n/sr);
+  for(let k=k0;k<=k1;k++){const db=fb[k];if(db<-85||db<fb[k-1]||db<fb[k+1])continue;
+    const m=69+12*Math.log2(k*sr/n/440);c[pc(Math.round(m))]+=Math.pow(10,db/20)}
+  let nrm=0;for(let i=0;i<12;i++)nrm+=c[i]*c[i];nrm=Math.sqrt(nrm)||1;for(let i=0;i<12;i++)c[i]/=nrm;
+  mic.chroma=c;mic.chromaFrame=frameNo;return c;
+}
+function chromaGroup(g){
+  if(mic.state!=='on'||S.input!=='mic'||mic.rms<(GATES[S.sens]||.011))return false;
+  const c=chroma();if(!c)return false;
+  const t=new Float32Array(12);g.forEach(n=>{const p=pc(n.midi);t[p]+=1;t[(p+7)%12]+=.25;t[(p+4)%12]+=.1});
+  let nr=0;for(let i=0;i<12;i++)nr+=t[i]*t[i];nr=Math.sqrt(nr);let sim=0;for(let i=0;i<12;i++)sim+=c[i]*t[i]/nr;
+  if(sim<.68)return false;
+  return g.filter(n=>n.state===0&&!n.auto).every(n=>c[pc(n.midi)]>=.25);
+}
+
+/* ================= Klaviatur zeichnen ================= */
+const KEYMAP={KeyA:0,KeyW:1,KeyS:2,KeyE:3,KeyD:4,KeyF:5,KeyT:6,KeyG:7,KeyY:8,KeyH:9,KeyU:10,KeyJ:11,KeyK:12,KeyO:13,KeyL:14,KeyP:15,Semicolon:16,Quote:17,
+  KeyZ:-12,KeyX:-10,KeyC:-8,KeyV:-7,KeyB:-5,KeyN:-3,KeyM:-1};
+const KEYLBL={KeyA:'A',KeyW:'W',KeyS:'S',KeyE:'E',KeyD:'D',KeyF:'F',KeyT:'T',KeyG:'G',KeyY:'Z',KeyH:'H',KeyU:'U',KeyJ:'J',KeyK:'K',KeyO:'O',KeyL:'L',KeyP:'P',Semicolon:'Ö',Quote:'Ä',
+  KeyZ:'Y',KeyX:'X',KeyC:'C',KeyV:'V',KeyB:'B',KeyN:'N',KeyM:'M'};
+const KBASE=60;const LBL_OF={};Object.keys(KEYMAP).forEach(k=>LBL_OF[KBASE+KEYMAP[k]]=KEYLBL[k]);
+function rangeFor(lo,hi,W,upFirst){
+  while(isBlack(lo))lo--;while(isBlack(hi))hi++;
+  const whites=()=>{let n=0;for(let m=lo;m<=hi;m++)if(!isBlack(m))n++;return n};
+  const want=Math.min(36,Math.max(W<480?9:W<760?12:15,whites()));let k=0;
+  while(whites()<want&&k<80){if((k%2===(upFirst?1:0))&&lo>36){lo--;while(isBlack(lo))lo--}else{hi++;while(isBlack(hi))hi++}k++}
+  return{lo,hi};
+}
+function kbLayout(lo,hi,W){
+  const whites=[];for(let m=lo;m<=hi;m++)if(!isBlack(m))whites.push(m);
+  const ww=W/whites.length,bw=ww*.6,pos={};
+  whites.forEach((m,i)=>pos[m]={x:i*ww,w:ww,black:false});
+  for(let m=lo;m<=hi;m++)if(isBlack(m)&&pos[m-1])pos[m]={x:pos[m-1].x+ww-bw/2,w:bw,black:true};
+  return{lo,hi,whites,ww,bw,pos};
+}
+function rrc(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath()}
+function mix(hex,a){const n=parseInt(hex.slice(1),16);return `rgba(${n>>16},${(n>>8)&255},${n&255},${a})`}
+// tint(m) -> {c:farbe, a:stärke} oder null
+function drawKeys(c,L,y,h,tint){
+  const bh=h*.62,now=performance.now();
+  c.fillStyle='#0b0e16';c.fillRect(0,y,L.whites.length*L.ww,h);
+  for(const m of L.whites){const p=L.pos[m];
+    rrc(c,p.x+1,y,p.w-2,h-2,Math.min(6,p.w*.15));c.fillStyle='#f3f4f7';c.fill();
+    const t=tint(m);if(t){c.fillStyle=mix(t.c,t.a);c.fill()}
+    // Schatten oben
+    c.fillStyle='rgba(0,0,0,.18)';c.fillRect(p.x+1,y,p.w-2,4);
+    const fs=Math.max(9,Math.min(13,p.w*.36));
+    if(S.names||pc(m)===0){c.font=(pc(m)===0?'700 ':'600 ')+fs+'px Inter,system-ui,sans-serif';c.textAlign='center';c.textBaseline='alphabetic';c.fillStyle=pc(m)===0?'#2a3144':'#7a8296';c.fillText(pc(m)===0?nno(m):nn(m),p.x+p.w/2,y+h-9)}
+    if(S.keys&&LBL_OF[m]&&p.w>=18){c.font='700 '+Math.max(9,Math.min(12,p.w*.32))+'px "JetBrains Mono",monospace';c.fillStyle='#a3abbd';c.textAlign='center';c.fillText(LBL_OF[m],p.x+p.w/2,y+bh+fs+4)}
+  }
+  for(let m=L.lo;m<=L.hi;m++){if(!isBlack(m))continue;const p=L.pos[m];if(!p)continue;
+    rrc(c,p.x,y-1,p.w,bh,Math.min(4,p.w*.15));const g=c.createLinearGradient(0,y,0,y+bh);g.addColorStop(0,'#1c2232');g.addColorStop(1,'#2d3448');c.fillStyle=g;c.fill();
+    const t=tint(m);if(t){c.fillStyle=mix(t.c,Math.min(1,t.a+.15));c.fill()}
+    if(S.keys&&LBL_OF[m]&&p.w>=12){c.font='700 '+Math.max(8,Math.min(11,p.w*.42))+'px "JetBrains Mono",monospace';c.fillStyle='rgba(255,255,255,.55)';c.textAlign='center';c.fillText(LBL_OF[m],p.x+p.w/2,y+bh-8)}
+  }
+}
+function keyAt(L,x,yRel,h){
+  if(yRel<h*.62){for(let m=L.lo;m<=L.hi;m++){if(!isBlack(m))continue;const p=L.pos[m];if(p&&x>=p.x&&x<=p.x+p.w)return m}}
+  for(const m of L.whites){const p=L.pos[m];if(x>=p.x&&x<p.x+p.w)return m}
+  return null;
+}
+function baseTint(m,now){
+  if(flash[m]&&now-flash[m]<260)return{c:'#5fe39a',a:.85};
+  if(down.has(m))return{c:'#8fa3cf',a:.75};
+  if(heard.m===m&&now-heard.t<300)return{c:'#8fa3cf',a:.6};
+  return null;
+}
+
+/* ================= Navigation ================= */
+let view='path';
+function show(v){
+  view=v;['path','play','free','stats'].forEach(x=>$('v-'+x).hidden=x!==v);
+  document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.view===v||(v==='play'&&b.dataset.view==='path'))));
+  if(v!=='play'&&G&&G.running)pauseGame();
+  releaseAll();
+  if(v==='path')renderPath();
+  if(v==='stats')renderStats();
+  if(v==='play')requestAnimationFrame(resizeStage);
+  if(v==='free')requestAnimationFrame(resizeFree);
+  try{window.scrollTo({top:0})}catch(e){}
+}
+document.querySelector('.tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(b)show(b.dataset.view)});
+$('micBtn').onclick=()=>{ensureAC();if(mic.state==='on')stopMic();else startMic()};
+$('midiBtn').onclick=()=>{ensureAC();startMidi()};
+
+/* ================= Lernpfad ================= */
+function nextLesson(){for(let i=0;i<ALL.length;i++)if(isUnlocked(i)&&lessonStars(ALL[i].id)<1)return i;let lo=0;for(let i=0;i<ALL.length;i++)if(lessonStars(ALL[i].id)<lessonStars(ALL[lo].id))lo=i;return lo}
+function level(){const xp=P.xp;let lv=1;while(xp>=lvXP(lv+1))lv++;return lv}
+function lvXP(lv){return 150*(lv-1)*lv/2}
+function dayStreak(){let n=0;const d=new Date();if(!((P.days[todayKey(d)]||0)>=30))d.setDate(d.getDate()-1);while((P.days[todayKey(d)]||0)>=30){n++;d.setDate(d.getDate()-1)}return n}
+function renderPath(){
+  const ni=nextLesson(),l=ALL[ni],st=lessonStars(l.id);
+  $('nextCard').innerHTML=`<span class="lbl">${st?'Noch einmal üben':'Als Nächstes'} · Kapitel ${l.ch+1}: ${CHAPTERS[l.ch].t}</span>
+    <h2>${l.t}</h2><p>${l.tip}</p>${miniRow(l)}
+    <div class="row"><button class="btn primary" data-go="${ni}">▶ Lektion starten</button><button class="btn" id="goFree">Erst ausprobieren</button></div>`;
+  $('goFree').onclick=()=>show('free');
+  const lv=level(),a=lvXP(lv),b=lvXP(lv+1),tot=ALL.reduce((s,x)=>s+lessonStars(x.id),0);
+  const mins=Math.round(Object.values(P.days).reduce((s,x)=>s+x,0)/60);
+  $('myStats').innerHTML=`<div><span class="lbl">Stufe</span><b>${lv}</b></div><div><span class="lbl">Sterne</span><b>${tot}<small style="font-size:14px;color:var(--muted)"> / ${ALL.length*3}</small></b></div>
+    <div class="xpbar" title="${P.xp-a} von ${b-a} Punkten bis Stufe ${lv+1}"><i style="width:${Math.round((P.xp-a)/(b-a)*100)}%"></i></div>
+    <div><span class="lbl">Tage in Folge</span><b>${dayStreak()}</b></div><div><span class="lbl">Minuten geübt</span><b>${mins}</b></div>`;
+  let h='';
+  CHAPTERS.forEach((c,ci)=>{
+    const got=c.L.reduce((s,x)=>s+lessonStars(x.id),0);
+    h+=`<section class="chapter"><div class="chhead"><h3>${ci+1}. ${c.t}</h3><span>${c.s}</span><span class="cnt">${got} / ${c.L.length*3} ★</span></div><div class="lessons">`;
+    c.L.forEach(x=>{const i=ALL.indexOf(x),u=isUnlocked(i),s=lessonStars(x.id);
+      h+=`<button class="lesson${s?' done':''}" data-go="${i}" ${u?'':'disabled'}><span class="n">${x.no}${x.tag?` · <span class="tag">${x.tag}</span>`:''}</span><b>${x.t}</b>
+      <span class="meta"><span>${u?handsHTML(x)+' '+handsShort(x)+' · '+x.bpm+' BPM':'🔒 Gesperrt'}</span>${starsHTML(s)}</span></button>`});
+    h+=`</div></section>`;
+  });
+  $('chapters').innerHTML=h;
+  $('cUnlock').checked=S.unlockAll;
+}
+$('v-path').addEventListener('click',e=>{const b=e.target.closest('[data-go]');if(b&&!b.disabled)openLesson(+b.dataset.go)});
+$('cUnlock').onchange=e=>{S.unlockAll=e.target.checked;save();renderPath()};
+
+/* ================= Spieler ================= */
+let G=null;
+const cv=$('stage'),cx=cv.getContext('2d');let CW=800,CH=400,DPR=1;
+function resizeStage(){const r=cv.getBoundingClientRect();if(!r.width)return;DPR=Math.min(2,window.devicePixelRatio||1);CW=r.width;CH=r.height;cv.width=Math.round(CW*DPR);cv.height=Math.round(CH*DPR);
+  if(G){const rg=rangeFor(G.l.lo,G.l.hi,CW,G.l.hasR);G.L=kbLayout(rg.lo,rg.hi,CW)}drawStage()}
+window.addEventListener('resize',()=>{if(view==='play')resizeStage();if(view==='free')resizeFree()});
+
+function openLesson(i){
+  const l=ALL[i];G={li:i,l,running:false,paused:false,done:false,L:null};
+  $('pTitle').textContent=l.t;
+  $('pSub').textContent=`Lektion ${l.no} · ${CHAPTERS[l.ch].t}${CHAPTERS[l.ch].t===handsTxt(l)?'':' · '+handsTxt(l)} · ${l.bpm} BPM${l.tag?' · '+l.tag:''}`;
+  $('tipCard').innerHTML=`<h3>Tipp</h3><p>${l.tip}</p>`;
+  $('handSeg').hidden=!(l.hasR&&l.hasL);
+  resetGame();show('play');
+  showReady();
+}
+function handMode(){return G&&G.l.hasR&&G.l.hasL?S.hands:'both'}
+function resetGame(){
+  const l=G.l,p=parseLesson(l),hm=handMode();
+  G.spb=60/(l.bpm*S.tempo);G.bar=l.bar||4;G.pick=l.pick||0;
+  G.notes=p.notes.map(n=>Object.assign({},n,{t:n.beat*G.spb,d:n.dur*G.spb,state:0,hitAt:0,auto:hm!=='both'&&n.hand!==hm}));
+  G.groups=[];let cur=null;
+  G.notes.forEach(n=>{if(!cur||Math.abs(cur.beat-n.beat)>1e-6){cur=[];cur.beat=n.beat;cur.t=n.t;cur.tried=false;cur.hold=0;G.groups.push(cur)}n.g=G.groups.length-1;cur.push(n)});
+  G.judged=G.notes.filter(n=>!n.auto).length;
+  G.end=p.beats*G.spb;G.clock=-G.bar*G.spb;if(G.bar===3)G.clock=-6*G.spb;G.lastBeat=-99;G.score=0;G.combo=0;G.maxCombo=0;G.perfect=0;G.good=0;G.miss=0;G.wrong=0;
+  G.running=false;G.paused=false;G.done=false;G.demo=false;G.waiting=false;G.fx=[];G.practice=0;G.lastWaitSay=null;
+  if(CW){const rg=rangeFor(l.lo,l.hi,CW,l.hasR);G.L=kbLayout(rg.lo,rg.hi,CW)}
+  updHud();say('','');renderInpCard();drawStage();
+}
+function inputLabel(){return S.input==='mic'&&mic.state==='on'?'Das Mikrofon hört zu. Spiele auf deinem Klavier, wenn die Noten die Linie erreichen.':S.input==='midi'&&midiIn.state==='on'?'Dein MIDI-Keyboard ist verbunden. Spiele die Töne, wenn sie die Linie erreichen.':'Du spielst auf der Klaviatur unten im Bild, mit Fingern, Maus oder Computertastatur.'}
+function showReady(){
+  const l=G.l;const hm=handMode();
+  ov(`<h2>${l.t}</h2><p>${inputLabel()}</p>
+   <p style="font-size:13px">${hm!=='both'?`Du übst nur die ${HNAME[hm]}, die App spielt die andere. `:''}Nach dem Vorzähler geht es los. Im Modus „Warten“ hält die Musik an, bis du die richtige Taste triffst.</p>
+   <div class="row"><button class="btn primary" data-ov="start">▶ Start</button><button class="btn" data-ov="demo">♪ Erst anhören</button>${mic.state!=='on'&&mic.state!=='denied'&&mic.state!=='unsupported'?'<button class="btn" data-ov="mic">🎤 Mikrofon an</button>':''}</div>`);
+}
+function ov(html){$('pOvCard').innerHTML=html;$('pOv').hidden=false}
+function hideOv(){$('pOv').hidden=true}
+$('pOv').addEventListener('click',e=>{const b=e.target.closest('[data-ov]');if(!b)return;const a=b.dataset.ov;
+  if(a==='start'||a==='again'){startGame(false)}else if(a==='demo'){startGame(true)}else if(a==='mic'){startMic().then(()=>showReady())}
+  else if(a==='next'){openLesson(Math.min(ALL.length-1,G.li+1))}else if(a==='path'){show('path')}else if(a==='resume'){resumeGame()}});
+
+function startGame(demo){
+  ensureAC();resetGame();G.demo=!!demo;G.running=true;hideOv();
+  $('playBtn').textContent='❚❚ Pause';
+  say(demo?'Hör zu und schau mit. Danach bist du dran.':'Los geht’s im Takt des Vorzählers.','info');
+}
+function pauseGame(){if(!G||!G.running||G.done)return;G.paused=true;$('playBtn').textContent='▶ Weiter';ov(`<h2>Pause</h2><p>Mach weiter, wenn du bereit bist.</p><div class="row"><button class="btn primary" data-ov="resume">▶ Weiter</button><button class="btn" data-ov="again">↺ Von vorn</button></div>`)}
+function resumeGame(){if(!G)return;G.paused=false;hideOv();$('playBtn').textContent='❚❚ Pause'}
+$('playBtn').onclick=()=>{if(!G)return;if(!G.running||G.done)startGame(false);else if(G.paused)resumeGame();else pauseGame()};
+$('restartBtn').onclick=()=>{if(G)startGame(false)};
+$('demoBtn').onclick=()=>{if(G)startGame(true)};
+$('backBtn').onclick=()=>show('path');
+document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{S.mode=b.dataset.mode;save();renderSegs();if(G&&G.running&&!G.done){resetGame();showReady()}});
+document.querySelectorAll('[data-hands]').forEach(b=>b.onclick=()=>{S.hands=b.dataset.hands;save();renderSegs();if(G){resetGame();showReady()}});
+function renderSegs(){
+  document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===S.mode)));
+  document.querySelectorAll('[data-hands]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.hands===S.hands)));
+}
+$('tempoSel').onchange=e=>{S.tempo=+e.target.value;save();if(G){resetGame();showReady()}};
+$('cMetro').onchange=e=>{S.metro=e.target.checked;save()};
+document.querySelectorAll('[data-inp]').forEach(b=>b.onclick=()=>selectInput(b.dataset.inp));
+async function selectInput(v){
+  ensureAC();
+  if(v==='mic'){const ok=await startMic();if(!ok){renderInputSeg();return}}
+  if(v==='midi'){await startMidi();if(midiIn.state!=='on'){renderInputSeg();renderInpCard();return}}
+  S.input=v;save();renderInputSeg();renderInpCard();
+  if(G&&!G.running&&!$('pOv').hidden&&!G.done)showReady();
+}
+function renderInputSeg(){document.querySelectorAll('[data-inp]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.inp===S.input)))}
+function renderInpCard(){
+  const el=$('inpCard');if(!el)return;let h='';
+  if(S.input==='mic'&&mic.state==='on'){
+    h=`<h3>Spielen mit Mikrofon</h3><p>Stell das Gerät nah ans Klavier. Mit Kopfhörern hört die App ihre eigenen Töne nicht mit. Akkorde erkennt sie am Gesamtklang: Schlag alle Töne gleichzeitig an und halte sie kurz.</p><p>Tippen auf die Klaviatur spielt hier nur den Ton vor.</p>`;
+  }else if(S.input==='midi'&&midiIn.state==='on'){
+    h=`<h3>Spielen mit MIDI-Keyboard</h3><p>Verbunden: <b>${midiIn.names.join(', ')}</b>. MIDI ist die genaueste Eingabe, auch für Akkorde und beide Hände gleichzeitig. Den Klang macht dein Keyboard selbst.</p>`;
+  }else{
+    h=`<h3>Spielen auf dem Bildschirm</h3><p>Tippe die Tasten unten im Bild an oder spiele mit der Computertastatur. Die mittlere Reihe beginnt beim mittleren C, die untere Reihe ist die Oktave darunter für die linke Hand.</p>
+    <div class="keymap" aria-label="Computertastatur">${['W','E','','T','Z','U','','O','P',''].map((k,i)=>k?`<span class="blk">${k}<small>${nn(KBASE+[1,3,0,6,8,10,0,13,15,0][i])}</small></span>`:'<span class="gap"></span>').join('')}${['A','S','D','F','G','H','J','K','L','Ö'].map((k,i)=>`<span>${k}<small>${nno(KBASE+[0,2,4,5,7,9,11,12,14,16][i])}</small></span>`).join('')}${['Y','X','C','V','B','N','M'].map((k,i)=>`<span>${k}<small>${nno(KBASE-12+[0,2,4,5,7,9,11][i])}</small></span>`).join('')}</div>
+    <div class="row"><button class="btn" data-inpgo="mic">🎤 Mikrofon nutzen</button><button class="btn" data-inpgo="midi">MIDI-Keyboard verbinden</button></div>`;
+  }
+  el.innerHTML=h;
+}
+$('inpCard').addEventListener('click',e=>{const b=e.target.closest('[data-inpgo]');if(b)selectInput(b.dataset.inpgo)});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){releaseAll();if(G&&G.running&&!G.paused&&!G.done)pauseGame()}});
+
+/* Computertastatur */
+const keyDownCodes=new Map();
+document.addEventListener('keydown',e=>{
+  if(e.target.closest&&e.target.closest('input,select,textarea'))return;
+  if(view==='play'&&e.key===' '&&!(e.target.closest&&e.target.closest('button'))){e.preventDefault();$('playBtn').click();return}
+  if((view==='play'||view==='free')&&KEYMAP[e.code]!=null&&!e.ctrlKey&&!e.metaKey&&!e.altKey){
+    e.preventDefault();if(e.repeat||keyDownCodes.has(e.code))return;ensureAC();const m=KBASE+KEYMAP[e.code];keyDownCodes.set(e.code,m);keyDown(m,'key');
+  }
+});
+document.addEventListener('keyup',e=>{if(keyDownCodes.has(e.code)){keyUp(keyDownCodes.get(e.code));keyDownCodes.delete(e.code)}});
+
+/* Tippen auf die Klaviatur */
+function bindPointer(canvas,getL,getKb){
+  const ptr=new Map();
+  canvas.addEventListener('pointerdown',e=>{
+    const L=getL();if(!L)return;const r=canvas.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,kb=getKb();
+    if(y<kb.y)return;const m=keyAt(L,x,y-kb.y,kb.h);if(m==null)return;
+    e.preventDefault();ensureAC();try{canvas.setPointerCapture(e.pointerId)}catch(_){}
+    ptr.set(e.pointerId,m);keyDown(m,'tap');
+  });
+  const up=e=>{if(ptr.has(e.pointerId)){keyUp(ptr.get(e.pointerId));ptr.delete(e.pointerId)}};
+  canvas.addEventListener('pointerup',up);canvas.addEventListener('pointercancel',up);
+  canvas.addEventListener('pointermove',e=>{if(!ptr.has(e.pointerId))return;const L=getL(),kb=getKb(),r=canvas.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
+    if(y<kb.y)return;const m=keyAt(L,x,y-kb.y,kb.h);if(m!=null&&m!==ptr.get(e.pointerId)){keyUp(ptr.get(e.pointerId));ptr.set(e.pointerId,m);keyDown(m,'tap')}});
+}
+function stageKb(){const kbH=Math.round(Math.min(160,Math.max(96,CH*.3)));return{y:CH-kbH,h:kbH}}
+bindPointer(cv,()=>G&&G.L,stageKb);
+
+/* ---------- Spiellogik ---------- */
+function say(t,c){const e=$('pSay');e.textContent=t;e.className='say'+(c?' '+c:'')}
+function updHud(){
+  $('hScore').textContent=G.score;
+  const mult=Math.min(4,1+Math.floor(G.combo/8));
+  $('hCombo').textContent=G.combo+(mult>1?' ×'+mult:'');
+  const judged=G.perfect+G.good+G.miss;
+  $('hAcc').textContent=judged?Math.round((G.perfect+G.good)/judged*100)+'%':'–';
+  $('pProg').style.width=Math.max(0,Math.min(100,G.clock/G.end*100))+'%';
+}
+function pendingGroup(){for(const g of G.groups)if(g.some(n=>n.state===0&&!n.auto))return g;return null}
+function pend(g){return g.filter(n=>n.state===0&&!n.auto)}
+function matches(m,n,src){return m===n.midi||(src==='mic'&&Math.abs(m-n.midi)===12)}
+function hit(n,q){
+  n.state=1;n.q=q;n.hitAt=G.clock;flash[n.midi]=performance.now();G.combo++;G.maxCombo=Math.max(G.maxCombo,G.combo);
+  if(q==='perfect')G.perfect++;else G.good++;
+  const mult=Math.min(4,1+Math.floor((G.combo-1)/8));G.score+=(q==='perfect'?100:60)*mult;
+  G.fx.push({t:performance.now(),m:n.midi,txt:q==='perfect'?'Perfekt':'Gut',c:q==='perfect'?'#5fe39a':'#f2c35a'});
+  say(q==='perfect'?(G.combo>=8&&G.combo%8===0?`Serie ${G.combo}! Punkte jetzt ×${Math.min(4,1+G.combo/8)}`:'Perfekt!'):(S.mode==='wait'?'Getroffen.':'Gut, nur etwas daneben im Timing.'),'ok');
+  updHud();
+}
+function chromaRest(g,q){
+  if(mic.state!=='on')return;const c=chroma();if(!c)return;
+  pend(g).forEach(n=>{if(c[pc(n.midi)]>=.3)hit(n,q)});
+}
+function onPlayed(m,src){
+  $('pHeard').textContent=(src==='mic'?'Gehört: ':'Gespielt: ')+nno(m);
+  if(view!=='play'||!G||!G.running||G.paused||G.done||G.demo)return;
+  if(src==='mic'&&S.input!=='mic')return;
+  if((src==='tap'||src==='key')&&S.input==='mic'&&mic.state==='on')return;
+  const te=G.clock-(src==='mic'?S.latency/1000:0);
+  if(S.mode==='wait'){
+    const g=pendingGroup();if(!g||g.t-G.clock>.9)return;
+    const n=pend(g).find(n=>matches(m,n,src));
+    if(n){const q=g.tried?'good':'perfect';hit(n,q);if(src==='mic')chromaRest(g,q);return}
+    if(g.some(x=>x.state===1&&matches(m,x,src)))return;
+    g.tried=true;G.wrong++;G.combo=0;wrongFx(m,g);updHud();return;
+  }
+  let best=null,bd=9;
+  for(const n of G.notes){if(n.state!==0||n.auto)continue;const dt=te-n.t;if(dt<-.28||dt>.32)continue;if(matches(m,n,src)&&Math.abs(dt)<bd){best=n;bd=Math.abs(dt)}}
+  if(best){const q=bd<.11?'perfect':'good';hit(best,q);if(src==='mic')chromaRest(G.groups[best.g],q)}
+  else{const near=G.notes.find(n=>n.state===0&&!n.auto&&Math.abs(te-n.t)<.35);if(near){G.wrong++;wrongFx(m,G.groups[near.g])}}
+}
+noteListeners.push(onPlayed);
+function wrongFx(m,g){
+  G.fx.push({t:performance.now(),m,txt:nn(m)+'?',c:'#ff7a6e'});
+  const want=pend(g);if(want.length)say(`Das war ${nno(m)}. Gesucht: ${want.map(n=>nno(n.midi)).join(' + ')}.`,'bad');
+}
+function tick(dt){
+  if(!G||!G.running||G.paused||G.done)return;
+  const prev=G.clock;
+  if(S.mode==='wait'&&!G.demo){
+    const g=pendingGroup();const lim=g?g.t:Infinity;
+    G.clock=Math.min(G.clock+dt,lim);G.waiting=!!g&&G.clock>=lim-1e-6;
+  }else{G.clock+=dt;G.waiting=false}
+  if(G.clock>0)G.practice+=dt;
+  const b=Math.floor(G.clock/G.spb+1e-6);
+  if(b>G.lastBeat&&G.clock>prev){G.lastBeat=b;if(G.clock<0||(S.metro&&!G.waiting))click(((b-G.pick)%G.bar+G.bar)%G.bar===0)}
+  if(prev<0&&G.clock>=0)say(G.demo?'Hör zu und schau auf die Tasten.':'Jetzt du!','info');
+  if(G.clock<0){const k=Math.ceil(-G.clock/G.spb-1e-6);say(`Vorzähler … ${k}`,'info')}
+  for(const n of G.notes){
+    if(n.state!==0)continue;
+    if((G.demo||n.auto)&&n.t<=G.clock){n.state=G.demo?1:3;n.q='demo';n.hitAt=G.clock;playNote(n.midi,n.d*.92,0,G.demo?.5:.4);continue}
+  }
+  if(!G.demo){
+    // Akkorde übers Mikrofon
+    if(mic.state==='on'&&S.input==='mic'){
+      const cand=S.mode==='wait'?[pendingGroup()].filter(g=>g&&g.t-G.clock<.9):G.groups.filter(g=>G.clock>=g.t-.3&&G.clock<=g.t+.45);
+      cand.forEach(g=>{if(pend(g).length<2&&g.length<2)return;if(!pend(g).length)return;
+        if(chromaGroup(g)){g.hold++;if(g.hold>=3){const q=S.mode==='wait'?(g.tried?'good':'perfect'):(Math.abs(G.clock-g.t)<.2?'perfect':'good');pend(g).forEach(n=>hit(n,q))}}else g.hold=Math.max(0,g.hold-1)});
+    }
+    if(S.mode==='play'){
+      const lat=mic.state==='on'&&S.input==='mic'?S.latency/1000:0;
+      for(const n of G.notes){if(n.state===0&&!n.auto&&G.clock>n.t+.32+lat){n.state=2;G.miss++;G.combo=0;say(`Verpasst: ${nno(n.midi)} (${HNAME[n.hand]}).`,'bad');updHud()}}
+    }
+    if(G.waiting){const g=pendingGroup();if(g&&G.lastWaitSay!==g){G.lastWaitSay=g;const p=pend(g);const hs=[...new Set(p.map(n=>n.hand))];say(`Spiel ${p.map(n=>nno(n.midi)).join(' + ')} (${hs.length>1?'beide Hände':HNAME[hs[0]]}).`,'info')}}
+  }
+  updHud();
+  if(G.clock>=G.end+1.2||(S.mode==='wait'&&!G.demo&&!pendingGroup()&&G.clock>=G.end))finish();
+}
+function finish(){
+  G.done=true;G.running=false;$('playBtn').textContent='▶ Start';
+  addPractice(G.practice);
+  if(G.demo){ov(`<h2>Jetzt du!</h2><p>So klingt „${G.l.t}“. Spiel es nach, gern erst im Modus „Warten“.</p><div class="row"><button class="btn primary" data-ov="again">▶ Start</button><button class="btn" data-ov="demo">♪ Nochmal anhören</button></div>`);return}
+  const tot=G.judged||1,acc=(G.perfect+G.good*.75)/tot;
+  const stars=acc>=.93?3:acc>=.8?2:acc>=.6?1:0;
+  const rec=P.lessons[G.l.id]||{stars:0,best:0,plays:0};
+  const newBest=G.score>rec.best,newStars=stars>rec.stars;
+  rec.plays++;rec.best=Math.max(rec.best,G.score);rec.stars=Math.max(rec.stars,stars);rec.last=Date.now();P.lessons[G.l.id]=rec;
+  const xp=Math.round(G.score/10)+stars*20;P.xp+=xp;save();
+  const nextOk=G.li<ALL.length-1&&isUnlocked(G.li+1);
+  const msg=stars===3?'Meisterhaft gespielt.':stars===2?'Sehr gut! Für drei Sterne noch etwas genauer.':stars===1?'Geschafft, die nächste Lektion ist frei.':'Noch nicht ganz. Versuch es im Modus „Warten“ oder langsamer.';
+  ov(`<div class="bigstars">${[0,1,2].map(i=>i<stars?'★':'<span class="off">★</span>').join('')}</div><h2>${msg}</h2>
+   <div class="bigscore">${G.score}</div><p>${newBest&&rec.plays>1?'Neuer Bestwert! ':''}+${xp} Erfahrungspunkte${newStars&&rec.plays>1?' · mehr Sterne als zuvor':''}</p>
+   <div class="res"><div><b>${G.perfect}</b><span>Perfekt</span></div><div><b>${G.good}</b><span>Gut</span></div><div><b>${S.mode==='wait'?G.wrong:G.miss}</b><span>${S.mode==='wait'?'Fehlgriffe':'Verpasst'}</span></div><div><b>${G.maxCombo}</b><span>Beste Serie</span></div></div>
+   <div class="row"><button class="btn primary" data-ov="${nextOk&&stars?'next':'again'}">${nextOk&&stars?'Nächste Lektion →':'↺ Nochmal'}</button>${nextOk&&stars?'<button class="btn" data-ov="again">↺ Nochmal</button>':''}<button class="btn" data-ov="path">Lernpfad</button></div>`);
+  say(stars?'Lektion abgeschlossen.':'Lektion beendet.',stars?'ok':'info');
+}
+function addPractice(sec){if(sec<1)return;const k=todayKey();P.days[k]=(P.days[k]||0)+sec;save()}
+
+/* ---------- Bühne zeichnen ---------- */
+function drawStage(){
+  if(!cv.width)return;
+  cx.setTransform(DPR,0,0,DPR,0,0);
+  const W=CW,H=CH,kb=stageKb(),hitY=kb.y-3,now=performance.now();
+  const g0=cx.createLinearGradient(0,0,0,H);g0.addColorStop(0,'#161c2e');g0.addColorStop(1,'#10141f');cx.fillStyle=g0;cx.fillRect(0,0,W,H);
+  if(!G||!G.L)return;
+  const L=G.L,clock=G.clock,ppb=Math.max(44,Math.min(130,hitY/4.4)),pps=ppb/G.spb;
+  const Y=t=>hitY-(t-clock)*pps;
+  // Spuren
+  for(let m=L.lo;m<=L.hi;m++){const p=L.pos[m];if(!p)continue;
+    if(p.black){cx.fillStyle='rgba(0,0,0,.2)';cx.fillRect(p.x,0,p.w,hitY)}
+    else{cx.fillStyle=pc(m)===0?'rgba(255,255,255,.11)':pc(m)===5?'rgba(255,255,255,.06)':'rgba(255,255,255,.025)';cx.fillRect(p.x,0,1,hitY)}}
+  // Schlag- und Taktlinien
+  cx.font='500 10px "JetBrains Mono",monospace';cx.textAlign='left';cx.textBaseline='alphabetic';
+  const b0=Math.floor(clock/G.spb)-1,b1=Math.ceil((clock+hitY/pps)/G.spb)+1;
+  for(let b=Math.max(0,b0);b<=b1;b++){const y=Y(b*G.spb);if(y>hitY)continue;const bar=((b-G.pick)%G.bar+G.bar)%G.bar===0;
+    cx.fillStyle=bar?'rgba(255,255,255,.12)':'rgba(255,255,255,.04)';cx.fillRect(0,y,W,bar?1.5:1);
+    if(bar&&b*G.spb<=G.end){cx.fillStyle='rgba(255,255,255,.32)';cx.fillText(String(Math.floor((b-G.pick)/G.bar)+1+(G.pick?1:0)),5,y-4)}}
+  // Noten
+  cx.save();cx.beginPath();cx.rect(0,0,W,hitY);cx.clip();
+  const pg=G.waiting?pendingGroup():null;
+  for(const n of G.notes){
+    const p=L.pos[n.midi];if(!p)continue;
+    const yb=Y(n.t),yt=Y(n.t+n.d)+2;if(yb<-4||yt>hitY)continue;
+    const w=p.black?p.w*.86:p.w*.72,x=p.x+(p.w-w)/2,h=Math.max(10,yb-yt);
+    let col=HC[n.hand],a=1;
+    if(n.state===1&&n.q!=='demo')col='#5fe39a';
+    if(n.state===2){col='#3a4256';}
+    if(n.auto)a=.42;
+    cx.globalAlpha=a;rrc(cx,x,yb-h,w,h,Math.min(7,w*.3));cx.fillStyle=col;cx.fill();
+    if(n.state===2){cx.lineWidth=2;cx.strokeStyle='#ff7a6e';cx.stroke()}
+    if(pg&&pg.includes(n)&&n.state===0){cx.lineWidth=3;cx.strokeStyle='#ffffff';cx.globalAlpha=.6+.4*Math.sin(now/170);cx.stroke();cx.globalAlpha=a}
+    if(h>=16&&w>=13){cx.fillStyle=n.state===2?'#c9d0da':'#131826';cx.font='800 '+Math.round(Math.max(9,Math.min(13,w*.42)))+'px Inter,system-ui,sans-serif';cx.textAlign='center';cx.fillText(nn(n.midi),x+w/2,yb-6)}
+    cx.globalAlpha=1;
+  }
+  cx.restore();
+  // Spiellinie
+  const pulse=G.waiting?(.5+.5*Math.sin(now/180)):0;
+  const hg=cx.createLinearGradient(0,hitY-26,0,hitY);hg.addColorStop(0,'rgba(242,181,68,0)');hg.addColorStop(1,`rgba(242,181,68,${.18+.22*pulse})`);
+  cx.fillStyle=hg;cx.fillRect(0,hitY-26,W,26);cx.fillStyle='#f2b544';cx.fillRect(0,hitY-1,W,3);
+  // Klaviatur mit Hinweisen
+  const sounding={};
+  for(const n of G.notes){if(clock>=n.t-.06&&clock<n.t+n.d-.02&&n.state!==2&&(n.state!==0||G.demo||n.auto))sounding[n.midi]=n.state===1&&n.q!=='demo'?'#5fe39a':HC[n.hand]}
+  const wantK={};if(G.running&&!G.demo){const g=pendingGroup();if(g&&g.t-clock<.5)pend(g).forEach(n=>wantK[n.midi]=HC[n.hand])}
+  drawKeys(cx,L,kb.y,kb.h,m=>{const b=baseTint(m,now);if(b)return b;if(sounding[m])return{c:sounding[m],a:.7};if(wantK[m])return{c:wantK[m],a:G.waiting?.35+.3*pulse:.35};return null});
+  // Effekte
+  G.fx=G.fx.filter(f=>now-f.t<700);
+  cx.font='800 15px "Bricolage Grotesque",system-ui,sans-serif';cx.textAlign='center';
+  for(const f of G.fx){const p=L.pos[f.m];const x=p?p.x+p.w/2:W/2;const k=(now-f.t)/700;cx.globalAlpha=1-k;cx.fillStyle=f.c;cx.fillText(f.txt,Math.max(26,Math.min(W-26,x)),hitY-12-(reduceMotion?0:k*22))}
+  cx.globalAlpha=1;
+  // Vorzähler
+  if(G.running&&clock<0){const k=Math.ceil(-clock/G.spb-1e-6);cx.fillStyle='rgba(255,255,255,.9)';cx.font='800 64px "Bricolage Grotesque",system-ui,sans-serif';cx.textAlign='center';cx.fillText(String(k),W/2,hitY*.5)}
+  // Legende & Status
+  cx.font='600 12px Inter,system-ui,sans-serif';cx.textAlign='right';
+  let ly=16;
+  if(G.l.hasR&&G.l.hasL){cx.fillStyle=HC.L;cx.fillText('● links',W-62,ly);cx.fillStyle=HC.R;cx.fillText('● rechts',W-10,ly);ly+=16}
+  if(G.demo&&G.running){cx.fillStyle='rgba(242,181,68,.85)';cx.fillText('Vorspielen',W-10,ly);ly+=16}
+  if(mic.state==='on'&&S.input==='mic'){cx.fillStyle='rgba(255,255,255,.55)';cx.fillText(mic.midiF!=null?'🎤 '+nno(Math.round(mic.midiF)):'🎤 hört zu',W-10,ly)}
+}
+
+/* ================= Freies Spiel ================= */
+const fcv=$('fkb'),fcx=fcv.getContext('2d');let FW=800,FH=180,FL=null;const fhist=[];
+function resizeFree(){const r=fcv.getBoundingClientRect();if(!r.width)return;FW=r.width;FH=r.height;fcv.width=Math.round(FW*DPR||FW);fcv.height=Math.round(FH*DPR||FH);
+  const lo=FW<520?48:FW<860?48:36,hi=FW<520?72:FW<860?84:96;FL=kbLayout(lo,hi,FW);drawFree()}
+function drawFree(){if(!FL)return;const d=fcv.width/FW;fcx.setTransform(d,0,0,d,0,0);fcx.fillStyle='#121726';fcx.fillRect(0,0,FW,FH);const now=performance.now();drawKeys(fcx,FL,6,FH-6,m=>baseTint(m,now))}
+bindPointer(fcv,()=>FL,()=>({y:6,h:FH-6}));
+noteListeners.push((m,src)=>{
+  if(view!=='free')return;
+  $('fNote').innerHTML=nn(m)+'<sub>'+(Math.floor(m/12)-1)+'</sub>';
+  $('fSrc').textContent={mic:'gehört über das Mikrofon',midi:'vom MIDI-Keyboard',tap:'auf dem Bildschirm getippt',key:'mit der Computertastatur'}[src]+(src==='mic'&&mic.f?' · '+mic.f.toFixed(1).replace('.',',')+' Hz':'');
+  fhist.push(nno(m));if(fhist.length>14)fhist.shift();$('fHist').innerHTML=fhist.map(x=>`<span>${x}</span>`).join('');
+});
+$('fMic').onclick=()=>{ensureAC();if(mic.state==='on')stopMic();else startMic()};
+$('fMidi').onclick=()=>{ensureAC();startMidi()};
+
+/* ================= Fortschritt ================= */
+function fmtMin(sec){const m=Math.round(sec/60);return m<60?m+' min':(m/60).toFixed(1).replace('.',',')+' h'}
+function renderStats(){
+  const lv=level(),tot=ALL.reduce((s,x)=>s+lessonStars(x.id),0),done=ALL.filter(x=>lessonStars(x.id)>0).length,secs=Object.values(P.days).reduce((s,x)=>s+x,0);
+  $('tiles').innerHTML=`<div class="card tile"><span class="lbl">Stufe</span><b>${lv}</b><small>${P.xp} Erfahrungspunkte</small></div>
+   <div class="card tile"><span class="lbl">Lektionen</span><b>${done} / ${ALL.length}</b><small>${tot} von ${ALL.length*3} Sternen</small></div>
+   <div class="card tile"><span class="lbl">Übungszeit</span><b>${fmtMin(secs)}</b><small>insgesamt</small></div>
+   <div class="card tile"><span class="lbl">Tage in Folge</span><b>${dayStreak()}</b><small>ab 30 Sekunden pro Tag</small></div>`;
+  const days=[];for(let i=13;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);days.push({d,v:(P.days[todayKey(d)]||0)/60})}
+  const mx=Math.max(10,...days.map(x=>x.v)),top=Math.ceil(mx/5)*5,L=36,R=690,T=14,B=170,bw=(R-L)/14;
+  let s='';for(let k=0;k<=4;k++){const v=top*k/4,yy=B-(B-T)*k/4;s+=`<line x1="${L}" y1="${yy}" x2="${R}" y2="${yy}" stroke="var(--line)"/><text x="${L-6}" y="${yy+4}" text-anchor="end" font-size="11" fill="var(--muted)" font-family="JetBrains Mono,monospace">${Math.round(v)}</text>`}
+  days.forEach((x,i)=>{const h=(B-T)*x.v/top,xx=L+i*bw+bw*.18,ww=bw*.64,today=i===13;
+    if(x.v>0)s+=`<rect x="${xx}" y="${B-h}" width="${ww}" height="${h}" rx="3" fill="${today?'var(--accent-fill)':'var(--accent)'}" opacity="${today?1:.75}"><title>${x.d.toLocaleDateString('de-DE')}: ${x.v.toFixed(1).replace('.',',')} min</title></rect>`;
+    s+=`<text x="${xx+ww/2}" y="${B+17}" text-anchor="middle" font-size="11" fill="${today?'var(--ink)':'var(--muted)'}" font-family="Inter,sans-serif">${['So','Mo','Di','Mi','Do','Fr','Sa'][x.d.getDay()]}</text><text x="${xx+ww/2}" y="${B+29}" text-anchor="middle" font-size="9.5" fill="var(--muted)" font-family="JetBrains Mono,monospace">${x.d.getDate()}.</text>`});
+  if(!secs)s+=`<text x="${(L+R)/2}" y="${(T+B)/2}" text-anchor="middle" font-size="14" fill="var(--muted)" font-family="Inter,sans-serif">Spiele eine Lektion, dann erscheinen hier deine Übungsminuten.</text>`;
+  $('chart').innerHTML=s;
+  let t='<thead><tr><th>Lektion</th><th>Kapitel</th><th>Sterne</th><th class="num">Bestwert</th><th class="num">Gespielt</th></tr></thead><tbody>';
+  ALL.forEach(x=>{const r=P.lessons[x.id];t+=`<tr><td>${x.no} ${x.t}</td><td>${CHAPTERS[x.ch].t}</td><td>${starsHTML(r?r.stars:0)}</td><td class="num">${r?r.best:'–'}</td><td class="num">${r?r.plays+'×':'–'}</td></tr>`});
+  $('lessonTbl').innerHTML=t+'</tbody>';
+  $('sensR').value=S.sens;$('sensV').textContent=S.sens+' / 5';$('latR').value=S.latency;$('latV').textContent=S.latency+' ms';
+  $('cNames').checked=S.names;$('cKeys').checked=S.keys;
+}
+$('sensR').oninput=e=>{S.sens=+e.target.value;$('sensV').textContent=S.sens+' / 5';save()};
+$('latR').oninput=e=>{S.latency=+e.target.value;$('latV').textContent=S.latency+' ms';save()};
+$('cNames').onchange=e=>{S.names=e.target.checked;save()};
+$('cKeys').onchange=e=>{S.keys=e.target.checked;save()};
+function bindReset(){$('resetBtn').onclick=()=>{$('resetBox').innerHTML='<span>Wirklich alles löschen?</span><button class="btn" id="rsYes" style="border-color:var(--bad);color:var(--bad)">Ja, löschen</button><button class="btn ghost" id="rsNo">Abbrechen</button>';$('rsYes').onclick=()=>{P.lessons={};P.xp=0;P.days={};save();bindResetUI();renderStats()};$('rsNo').onclick=bindResetUI}}
+function bindResetUI(){$('resetBox').innerHTML='<button class="btn" id="resetBtn">Fortschritt löschen</button>';bindReset()}
+bindReset();
+
+/* ================= Hauptschleife ================= */
+let lastF=0;
+function loop(now){
+  const dt=lastF?Math.min(.1,(now-lastF)/1000):0;lastF=now;
+  micFrame(now);
+  if(view==='play'){tick(dt);drawStage()}
+  if(view==='free')drawFree();
+  if(mic.state!=='on')$('micLvl').style.width='0';
+  requestAnimationFrame(loop);
+}
+
+/* Start */
+$('tempoSel').value=String(S.tempo);$('cMetro').checked=S.metro;
+if(S.input!=='screen')S.input='screen'; // Mikrofon und MIDI müssen pro Besuch neu erlaubt werden
+renderSegs();renderInputSeg();setMicState('off');renderInpCard();
+show('path');
+requestAnimationFrame(loop);
+/* ================= iPad & Safari ================= */
+function micHelp(s){
+  const fb=' '+'Bis dahin spielst du auf der Bildschirm-Klaviatur'+(IOS?'.':', mit der Computertastatur oder mit einem MIDI-Keyboard.');
+  if(IN_CLAUDE)return 'Diese Ansicht erlaubt keinen Mikrofonzugriff. Öffne die App über deine eigene Web-Adresse oder die Datei <b style="display:inline">tastenlauf.html</b> direkt im Browser.'+fb;
+  if(!window.isSecureContext)return 'Das Mikrofon funktioniert nur, wenn die App über eine sichere <b style="display:inline">https://</b>-Adresse geöffnet wird'+(IOS?'. Auf dem iPad geht es nicht als lokale Datei.':' (oder als Datei direkt in Chrome, Edge oder Firefox).')+fb;
+  if(s==='unsupported')return (mic.err==='NotFoundError'?'Es wurde kein Mikrofon gefunden.':'Dieser Browser bietet keinen Mikrofonzugriff an.')+fb;
+  if(IOS)return 'Safari hat den Zugriff abgelehnt. So erlaubst du ihn: In der Adressleiste links auf das Seiten-Symbol (<b style="display:inline">aA</b> bzw. ☰) tippen, dann <b style="display:inline">Website-Einstellungen</b> und bei Mikrofon <b style="display:inline">Erlauben</b> wählen. Danach die Seite neu laden und noch einmal auf „Mikrofon“ tippen.'+fb;
+  return 'Der Browser hat den Zugriff abgelehnt. Erlaube das Mikrofon in den Website-Einstellungen (Schloss-Symbol neben der Adresse) und lade die Seite neu.'+fb;
+}
+/* iOS gibt Ton erst nach einer Berührung frei: bei jedem Tipp den Audio-Kontext (wieder) starten,
+   einmalig einen stillen Puffer abspielen und den Bildschirm wach halten. */
+let unlocked=false,wakeLock=null;
+function onGesture(){
+  const c=ensureAC();
+  if(c&&!unlocked){try{const b=c.createBuffer(1,1,22050),s=c.createBufferSource();s.buffer=b;s.connect(c.destination);s.start(0);unlocked=true}catch(e){}}
+  if(!wakeLock&&navigator.wakeLock&&document.visibilityState==='visible'){
+    wakeLock=true;navigator.wakeLock.request('screen').then(l=>{wakeLock=l;l.addEventListener('release',()=>{wakeLock=null})}).catch(()=>{wakeLock=null});
+  }
+}
+['touchend','click','keydown'].forEach(t=>document.addEventListener(t,onGesture,{capture:true,passive:true}));
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState!=='visible')return;
+  if(ac&&ac.state!=='running'&&ac.state!=='closed')ac.resume().catch(()=>{});
+  if(mic.stream&&mic.stream.getAudioTracks().every(t=>t.readyState==='ended'))stopMic();
+});
+})();
+
+</script>
+<script>
+/* Offline-Speicher (Service Worker): nur auf einer echten Web-Adresse, nicht in der Claude-Ansicht */
+if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')&&window.top===window.self){
+  window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})});
+}
+</script>
+</body></html>
