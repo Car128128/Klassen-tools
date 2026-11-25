@@ -109,6 +109,8 @@
   .range-row output { min-width: 4.6em; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
 
   .num-row { display: flex; align-items: center; gap: 10px; }
+  .num-row + .num-row { margin-top: 8px; }
+  .num-row .num-label { min-width: 6.2em; font-weight: 600; }
   .num-row input {
     width: 7.5em; min-height: 44px; padding: 6px 10px; -webkit-appearance: none; appearance: textfield;
     font: inherit; font-weight: 600; color: var(--ink);
@@ -267,6 +269,21 @@
     </div>
   </div>
 
+  <div class="field">
+    <span class="field-label" id="guestLabel">Besondere Gäste bei langer Ruhe</span>
+    <div class="num-row">
+      <label class="num-label" for="whaleTime">Wal nach</label>
+      <input type="number" id="whaleTime" min="0" max="7200" step="1" value="180" inputmode="numeric" aria-describedby="guestHint">
+      <span>Sekunden</span>
+    </div>
+    <div class="num-row">
+      <label class="num-label" for="subTime">U-Boot nach</label>
+      <input type="number" id="subTime" min="0" max="7200" step="1" value="300" inputmode="numeric" aria-describedby="guestHint">
+      <span>Sekunden</span>
+    </div>
+    <p class="hint" id="guestHint">Bleibt ihr so lange ohne Unterbrechung leise, kommt statt des Hais ein Wal oder ein riesiges U-Boot. Vorschlag: 3-fache und 5-fache Hai-Zeit. 0 bedeutet: kommt nicht.</p>
+  </div>
+
   <button type="button" class="linkbtn" id="testBtn" aria-expanded="false" aria-controls="testBox">Raumpegel testen</button>
   <div class="testbox" id="testBox" hidden>
     <div class="meter-wrap">
@@ -353,6 +370,9 @@
     shoutMargin: 20,      // Punkte über der Grenze
     resetQuiet: 1.5,      // Sekunden zu laut setzen die Ruhezeit zurück
     sharkDuration: 12,    // Sekunden für die Hai-Durchfahrt
+    whaleDuration: 17,    // Sekunden für den Wal
+    subDuration: 28,      // Sekunden für das U-Boot
+    subRumble: 5,         // so lange wackelt es, bevor das U-Boot auftaucht
     riseTau: 1 / 22,
     fallTau: 1 / 7
   };
@@ -391,6 +411,8 @@
   const limitInput = $('limit');
   const limitOut = $('limitOut');
   const sharkInput = $('sharkTime');
+  const whaleInput = $('whaleTime');
+  const subInput = $('subTime');
   const testBtn = $('testBtn');
   const testBox = $('testBox');
   const testFill = $('testFill');
@@ -407,7 +429,7 @@
   const stopBtn = $('stopBtn');
   const radios = Array.from(document.querySelectorAll('input[name="arbeitsform"]'));
 
-  const settings = { limit: 32, sharkTime: 60, modeName: 'Stillarbeit' };
+  const settings = { limit: 32, sharkTime: 60, whaleTime: 180, subTime: 300, modeName: 'Stillarbeit' };
 
   /* =========================================================
      Mikrofon (nur Pegel, nichts wird gespeichert)
@@ -550,7 +572,21 @@
     s = clamp(s, 5, 3600);
     sharkInput.value = String(s);
     settings.sharkTime = s;
+    // Solange niemand die Gäste-Zeiten ändert, folgen sie der Hai-Zeit (3-fach und 5-fach)
+    if (guestAuto.whale) whaleInput.value = String(Math.min(7200, s * 3));
+    if (guestAuto.sub) subInput.value = String(Math.min(7200, s * 5));
+    settings.whaleTime = readGuest(whaleInput, s * 3);
+    settings.subTime = readGuest(subInput, s * 5);
     settings.modeName = selectedRadio().value;
+  }
+  const guestAuto = { whale: true, sub: true };
+  function readGuest(inp, fallback) {
+    let v = parseInt(inp.value, 10);
+    if (!Number.isFinite(v)) v = Math.min(7200, fallback);
+    v = clamp(v, 0, 7200);
+    if (v > 0 && v < 10) v = 10;
+    inp.value = String(v);
+    return v;
   }
   function updateLimitUI() {
     settings.limit = clamp(parseInt(limitInput.value, 10) || 32, 5, 90);
@@ -567,6 +603,12 @@
   limitInput.addEventListener('input', updateLimitUI);
   sharkInput.addEventListener('change', readSettings);
   sharkInput.addEventListener('blur', readSettings);
+  whaleInput.addEventListener('input', () => { guestAuto.whale = false; });
+  subInput.addEventListener('input', () => { guestAuto.sub = false; });
+  [whaleInput, subInput].forEach((inp) => {
+    inp.addEventListener('change', readSettings);
+    inp.addEventListener('blur', readSettings);
+  });
 
   function showError(text) {
     errorMsg.textContent = text;
@@ -1802,7 +1844,8 @@
   const S = {
     animals: [], fled: [], seq: 0, shark: null,
     loudFor: 0, shoutFor: 0, partialDone: false, allDone: false,
-    addProgress: 0, quietTime: 0, tooLoud: false
+    addProgress: 0, quietTime: 0, tooLoud: false,
+    streak: 0, whaleDone: false   // Ruhe ohne Unterbrechung für Wal und U-Boot
   };
 
   function bandY(sp) { return sandY * rand(sp.band[0], sp.band[1]); }
@@ -1854,6 +1897,7 @@
       S.shark = null;
       S.loudFor = 0; S.shoutFor = 0; S.partialDone = false; S.allDone = false;
       S.addProgress = 0; S.quietTime = 0; S.tooLoud = false;
+      S.streak = 0; S.whaleDone = false;
     }
   }
 
@@ -1891,7 +1935,7 @@
       } else if (!S.partialDone && S.loudFor > CFG.shortNoise) {
         fleePartial(); S.partialDone = true;
       }
-      if (S.loudFor >= CFG.resetQuiet) S.quietTime = 0;
+      if (S.loudFor >= CFG.resetQuiet) { S.quietTime = 0; S.streak = 0; S.whaleDone = false; }
       S.calmFor = 0;
     } else {
       S.loudFor = 0; S.shoutFor = 0; S.partialDone = false; S.allDone = false;
@@ -1906,7 +1950,19 @@
       }
       if (!S.shark) {
         S.quietTime += dt;
-        if (S.quietTime >= settings.sharkTime) { S.shark = { t: 0, ph: 0 }; S.quietTime = 0; }
+        S.streak += dt;
+        const subT = settings.subTime, whaleT = settings.whaleTime;
+        if (subT > 0 && S.streak >= subT) {
+          // U-Boot statt Hai oder Wal; danach beginnt die Reihe von vorn
+          S.shark = { kind: 'sub', t: -CFG.subRumble, ph: 0, bubT: 0 };
+          S.quietTime = 0; S.streak = 0; S.whaleDone = false;
+        } else if (whaleT > 0 && !S.whaleDone && S.streak >= whaleT) {
+          S.shark = { kind: 'whale', t: 0, ph: 0 };
+          S.quietTime = 0; S.whaleDone = true;
+        } else if (S.quietTime >= settings.sharkTime) {
+          S.shark = { kind: 'shark', t: 0, ph: 0 };
+          S.quietTime = 0;
+        }
       }
     }
     S.tooLoud = S.loudFor > CFG.shortNoise;
@@ -1998,16 +2054,58 @@
     }
   }
 
+  function visitDuration(sh) {
+    return sh.kind === 'sub' ? CFG.subDuration : sh.kind === 'whale' ? CFG.whaleDuration : CFG.sharkDuration;
+  }
   function updateShark(dt) {
     const sh = S.shark;
     if (!sh) return;
     sh.t += dt;
-    sh.ph += dt * (reduced ? 1.0 : 1.4);
-    if (sh.t >= CFG.sharkDuration) S.shark = null;
+    if (sh.kind === 'whale') sh.ph += dt * (reduced ? 0.6 : 0.85);
+    else if (sh.kind === 'sub') {
+      sh.ph += dt * (reduced ? 4 : 9);   // Schraube
+      if (sh.t > 0) {
+        const g = subGeom(sh);
+        sh.bubT -= dt;
+        if (sh.bubT <= 0 && trails.length < 500 && g.x - g.L * 0.5 < W + 10) {
+          sh.bubT = reduced ? 0.09 : 0.04;
+          const px = g.x - g.L * 0.5, r = g.L * 0.03;
+          trails.push({ x: px + rand(-0.6, 0.4) * r, y: g.y + rand(-1, 1) * r, r: rand(2, 6) * U, vy: -rand(12, 30) * U, life: 2.2, max: 2.2 });
+        }
+      }
+    } else sh.ph += dt * (reduced ? 1.0 : 1.4);
+    if (sh.t >= visitDuration(sh)) S.shark = null;
+  }
+  function subGeom(sh) {
+    const L = W * 1.5;
+    const p = clamp(sh.t / CFG.subDuration, 0, 1);
+    const x = -L * 0.56 + (W + L * 1.12) * p;
+    const y = sandY * 0.47 + Math.sin(sh.t * 0.3) * 6 * U;
+    return { L, x, y };
+  }
+  // Stärke des Wackelns: wächst, bevor das U-Boot kommt, und klingt ab, während es hinausfährt
+  function subShake() {
+    const sh = S.shark;
+    if (!sh || sh.kind !== 'sub') return 0;
+    if (sh.t < 0) {
+      const u = clamp((sh.t + CFG.subRumble) / CFG.subRumble, 0, 1);
+      return u * u * (3 - 2 * u);
+    }
+    const g = subGeom(sh);
+    const nose = g.x + g.L * 0.5;
+    if (nose <= W) return 1;
+    return clamp(1 - (nose - W) / g.L, 0, 1);
   }
   function drawShark() {
     const sh = S.shark;
     if (!sh) return;
+    if (sh.kind === 'whale' || sh.kind === 'sub') {
+      const soft = softEdges;
+      softEdges = false;
+      if (sh.kind === 'whale') drawWhale(sh); else drawSub(sh);
+      softEdges = soft;
+      return;
+    }
     const L = W * 0.5;
     const p = clamp(sh.t / CFG.sharkDuration, 0, 1);
     const x = -L * 0.62 + (W + L * 1.24) * p;
@@ -2018,6 +2116,215 @@
     ctx.scale(L, L);
     SHARK.paint(ctx, geom(SHARK.prof, sh.ph, 0.035), sh.ph);
     ctx.restore();
+  }
+
+  /* ---------- Wal: 50 % größer als der Hai ---------- */
+  const WHALE_PROF = { H: 0.095, a: 0.72, b: 0.62, ped: 0.06, top: 0.86, bot: 1.0 };
+  const whaleSpots = (() => {
+    const r = seeded(4711), out = [];
+    for (let i = 0; i < 46; i++) out.push({ x: 0.42 - r() * 0.8, v: r() * 2 - 1, rx: 0.004 + r() * 0.012, ry: 0.003 + r() * 0.007, a: 0.08 + r() * 0.14 });
+    return out;
+  })();
+  function drawWhale(sh) {
+    const L = W * 0.75;
+    const p = clamp(sh.t / CFG.whaleDuration, 0, 1);
+    const x = -L * 0.66 + (W + L * 1.32) * p;
+    const y = Math.min(H * 0.38, sandY * 0.43) + Math.sin(sh.t * 0.35) * 14 * U;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(Math.cos(sh.t * 0.35) * 0.025);
+    ctx.scale(L, L);
+    WHALE_paint(ctx, sh.ph);
+    ctx.restore();
+  }
+  function WHALE_paint(c, ph) {
+    // Wale schlagen mit der Fluke auf und ab: die Welle läuft senkrecht durch den hinteren Körper
+    const G = geom(WHALE_PROF, ph, 0.05);
+    c.lineJoin = 'round'; c.lineCap = 'round';
+    // Brustflosse hinten (dunkel, etwas versetzt)
+    const pb = P(G, 0.2, G.h(0.2) * 0.7);
+    c.fillStyle = '#3c5468';
+    c.beginPath(); c.moveTo(pb[0] + 0.02, pb[1]);
+    c.quadraticCurveTo(0.12, pb[1] + 0.1, 0.03, pb[1] + 0.16 + Math.sin(ph * 0.8) * 0.008);
+    c.quadraticCurveTo(0.12, pb[1] + 0.05, pb[0] + 0.05, pb[1] - 0.01);
+    c.closePath(); c.fill();
+    // Fluke (von der Seite: breites Blatt, das beim Schlagen kippt)
+    c.save(); tailFrame(c, G);
+    const tilt = 0.01 + 0.024 * Math.abs(Math.cos(ph - 0.6));
+    c.beginPath();
+    c.moveTo(0.05, -0.01);
+    c.quadraticCurveTo(-0.04, -tilt * 1.3, -0.15, -tilt * 1.15);
+    c.quadraticCurveTo(-0.11, -tilt * 0.3, -0.125, 0);
+    c.quadraticCurveTo(-0.11, tilt * 0.3, -0.15, tilt * 1.15);
+    c.quadraticCurveTo(-0.04, tilt * 1.3, 0.05, 0.01);
+    c.closePath();
+    c.fillStyle = vgrad(c, -tilt * 1.2, tilt * 1.2, ['#3e566b', '#4f677c', '#6a8296']); c.fill();
+    c.strokeStyle = 'rgba(20, 35, 50, 0.35)'; c.lineWidth = 0.003; c.stroke();
+    c.restore();
+    // Körper mit dunklem Rücken und hellem Bauch
+    bodyPath(c, G);
+    c.fillStyle = vgrad(c, -0.085, 0.1, ['#2f4659', '#456178', '#6c869b', '#c9d6de']); c.fill();
+    c.save(); bodyPath(c, G); c.clip();
+    // Flecken
+    whaleSpots.forEach((s) => {
+      const yy = G.dy(s.x) + s.v * G.h(s.x) * 0.7;
+      c.fillStyle = 'rgba(205, 220, 230, ' + s.a.toFixed(3) + ')';
+      c.beginPath(); c.ellipse(s.x, yy, s.rx, s.ry, 0, 0, Math.PI * 2); c.fill();
+    });
+    // Kehlfurchen
+    c.strokeStyle = 'rgba(70, 90, 110, 0.4)'; c.lineWidth = 0.0028;
+    for (let i = 0; i < 8; i++) {
+      const yo = 0.028 + i * 0.0085;
+      c.beginPath();
+      c.moveTo(0.47 - i * 0.01, G.dy(0.47) + yo * 0.6);
+      c.quadraticCurveTo(0.3, G.dy(0.3) + yo + 0.02, 0.08, G.botY(0.08) - 0.006 - (7 - i) * 0.004);
+      c.stroke();
+    }
+    // Licht von oben
+    const hl = c.createLinearGradient(0, -0.1, 0, 0.02);
+    hl.addColorStop(0, 'rgba(190, 230, 245, 0.3)'); hl.addColorStop(1, 'rgba(190, 230, 245, 0)');
+    c.fillStyle = hl; c.fillRect(-0.6, -0.15, 1.2, 0.17);
+    // Schatten am Bauch
+    const sg = c.createLinearGradient(0, 0.05, 0, 0.12);
+    sg.addColorStop(0, 'rgba(10, 40, 70, 0)'); sg.addColorStop(1, 'rgba(10, 40, 70, 0.28)');
+    c.fillStyle = sg; c.fillRect(-0.6, 0.05, 1.2, 0.08);
+    c.restore();
+    // Maul
+    c.strokeStyle = 'rgba(25, 40, 55, 0.7)'; c.lineWidth = 0.004;
+    c.beginPath(); c.moveTo(0.495, G.dy(0.495) + 0.012);
+    c.quadraticCurveTo(0.42, G.dy(0.42) + 0.03, 0.31, G.dy(0.31) + 0.022); c.stroke();
+    // Seepocken am Kinn
+    c.fillStyle = 'rgba(225, 225, 215, 0.55)';
+    [[0.475, 0.03, 0.005], [0.462, 0.036, 0.004], [0.45, 0.026, 0.0035], [0.488, 0.02, 0.003]].forEach((b) => {
+      c.beginPath(); c.arc(b[0], G.dy(b[0]) + b[1], b[2], 0, Math.PI * 2); c.fill();
+    });
+    // Rückenfinne
+    const d0 = P(G, -0.16, -G.h(-0.16) * 0.86 + 0.004), d1 = P(G, -0.235, -G.h(-0.235) * 0.86 - 0.03), d2 = P(G, -0.25, -G.h(-0.25) * 0.86 + 0.004);
+    c.fillStyle = '#34495c';
+    c.beginPath(); c.moveTo(d0[0], d0[1]);
+    c.quadraticCurveTo(d1[0] + 0.03, d1[1] + 0.005, d1[0], d1[1]);
+    c.quadraticCurveTo(d1[0] + 0.004, d2[1] - 0.01, d2[0], d2[1]);
+    c.closePath(); c.fill();
+    // Auge: klein, ruhig, freundlich
+    const ex = 0.305, ey = G.dy(ex) + 0.03;
+    c.fillStyle = 'rgba(20, 30, 40, 0.35)';
+    c.beginPath(); c.ellipse(ex, ey, 0.011, 0.007, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#16202a';
+    c.beginPath(); c.arc(ex, ey, 0.0055, 0, Math.PI * 2); c.fill();
+    c.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    c.beginPath(); c.arc(ex + 0.002, ey - 0.002, 0.0018, 0, Math.PI * 2); c.fill();
+    // lange Brustflosse vorn (hell gesäumt)
+    const pf = P(G, 0.24, G.h(0.24) * 0.62);
+    const sway = Math.sin(ph * 0.8) * 0.012;
+    c.beginPath(); c.moveTo(pf[0], pf[1]);
+    c.quadraticCurveTo(0.2, pf[1] + 0.1, 0.06, pf[1] + 0.2 + sway);
+    c.quadraticCurveTo(0.08, pf[1] + 0.16 + sway, 0.13, pf[1] + 0.08);
+    c.quadraticCurveTo(0.17, pf[1] + 0.03, pf[0] - 0.04, pf[1] - 0.005);
+    c.closePath();
+    c.fillStyle = vgrad(c, pf[1], pf[1] + 0.2, ['#5d778c', '#9fb3c2', '#dfe7ec']); c.fill();
+    c.strokeStyle = 'rgba(40, 60, 80, 0.3)'; c.lineWidth = 0.003; c.stroke();
+  }
+
+  /* ---------- U-Boot: sehr groß, langsam, mit Wackeln davor ---------- */
+  function drawSub(sh) {
+    if (sh.t <= 0) return;
+    const g = subGeom(sh);
+    ctx.save();
+    ctx.translate(g.x, g.y);
+    ctx.rotate(Math.sin(sh.t * 0.3 + 1) * 0.006);
+    ctx.scale(g.L, g.L);
+    SUB_paint(ctx, sh.ph, sh.t);
+    ctx.restore();
+  }
+  function SUB_paint(c, ph, t) {
+    const R = 0.055;         // Rumpfradius
+    c.lineJoin = 'round'; c.lineCap = 'round';
+    // Scheinwerferkegel nach vorn
+    const beam = c.createLinearGradient(0.5, 0, 0.85, 0);
+    beam.addColorStop(0, 'rgba(255, 246, 200, 0.32)'); beam.addColorStop(1, 'rgba(255, 246, 200, 0)');
+    c.fillStyle = beam;
+    c.beginPath(); c.moveTo(0.49, -0.006); c.lineTo(0.85, -0.09); c.lineTo(0.85, 0.11); c.lineTo(0.49, 0.008); c.closePath(); c.fill();
+    // Ruder hinten: senkrecht und waagerecht
+    c.fillStyle = '#262e35';
+    c.beginPath(); c.moveTo(-0.355, -R * 0.55); c.lineTo(-0.415, -R - 0.026); c.lineTo(-0.445, -R - 0.026); c.lineTo(-0.44, -0.012); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(-0.355, R * 0.55); c.lineTo(-0.415, R + 0.022); c.lineTo(-0.445, R + 0.022); c.lineTo(-0.44, 0.012); c.closePath(); c.fill();
+    // Rumpf
+    const hull = () => {
+      c.beginPath();
+      c.moveTo(-0.47, -0.013);
+      c.bezierCurveTo(-0.4, -0.03, -0.32, -R, -0.2, -R);
+      c.lineTo(0.38, -R);
+      c.bezierCurveTo(0.455, -R, 0.5, -R * 0.55, 0.5, 0);
+      c.bezierCurveTo(0.5, R * 0.55, 0.455, R, 0.38, R);
+      c.lineTo(-0.2, R);
+      c.bezierCurveTo(-0.32, R, -0.4, 0.03, -0.47, 0.013);
+      c.closePath();
+    };
+    hull();
+    c.fillStyle = vgrad(c, -R, R, ['#6b7a85', '#46525c', '#2b343c', '#1b2228', '#141a1f']); c.fill();
+    c.save(); hull(); c.clip();
+    // Plattennähte
+    c.strokeStyle = 'rgba(10, 15, 20, 0.35)'; c.lineWidth = 0.0012;
+    for (let x = -0.3; x < 0.44; x += 0.045) { c.beginPath(); c.moveTo(x, -R); c.lineTo(x, R); c.stroke(); }
+    c.beginPath(); c.moveTo(-0.5, -R * 0.35); c.lineTo(0.5, -R * 0.35); c.stroke();
+    c.beginPath(); c.moveTo(-0.5, R * 0.45); c.lineTo(0.5, R * 0.45); c.stroke();
+    // Flutschlitze unten
+    c.fillStyle = 'rgba(5, 8, 10, 0.7)';
+    for (let x = -0.2; x < 0.34; x += 0.022) c.fillRect(x, R * 0.62, 0.011, 0.004);
+    // Rostspuren
+    c.strokeStyle = 'rgba(140, 85, 50, 0.22)'; c.lineWidth = 0.003;
+    [[-0.12, 0.01], [0.05, 0.016], [0.21, 0.008], [0.33, 0.012]].forEach((r) => {
+      c.beginPath(); c.moveTo(r[0], -R * 0.3); c.lineTo(r[0] - 0.004, -R * 0.3 + r[1] * 2.4); c.stroke();
+    });
+    // Licht von oben, Wasserglanz
+    const hl = c.createLinearGradient(0, -R, 0, -R * 0.2);
+    hl.addColorStop(0, 'rgba(180, 230, 245, 0.35)'); hl.addColorStop(1, 'rgba(180, 230, 245, 0)');
+    c.fillStyle = hl; c.fillRect(-0.5, -R, 1, R * 0.8);
+    c.fillStyle = 'rgba(160, 225, 240, 0.07)';
+    for (let i = 0; i < 5; i++) {
+      const cx = ((i * 0.23 + t * 0.03) % 1.1) - 0.5;
+      c.beginPath(); c.ellipse(cx, -R * 0.75, 0.06, 0.006, 0, 0, Math.PI * 2); c.fill();
+    }
+    c.restore();
+    // Turm
+    const sail = () => {
+      c.beginPath();
+      c.moveTo(0.075, -R + 0.004);
+      c.lineTo(0.095, -R - 0.062);
+      c.lineTo(0.225, -R - 0.062);
+      c.bezierCurveTo(0.245, -R - 0.062, 0.255, -R - 0.045, 0.258, -R - 0.02);
+      c.lineTo(0.265, -R + 0.004);
+      c.closePath();
+    };
+    sail();
+    c.fillStyle = vgrad(c, -R - 0.062, -R, ['#74838e', '#56636d', '#3a454e']); c.fill();
+    c.save(); sail(); c.clip();
+    c.strokeStyle = 'rgba(10, 15, 20, 0.3)'; c.lineWidth = 0.0012;
+    for (let x = 0.12; x < 0.26; x += 0.04) { c.beginPath(); c.moveTo(x, -R - 0.07); c.lineTo(x, -R); c.stroke(); }
+    c.restore();
+    // Tiefenruder am Turm (kurz, seitlich abstehend)
+    c.fillStyle = '#2f3940';
+    c.beginPath(); c.moveTo(0.175, -R - 0.036); c.lineTo(0.222, -R - 0.039); c.lineTo(0.226, -R - 0.033); c.lineTo(0.175, -R - 0.03); c.closePath(); c.fill();
+    // Sehrohr und Antenne
+    c.fillStyle = '#3d4952';
+    c.fillRect(0.16, -R - 0.092, 0.005, 0.032);
+    c.fillRect(0.155, -R - 0.096, 0.016, 0.006);
+    c.fillRect(0.19, -R - 0.08, 0.0035, 0.02);
+    // Scheinwerfer an der Nase
+    const lg = c.createRadialGradient(0.493, 0.0, 0, 0.493, 0.0, 0.03);
+    lg.addColorStop(0, 'rgba(255, 252, 225, 0.95)'); lg.addColorStop(0.3, 'rgba(255, 240, 180, 0.5)'); lg.addColorStop(1, 'rgba(255, 240, 180, 0)');
+    c.fillStyle = lg; c.beginPath(); c.arc(0.493, 0, 0.03, 0, Math.PI * 2); c.fill();
+    // Schraube: Nabe und kreisende Blätter
+    c.fillStyle = '#2c3439';
+    c.beginPath(); c.moveTo(-0.468, -0.012); c.lineTo(-0.49, -0.006); c.lineTo(-0.49, 0.006); c.lineTo(-0.468, 0.012); c.closePath(); c.fill();
+    for (let i = 0; i < 5; i++) {
+      const a = ph + i * Math.PI * 2 / 5;
+      const yy = Math.sin(a) * 0.042, w = 0.004 + Math.abs(Math.cos(a)) * 0.006;
+      c.fillStyle = Math.cos(a) > 0 ? '#8c7446' : '#5e4e30';
+      c.beginPath(); c.ellipse(-0.483, yy * 0.5, w, Math.abs(yy) * 0.5 + 0.003, 0, 0, Math.PI * 2); c.fill();
+    }
+    c.fillStyle = 'rgba(200, 230, 240, 0.08)';
+    c.beginPath(); c.ellipse(-0.483, 0, 0.01, 0.045, 0, 0, Math.PI * 2); c.fill();
   }
 
 
@@ -2510,6 +2817,19 @@
     updateParticles(dt);
 
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const shake = subShake();
+    if (shake > 0.001) {
+      // Wasser und Riff wackeln leicht; etwas Zoom verdeckt die Ränder
+      const A = (reduced ? 1.5 : 5) * U * shake;
+      const ox = A * (0.6 * Math.sin(T * 41) + 0.4 * Math.sin(T * 23 + 1));
+      const oy = A * 0.7 * (0.6 * Math.sin(T * 37 + 2) + 0.4 * Math.sin(T * 19));
+      const rot = (reduced ? 0.0006 : 0.002) * shake * Math.sin(T * 29);
+      const sc = 1 + 2 * (A + Math.abs(rot) * Math.max(W, H) + 2) / Math.min(W, H);
+      ctx.translate(W / 2 + ox, H / 2 + oy);
+      ctx.rotate(rot);
+      ctx.scale(sc, sc);
+      ctx.translate(-W / 2, -H / 2);
+    }
     drawWater();
     ctx.drawImage(layerBack, 0, 0, W, H);
     drawSnow();
@@ -2524,6 +2844,11 @@
     ctx.drawImage(layerFront, 0, 0, W, H);
     weedsFront.forEach(drawWeed);
     drawBubbles();
+    if (shake > 0.001) {
+      // das riesige U-Boot dunkelt das Wasser etwas ab
+      ctx.fillStyle = 'rgba(5, 25, 45, ' + (0.12 * shake).toFixed(3) + ')';
+      ctx.fillRect(-20, -20, W + 40, H + 40);
+    }
 
     requestAnimationFrame(frame);
   }
