@@ -371,7 +371,7 @@
     resetQuiet: 1.5,      // Sekunden zu laut setzen die Ruhezeit zurück
     sharkDuration: 12,    // Sekunden für die Hai-Durchfahrt
     whaleDuration: 17,    // Sekunden für den Wal
-    subDuration: 28,      // Sekunden für das U-Boot
+    subDuration: 33,      // Sekunden für das U-Boot
     subRumble: 5,         // so lange wackelt es, bevor das U-Boot auftaucht
     riseTau: 1 / 22,
     fallTau: 1 / 7
@@ -2077,10 +2077,10 @@
     if (sh.t >= visitDuration(sh)) S.shark = null;
   }
   function subGeom(sh) {
-    const L = W * 1.5;
+    const L = W * 1.95;
     const p = clamp(sh.t / CFG.subDuration, 0, 1);
     const x = -L * 0.56 + (W + L * 1.12) * p;
-    const y = sandY * 0.47 + Math.sin(sh.t * 0.3) * 6 * U;
+    const y = sandY * 0.5 + Math.sin(sh.t * 0.3) * 6 * U;
     return { L, x, y };
   }
   // Stärke des Wackelns: wächst, bevor das U-Boot kommt, und klingt ab, während es hinausfährt
@@ -2820,10 +2820,10 @@
     const shake = subShake();
     if (shake > 0.001) {
       // Wasser und Riff wackeln leicht; etwas Zoom verdeckt die Ränder
-      const A = (reduced ? 1.5 : 5) * U * shake;
+      const A = (reduced ? 1.05 : 3.5) * U * shake;
       const ox = A * (0.6 * Math.sin(T * 41) + 0.4 * Math.sin(T * 23 + 1));
       const oy = A * 0.7 * (0.6 * Math.sin(T * 37 + 2) + 0.4 * Math.sin(T * 19));
-      const rot = (reduced ? 0.0006 : 0.002) * shake * Math.sin(T * 29);
+      const rot = (reduced ? 0.0004 : 0.0014) * shake * Math.sin(T * 29);
       const sc = 1 + 2 * (A + Math.abs(rot) * Math.max(W, H) + 2) / Math.min(W, H);
       ctx.translate(W / 2 + ox, H / 2 + oy);
       ctx.rotate(rot);
