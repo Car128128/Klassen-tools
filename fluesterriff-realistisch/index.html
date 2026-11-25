@@ -270,18 +270,17 @@
   </div>
 
   <div class="field">
-    <span class="field-label" id="guestLabel">Besondere Gäste bei langer Ruhe</span>
+    <span class="field-label" id="guestLabel">Überraschungen bei langer Ruhe</span>
     <div class="num-row">
-      <label class="num-label" for="whaleTime">Wal nach</label>
-      <input type="number" id="whaleTime" min="0" max="7200" step="1" value="180" inputmode="numeric" aria-describedby="guestHint">
+      <label class="num-label" for="whaleTime">Erste nach</label>
+      <input type="number" id="whaleTime" min="0" max="7200" step="1" value="180" inputmode="numeric">
       <span>Sekunden</span>
     </div>
     <div class="num-row">
-      <label class="num-label" for="subTime">U-Boot nach</label>
-      <input type="number" id="subTime" min="0" max="7200" step="1" value="300" inputmode="numeric" aria-describedby="guestHint">
+      <label class="num-label" for="subTime">Zweite nach</label>
+      <input type="number" id="subTime" min="0" max="7200" step="1" value="300" inputmode="numeric">
       <span>Sekunden</span>
     </div>
-    <p class="hint" id="guestHint">Bleibt ihr so lange ohne Unterbrechung leise, kommt statt des Hais ein Wal oder ein riesiges U-Boot. Vorschlag: 3-fache und 5-fache Hai-Zeit. 0 bedeutet: kommt nicht.</p>
   </div>
 
   <button type="button" class="linkbtn" id="testBtn" aria-expanded="false" aria-controls="testBox">Raumpegel testen</button>
@@ -2080,7 +2079,7 @@
     const L = W * 1.95;
     const p = clamp(sh.t / CFG.subDuration, 0, 1);
     const x = -L * 0.56 + (W + L * 1.12) * p;
-    const y = sandY * 0.5 + Math.sin(sh.t * 0.3) * 6 * U;
+    const y = sandY * 0.56 + Math.sin(sh.t * 0.3) * 6 * U;
     return { L, x, y };
   }
   // Stärke des Wackelns: wächst, bevor das U-Boot kommt, und klingt ab, während es hinausfährt
@@ -2232,7 +2231,7 @@
     ctx.save();
     ctx.translate(g.x, g.y);
     ctx.rotate(Math.sin(sh.t * 0.3 + 1) * 0.006);
-    ctx.scale(g.L, g.L);
+    ctx.scale(g.L, g.L * 1.3);   // höher und massiger
     SUB_paint(ctx, sh.ph, sh.t);
     ctx.restore();
   }
