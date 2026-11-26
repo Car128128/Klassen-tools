@@ -117,6 +117,8 @@ button { cursor: pointer; }
 .shark-set label { font-weight: 700; }
 .shark-set input { width: 5.5em; padding: 8px 10px; border-radius: 10px; border: 1px solid #c3d6df; font-size: 17px; font-variant-numeric: tabular-nums; background: #fff; color: var(--ink); }
 .shark-set small { flex-basis: 100%; color: var(--muted); font-size: 13px; }
+.mults { flex-basis: 100%; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.mults input { width: 4.2em; }
 /* Settings sheet */
 .sheet { position: fixed; top: 0; right: 0; bottom: 0; width: min(420px, 100%); background: var(--paper); color: var(--ink); z-index: 30; box-shadow: -10px 0 40px rgba(0,0,0,.35); display: flex; flex-direction: column; transform: translateX(105%); transition: transform .3s ease; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); padding-right: env(safe-area-inset-right, 0px); user-select: text; -webkit-user-select: text; }
 .sheet.open { transform: none; }
@@ -208,9 +210,16 @@ button { cursor: pointer; }
       </ul>
     </div>
     <div class="shark-set">
-      <label for="sharkSec">Hai schwimmt durchs Bild alle</label>
-      <input type="number" id="sharkSec" min="5" max="3600" step="1" value="60" inputmode="numeric"> <span>Sekunden</span>
-      <small>Erlaubt sind 5 bis 3600 Sekunden. Die Fische verstecken sich kurz und kommen danach wieder.</small>
+      <label for="sharkSec">HaiZeit: alle</label>
+      <input type="number" id="sharkSec" min="5" max="3600" step="1" value="60" inputmode="numeric"> <span>Sekunden kommt ein Hai</span>
+      <small>5 bis 3600 Sekunden. Der Hai bekommt bei jedem Besuch eine Kieme mehr, so könnt ihr mitzählen.</small>
+      <div class="mults">
+        <span>Überraschung</span>
+        <label for="mA">a</label><input type="number" id="mA" min="1" max="100" step="1" value="5" inputmode="numeric">
+        <label for="mB">b</label><input type="number" id="mB" min="1" max="100" step="1" value="10" inputmode="numeric">
+        <label for="mC">c</label><input type="number" id="mC" min="1" max="100" step="1" value="15" inputmode="numeric">
+        <span>× HaiZeit</span>
+      </div>
     </div>
     <p class="err" id="micErr" hidden></p>
     <div class="btns">
@@ -341,7 +350,7 @@ const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: r
 
 /* ---------- Settings & persistence (local only) ---------- */
 const KEY = 'laermampel-riff-v2';
-const S = { threshold: 60, fishSeconds: 3, tolerance: 1, swimAway: true, goal: 40, sharkSeconds: 60 };
+const S = { threshold: 60, fishSeconds: 3, tolerance: 1, swimAway: true, goal: 40, sharkSeconds: 60, mA: 5, mB: 10, mC: 15 };
 let saved = { species: [] };
 try {
   const raw = localStorage.getItem(KEY) || localStorage.getItem('laermampel-riff-v1');
@@ -357,7 +366,7 @@ function persist() {
 /* ---------- State ---------- */
 const st = {
   mode: 'idle', paused: false, level: 0, status: 'quiet', overT: 0, underT: 99, loudT: 0,
-  progress: 0, sharkT: 0, shark: null, celebrated: false, t: 0, msgUntil: 0, calib: null
+  progress: 0, sharkT: 0, tick: 0, sharkCount: 0, events: [], ev: null, celebrated: false, t: 0, msgUntil: 0, calib: null
 };
 
 /* ---------- Canvas & reef ---------- */
@@ -749,7 +758,7 @@ function drawFish(g, f) {
 }
 
 function updateFish(f, dt) {
-  const scared = (st.status === 'loud' || !!st.shark) && !f.leaving && !f.ambient;
+  const scared = (st.status === 'loud' || !!st.ev) && !f.leaving && !f.ambient;
   let tx = f.tx, ty = f.ty, maxV = f.speed;
   if (scared && hideSpots.length) {
     const h = hideSpots[f.hide % hideSpots.length];
@@ -772,26 +781,72 @@ function updateFish(f, dt) {
   f.tuck = lerp(f.tuck, scared && d < 60 ? 1 : 0, clamp(dt * 3, 0, 1));
 }
 
-/* ---------- Shark ---------- */
-function spawnShark() {
-  const dir = Math.random() < .5 ? 1 : -1, L = clamp(Math.min(W * .42, H * .7), 220, 620);
-  st.shark = { dir, L, x: dir > 0 ? -L : W + L, y0: H * (.28 + Math.random() * .2), y: 0, v: (W + 2 * L) / 9, ph: 0 };
+/* ---------- Visitors: shark, whale, submarine, octopus ---------- */
+const sm = u => { u = clamp(u, 0, 1); return u * u * (3 - 2 * u); };
+function queueEvent(kind) {
+  if (st.events.some(e => e.kind === kind)) return; // never pile up the same visitor
+  st.events.push({ kind });
 }
-function drawShark(g, sh) {
-  const L = sh.L, Hh = L * .24, wag = Math.sin(sh.ph) * Hh * .28;
-  g.save(); g.translate(sh.x, sh.y); g.scale(sh.dir, 1);
-  // tail
-  g.save(); g.translate(-L * .42, 0); g.rotate(Math.sin(sh.ph - .6) * .12);
+function startEvent(kind) {
+  const dir = Math.random() < .5 ? 1 : -1;
+  if (kind === 'shark') {
+    st.sharkCount++;
+    const L = clamp(Math.min(W * .42, H * .7), 220, 620), v = (W + 2 * L) / 9;
+    return { kind, t: 0, dir, L, v, dur: (W + 2 * L) / v, y0: H * (.28 + Math.random() * .2), gills: st.sharkCount, ph: 0 };
+  }
+  if (kind === 'whale') {
+    const L = Math.max(W * 1.05, 520), v = (W + 1.2 * L) / 17;
+    return { kind, t: 0, dir, L, v, dur: (W + 1.2 * L) / v, y0: Math.min(H * .32, sandY * .45), ph: 0 };
+  }
+  if (kind === 'sub') {
+    const L = Math.max(W * 1.6, 700), v = (W + 1.15 * L) / 18, pre = 5;
+    // starts out of view, rumbling for 5 s before, and keeps rumbling (fading) after it has left
+    return { kind, t: -pre, dir, L, v, pre, dur: (W + 1.15 * L) / v + 5, y0: sandY * .5, ph: 0, bubT: 0 };
+  }
+  return { kind: 'kraken', t: 0, dir, dur: 21, ph: 0 };
+}
+function updateEvents(dt) {
+  if (!st.ev && st.events.length) st.ev = startEvent(st.events.shift().kind);
+  const e = st.ev; if (!e) return;
+  e.t += dt; e.ph += dt;
+  if (e.kind === 'sub' && e.t > 0 && !reduceMotion) {
+    e.bubT -= dt;
+    const g = subGeom(e);
+    if (e.bubT <= 0) { e.bubT = .05; const sx = g.x - e.dir * e.L * .5; if (sx > -50 && sx < W + 50) spawnBubble(sx + (Math.random() - .5) * 20, g.y + (Math.random() - .5) * e.L * .05, true); }
+  }
+  if (e.t >= e.dur) st.ev = null;
+}
+function sweepX(e, t) { const p = t * e.v; return e.dir > 0 ? -e.L * .6 + p : W + e.L * .6 - p; }
+function subGeom(e) { return { x: sweepX(e, Math.max(0, e.t)), y: e.y0 + Math.sin(e.t * .3) * 6 * U }; }
+function shakeAmount() {
+  const e = st.ev; if (!e || e.kind !== 'sub') return 0;
+  if (e.t < 0) return sm((e.t + e.pre) / e.pre);
+  const g = subGeom(e), back = g.x - e.dir * e.L * .5, front = g.x + e.dir * e.L * .5;
+  const lo = Math.min(back, front), hi = Math.max(back, front);
+  if (hi >= 0 && lo <= W) return 1;
+  const dist = lo > W ? lo - W : -hi;       // how far the boat is outside the picture
+  return 1 - sm(dist / (5 * e.v));
+}
+
+function drawVisitorBehindReef(g) {
+  const e = st.ev; if (!e) return;
+  if (e.kind === 'shark') drawShark(g, e);
+  else if (e.kind === 'whale') drawWhale(g, e);
+  else if (e.kind === 'sub' && e.t > 0) drawSub(g, e);
+}
+
+function drawShark(g, e) {
+  const L = e.L, Hh = L * .24, wag = Math.sin(e.ph * 4) * Hh * .28;
+  const x = sweepX(e, e.t), y = e.y0 + Math.sin(e.ph) * 12 * U;
+  g.save(); g.translate(x, y); g.scale(e.dir, 1);
+  g.save(); g.translate(-L * .42, 0); g.rotate(Math.sin(e.ph * 4 - .6) * .12);
   g.fillStyle = '#5d6b78';
   g.beginPath(); g.moveTo(0, -Hh * .08); g.quadraticCurveTo(-L * .1, -Hh * .5, -L * .2, -Hh * 1.1 + wag * .3); g.quadraticCurveTo(-L * .12, -Hh * .2, -L * .1, 0); g.quadraticCurveTo(-L * .13, Hh * .25, -L * .15, Hh * .65 + wag * .3); g.quadraticCurveTo(-L * .06, Hh * .3, 0, Hh * .08); g.closePath(); g.fill();
   g.restore();
-  // dorsal fin
   g.fillStyle = '#56636f';
   g.beginPath(); g.moveTo(L * .05, -Hh * .42); g.quadraticCurveTo(-L * .02, -Hh * .9, -L * .1, -Hh * 1.15); g.quadraticCurveTo(-L * .08, -Hh * .7, -L * .14, -Hh * .36); g.closePath(); g.fill();
-  // second small dorsal and anal fin
   g.beginPath(); g.moveTo(-L * .3, -Hh * .2); g.lineTo(-L * .35, -Hh * .42); g.lineTo(-L * .36, -Hh * .16); g.closePath(); g.fill();
   g.beginPath(); g.moveTo(-L * .28, Hh * .22); g.lineTo(-L * .33, Hh * .4); g.lineTo(-L * .34, Hh * .15); g.closePath(); g.fill();
-  // body
   g.beginPath();
   g.moveTo(L * .5, Hh * .02);
   g.bezierCurveTo(L * .46, -Hh * .38, L * .2, -Hh * .5, -L * .05, -Hh * .44);
@@ -808,18 +863,257 @@ function drawShark(g, sh) {
   hl.addColorStop(0, 'rgba(255,255,255,.22)'); hl.addColorStop(1, 'rgba(255,255,255,0)');
   g.fillStyle = hl; g.fillRect(-L * .5, -Hh, L, Hh * 2);
   g.restore();
-  // gill slits
-  g.strokeStyle = 'rgba(40, 50, 60, .45)'; g.lineWidth = Math.max(1, L * .004); g.lineCap = 'round';
-  for (let i = 0; i < 5; i++) { const gx = L * (.27 - i * .025); g.beginPath(); g.moveTo(gx, -Hh * .12); g.quadraticCurveTo(gx - L * .01, Hh * .02, gx, Hh * .14); g.stroke(); }
-  // pectoral fin
+  // gill slits: one more on every visit, so the class can count the visits
+  const n = Math.max(1, e.gills), span = L * .22, step = Math.min(L * .028, span / Math.max(1, n - 1));
+  g.strokeStyle = 'rgba(40, 50, 60, .55)'; g.lineWidth = Math.max(1.2, Math.min(L * .0045, step * .35)); g.lineCap = 'round';
+  for (let i = 0; i < n; i++) { const gx = L * .29 - i * step; g.beginPath(); g.moveTo(gx, -Hh * .13); g.quadraticCurveTo(gx - L * .01, Hh * .02, gx, Hh * .15); g.stroke(); }
   g.fillStyle = '#5f6d79';
-  g.save(); g.translate(L * .18, Hh * .22); g.rotate(.35 + Math.sin(sh.ph * .5) * .05);
+  g.save(); g.translate(L * .18, Hh * .22); g.rotate(.35 + Math.sin(e.ph * 2) * .05);
   g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(-L * .05, Hh * .45, -L * .14, Hh * .7); g.quadraticCurveTo(-L * .07, Hh * .3, -L * .08, 0); g.closePath(); g.fill(); g.restore();
-  // eye and mouth line
   g.fillStyle = '#111'; g.beginPath(); g.arc(L * .39, -Hh * .1, Math.max(2, L * .011), 0, 7); g.fill();
   g.fillStyle = 'rgba(255,255,255,.7)'; g.beginPath(); g.arc(L * .393, -Hh * .115, Math.max(.8, L * .0035), 0, 7); g.fill();
   g.strokeStyle = 'rgba(60, 60, 70, .55)'; g.lineWidth = Math.max(1, L * .004);
   g.beginPath(); g.moveTo(L * .44, Hh * .15); g.quadraticCurveTo(L * .38, Hh * .22, L * .33, Hh * .16); g.stroke();
+  g.restore();
+}
+
+function drawWhale(g, e) {
+  const L = e.L, Hh = L * .2, x = sweepX(e, e.t), y = e.y0 + Math.sin(e.ph * .4) * 10 * U;
+  const flap = Math.sin(e.ph * 1.1);
+  g.save(); g.translate(x, y); g.scale(e.dir, 1); g.rotate(Math.sin(e.ph * .4) * .02);
+  // flukes
+  g.save(); g.translate(-L * .46, flap * Hh * .1); g.rotate(flap * .18);
+  g.fillStyle = '#2b3a4a';
+  g.beginPath(); g.moveTo(L * .02, 0);
+  g.bezierCurveTo(-L * .04, -Hh * .1, -L * .08, -Hh * .5, -L * .12, -Hh * .72);
+  g.quadraticCurveTo(-L * .1, -Hh * .25, -L * .14, -Hh * .02);
+  g.quadraticCurveTo(-L * .1, Hh * .25, -L * .12, Hh * .72);
+  g.bezierCurveTo(-L * .08, Hh * .5, -L * .04, Hh * .1, L * .02, 0);
+  g.fill(); g.restore();
+  // far pectoral fin
+  g.fillStyle = '#9fb0bd';
+  g.save(); g.translate(L * .16, Hh * .25); g.rotate(-.55 + Math.sin(e.ph * .8) * .08);
+  g.beginPath(); g.ellipse(-L * .13, 0, L * .15, Hh * .1, 0, 0, 7); g.fill(); g.restore();
+  // body
+  g.beginPath();
+  g.moveTo(L * .5, Hh * .05);
+  g.bezierCurveTo(L * .5, -Hh * .35, L * .3, -Hh * .55, L * .05, -Hh * .52);
+  g.bezierCurveTo(-L * .2, -Hh * .48, -L * .38, -Hh * .2, -L * .48, -Hh * .05);
+  g.lineTo(-L * .48, Hh * .06);
+  g.bezierCurveTo(-L * .36, Hh * .22, -L * .1, Hh * .5, L * .15, Hh * .5);
+  g.bezierCurveTo(L * .35, Hh * .5, L * .48, Hh * .35, L * .5, Hh * .05);
+  g.closePath();
+  const bg = g.createLinearGradient(0, -Hh * .55, 0, Hh * .5);
+  bg.addColorStop(0, '#1f2c3a'); bg.addColorStop(.5, '#3b4d60'); bg.addColorStop(.7, '#8d9eab'); bg.addColorStop(1, '#c9d3da');
+  g.fillStyle = bg; g.fill();
+  g.save(); g.clip();
+  // throat grooves
+  g.strokeStyle = 'rgba(40, 55, 70, .35)'; g.lineWidth = Math.max(1, L * .002);
+  for (let i = 0; i < 9; i++) { const yy = Hh * (.2 + i * .035); g.beginPath(); g.moveTo(L * .46, yy - Hh * .05); g.quadraticCurveTo(L * .2, yy + Hh * .02, -L * .02, yy); g.stroke(); }
+  // light from above and mottling
+  const hl = g.createLinearGradient(0, -Hh * .6, 0, 0);
+  hl.addColorStop(0, 'rgba(180, 220, 255, .18)'); hl.addColorStop(1, 'rgba(180, 220, 255, 0)');
+  g.fillStyle = hl; g.fillRect(-L * .5, -Hh, L, Hh);
+  const r = rng(42);
+  for (let i = 0; i < 40; i++) { g.fillStyle = 'rgba(220, 230, 240, ' + (.05 + r() * .1) + ')'; g.beginPath(); g.ellipse((r() - .4) * L * .8, (r() - .7) * Hh * .6, L * (.004 + r() * .01), Hh * (.01 + r() * .02), 0, 0, 7); g.fill(); }
+  g.restore();
+  // head knobs and barnacles
+  g.fillStyle = 'rgba(25, 35, 45, .5)';
+  for (let i = 0; i < 9; i++) { g.beginPath(); g.arc(L * (.46 - i * .022), -Hh * (.32 - (i % 2) * .04) + Math.sin(i) * Hh * .03, L * .005, 0, 7); g.fill(); }
+  g.fillStyle = 'rgba(230, 230, 220, .6)';
+  for (let i = 0; i < 6; i++) { g.beginPath(); g.arc(L * (.47 - i * .012), Hh * (.12 + (i % 3) * .05), L * .004, 0, 7); g.fill(); }
+  // dorsal hump
+  g.fillStyle = '#23303e'; g.beginPath(); g.moveTo(-L * .18, -Hh * .45); g.quadraticCurveTo(-L * .22, -Hh * .62, -L * .26, -Hh * .4); g.closePath(); g.fill();
+  // near pectoral fin (long, pale, like a humpback)
+  g.save(); g.translate(L * .2, Hh * .3); g.rotate(-.45 + Math.sin(e.ph * .8) * .1);
+  const pg = g.createLinearGradient(0, 0, -L * .3, 0);
+  pg.addColorStop(0, '#5f7383'); pg.addColorStop(1, '#d7e0e6');
+  g.fillStyle = pg; g.beginPath(); g.moveTo(0, -Hh * .06);
+  g.bezierCurveTo(-L * .1, -Hh * .12, -L * .26, -Hh * .08, -L * .32, Hh * .02);
+  g.bezierCurveTo(-L * .25, Hh * .1, -L * .1, Hh * .1, 0, Hh * .07); g.fill();
+  g.restore();
+  // eye and mouth line
+  g.strokeStyle = 'rgba(15, 20, 30, .6)'; g.lineWidth = Math.max(1.5, L * .003);
+  g.beginPath(); g.moveTo(L * .49, Hh * .08); g.quadraticCurveTo(L * .38, Hh * .14, L * .3, Hh * .06); g.stroke();
+  g.fillStyle = '#0b0f14'; g.beginPath(); g.ellipse(L * .3, Hh * .0, L * .007, L * .005, 0, 0, 7); g.fill();
+  g.fillStyle = 'rgba(255,255,255,.6)'; g.beginPath(); g.arc(L * .302, -L * .001, L * .002, 0, 7); g.fill();
+  g.restore();
+}
+
+function drawSub(g, e) {
+  const L = e.L, Hh = L * .12, p = subGeom(e);
+  g.save(); g.translate(p.x, p.y); g.scale(e.dir, 1); g.rotate(Math.sin(e.t * .3) * .01);
+  // propeller
+  g.save(); g.translate(-L * .5, 0);
+  g.fillStyle = '#3a3324'; g.fillRect(-L * .012, -Hh * .06, L * .02, Hh * .12);
+  for (let i = 0; i < 4; i++) { const a = e.t * 9 + i * Math.PI / 2, s = Math.cos(a); g.fillStyle = s > 0 ? '#b89a4a' : '#8c7535'; g.beginPath(); g.ellipse(-L * .015, Math.sin(a) * Hh * .22, L * .006, Hh * .2 * Math.abs(s) + 1, 0, 0, 7); g.fill(); }
+  g.restore();
+  // rudder and stern planes
+  g.fillStyle = '#2c3438';
+  g.beginPath(); g.moveTo(-L * .42, 0); g.lineTo(-L * .49, -Hh * .5); g.lineTo(-L * .47, 0); g.closePath(); g.fill();
+  g.beginPath(); g.moveTo(-L * .42, 0); g.lineTo(-L * .49, Hh * .5); g.lineTo(-L * .47, 0); g.closePath(); g.fill();
+  // hull
+  g.beginPath();
+  g.moveTo(L * .5, 0);
+  g.bezierCurveTo(L * .5, -Hh * .5, L * .42, -Hh * .5, L * .3, -Hh * .5);
+  g.lineTo(-L * .25, -Hh * .5);
+  g.bezierCurveTo(-L * .38, -Hh * .45, -L * .45, -Hh * .15, -L * .48, -Hh * .04);
+  g.lineTo(-L * .48, Hh * .04);
+  g.bezierCurveTo(-L * .45, Hh * .15, -L * .38, Hh * .45, -L * .25, Hh * .5);
+  g.lineTo(L * .3, Hh * .5);
+  g.bezierCurveTo(L * .42, Hh * .5, L * .5, Hh * .5, L * .5, 0);
+  g.closePath();
+  const hg = g.createLinearGradient(0, -Hh * .5, 0, Hh * .5);
+  hg.addColorStop(0, '#5a6a70'); hg.addColorStop(.3, '#8a9a9f'); hg.addColorStop(.55, '#46545a'); hg.addColorStop(1, '#1d2529');
+  g.fillStyle = hg; g.fill();
+  g.save(); g.clip();
+  // plates, rivets, rust streaks
+  g.strokeStyle = 'rgba(0,0,0,.25)'; g.lineWidth = 1;
+  for (let i = 1; i < 14; i++) { const px = -L * .45 + i * L * .068; g.beginPath(); g.moveTo(px, -Hh); g.lineTo(px, Hh); g.stroke(); }
+  g.beginPath(); g.moveTo(-L * .5, Hh * .12); g.lineTo(L * .5, Hh * .12); g.stroke();
+  g.fillStyle = 'rgba(220,230,235,.35)';
+  for (let i = 0; i < 60; i++) { const px = -L * .45 + i * L * .015; g.beginPath(); g.arc(px, -Hh * .3, Math.max(.8, L * .0012), 0, 7); g.fill(); }
+  const r = rng(5);
+  for (let i = 0; i < 16; i++) { g.fillStyle = 'rgba(140, 80, 30, ' + (.12 + r() * .15) + ')'; g.fillRect((r() - .5) * L * .9, -Hh * .2 + r() * Hh * .2, L * .003, Hh * (.15 + r() * .3)); }
+  g.restore();
+  // portholes with warm light
+  for (let i = 0; i < 9; i++) {
+    const px = L * (.32 - i * .06), py = -Hh * .08, pr = Hh * .07;
+    g.fillStyle = '#20282c'; g.beginPath(); g.arc(px, py, pr * 1.35, 0, 7); g.fill();
+    const lg = g.createRadialGradient(px - pr * .3, py - pr * .3, 1, px, py, pr);
+    lg.addColorStop(0, '#fff7c2'); lg.addColorStop(1, '#e8a730');
+    g.fillStyle = lg; g.beginPath(); g.arc(px, py, pr, 0, 7); g.fill();
+  }
+  // conning tower with planes and periscope
+  g.fillStyle = '#3d4a50';
+  g.beginPath(); g.moveTo(L * .02, -Hh * .48); g.lineTo(L * .05, -Hh * 1.25); g.lineTo(L * .2, -Hh * 1.25); g.quadraticCurveTo(L * .23, -Hh * .8, L * .24, -Hh * .48); g.closePath(); g.fill();
+  g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(L * .06, -Hh * 1.2, L * .13, Hh * .12);
+  g.fillStyle = '#2a3337'; g.fillRect(L * .09, -Hh * 1.05, L * .1, Hh * .07);
+  g.fillRect(L * .12, -Hh * 1.65, L * .008, Hh * .42); g.fillRect(L * .12, -Hh * 1.65, L * .025, Hh * .06);
+  g.fillStyle = '#ffd34d'; g.beginPath(); g.arc(L * .17, -Hh * 1.32, Hh * .05, 0, 7); g.fill();
+  g.fillStyle = '#2c3438'; g.beginPath(); g.moveTo(L * .38, -Hh * .2); g.lineTo(L * .43, -Hh * .2); g.lineTo(L * .36, -Hh * .05); g.closePath(); g.fill();
+  // searchlight beam
+  g.save(); g.globalCompositeOperation = 'lighter';
+  const bm = g.createLinearGradient(L * .5, 0, L * .9, 0);
+  bm.addColorStop(0, 'rgba(255, 245, 200, .25)'); bm.addColorStop(1, 'rgba(255, 245, 200, 0)');
+  g.fillStyle = bm; g.beginPath(); g.moveTo(L * .49, -Hh * .05); g.lineTo(L * .95, -Hh * .9); g.lineTo(L * .95, Hh * .9); g.closePath(); g.fill();
+  g.restore();
+  g.restore();
+}
+
+/* Octopus: swims in, turns to the class, comes so close that only one eye is visible, blinks twice, leaves. */
+const KR = { eyeX: .5, eyeY: -.02, eyeR: .21 };
+function krakenPose(t, dir) {
+  const uC = Math.min(W, H) * .13, C = { x: W * .5, y: H * .42 };
+  const uE = .48 * Math.max(W, H) / KR.eyeR;
+  const ex0 = C.x + uC * KR.eyeX * 1, ey0 = C.y + uC * KR.eyeY;
+  let x = C.x, y = C.y, u = uC, front = 1, look = 0;
+  if (t < 5) { const k = sm(t / 5); x = dir > 0 ? lerp(-uC * 4, C.x, k) : lerp(W + uC * 4, C.x, k); y = lerp(H * .3, C.y, k); front = 0; }
+  else if (t < 6.2) { front = sm((t - 5) / 1.2); }
+  else if (t < 7) { y = C.y + Math.sin(t * 2) * 3 * U; }
+  else if (t < 15.5) {
+    let k = t < 10 ? sm((t - 7) / 3) : t < 13 ? 1 : 1 - sm((t - 13) / 2.5);
+    u = uC * Math.pow(uE / uC, k);
+    const ex = lerp(ex0, W / 2, k), ey = lerp(ey0, H / 2, k);
+    x = ex - u * KR.eyeX; y = ey - u * KR.eyeY; look = k;
+  } else if (t < 16.7) { front = 1 - sm((t - 15.5) / 1.2); }
+  else { const k = sm((t - 16.7) / 4.3); front = 0; x = dir > 0 ? lerp(C.x, W + uC * 5, k) : lerp(C.x, -uC * 5, k); y = lerp(C.y, sandY - uC * .2, Math.sin(k * Math.PI * .5)); }
+  let blink = 0;
+  for (const tb of [10.4, 11.8]) { const b = (t - tb) / .7; if (b > 0 && b < 1) blink = Math.max(blink, Math.sin(Math.PI * b)); }
+  return { x, y, u, front, look, blink };
+}
+function drawKraken(g, e) {
+  const p = krakenPose(e.t, e.dir), t = e.t;
+  g.save(); g.translate(p.x, p.y);
+  if (p.front < 1) {
+    // side view while swimming; squeeze into the turn
+    const sx = p.front < .5 ? 1 - p.front * 2 : 0;
+    if (sx > 0.01) { g.save(); const goingRight = t < 8 ? e.dir > 0 : e.dir > 0; g.scale(sx * (goingRight ? 1 : -1), 1); krakenSide(g, p.u, t); g.restore(); }
+  }
+  if (p.front > .5) { g.save(); g.scale((p.front - .5) * 2, 1); krakenFront(g, p.u, t, p.blink, p.look); g.restore(); }
+  g.restore();
+}
+const KSKIN = ['#ff8a3d', '#e8641c', '#b8460f'];
+function krakenSide(g, u, t) {
+  // mantle leads, arms trail behind and wave
+  g.lineCap = 'round';
+  for (let i = 0; i < 8; i++) {
+    const off = (i - 3.5) * u * .1, ph = t * 5 + i * .7, len = u * (2.6 + (i % 3) * .3);
+    g.strokeStyle = i % 2 ? KSKIN[1] : KSKIN[2]; g.lineWidth = u * .22;
+    g.beginPath(); g.moveTo(-u * .2, off * .6);
+    g.bezierCurveTo(-len * .35, off + Math.sin(ph) * u * .3, -len * .7, off * 1.6 + Math.sin(ph + 1.3) * u * .4, -len, off * 2 + Math.sin(ph + 2.4) * u * .5);
+    g.stroke();
+  }
+  const mg = g.createRadialGradient(u * .3, -u * .3, u * .1, u * .2, 0, u * 1.2);
+  mg.addColorStop(0, KSKIN[0]); mg.addColorStop(.7, KSKIN[1]); mg.addColorStop(1, KSKIN[2]);
+  g.fillStyle = mg; g.beginPath(); g.ellipse(u * .45, 0, u * .95, u * .62, -.05, 0, 7); g.fill();
+  krakenSpots(g, u, u * .45, 0, .9, .55);
+  g.fillStyle = '#f2c94c'; g.beginPath(); g.arc(-u * .1, -u * .25, u * .16, 0, 7); g.fill();
+  g.fillStyle = '#111'; g.fillRect(-u * .19, -u * .28, u * .18, u * .06);
+}
+function krakenSpots(g, u, cx, cy, rx, ry) {
+  const r = rng(99);
+  for (let i = 0; i < 40; i++) { const a = r() * 7, d = Math.sqrt(r()); g.fillStyle = r() < .6 ? 'rgba(130, 40, 5, .25)' : 'rgba(255, 220, 180, .25)'; g.beginPath(); g.ellipse(cx + Math.cos(a) * d * rx * u, cy + Math.sin(a) * d * ry * u, u * (.02 + r() * .05), u * (.015 + r() * .03), r() * 3, 0, 7); g.fill(); }
+}
+function krakenFront(g, u, t, blink, look) {
+  g.lineCap = 'round';
+  // arms
+  for (let i = 0; i < 8; i++) {
+    const side = i < 4 ? -1 : 1, k = (i % 4) / 3, base = side * u * (.15 + k * .45);
+    const ph = t * 1.8 + i, len = u * (2 + (1 - k) * .6);
+    const ex = side * u * (.4 + k * 1.6) + Math.sin(ph) * u * .25, ey = u * .1 + len * (1 - k * .35);
+    const w = u * .26;
+    g.strokeStyle = KSKIN[i % 2 ? 1 : 2]; g.lineWidth = w;
+    g.beginPath(); g.moveTo(base, u * .15);
+    g.bezierCurveTo(base + side * u * .1, ey * .45, ex - side * u * .2 + Math.sin(ph + 1) * u * .2, ey * .8, ex, ey); g.stroke();
+    g.strokeStyle = KSKIN[0]; g.lineWidth = w * .45;
+    g.beginPath(); g.moveTo(base, u * .15); g.bezierCurveTo(base + side * u * .1, ey * .45, ex - side * u * .2 + Math.sin(ph + 1) * u * .2, ey * .8, ex, ey); g.stroke();
+    // suckers
+    g.fillStyle = '#ffd2b0';
+    for (let s = 1; s < 7; s++) { const q = s / 7; const sx = lerp(base, ex, q) + Math.sin(q * 3 + ph) * u * .05, sy = lerp(u * .15, ey, q); g.beginPath(); g.arc(sx, sy, w * (.22 - q * .12), 0, 7); g.fill(); }
+  }
+  // mantle dome
+  const mg = g.createRadialGradient(-u * .25, -u * 1.2, u * .1, 0, -u * .8, u * 1.3);
+  mg.addColorStop(0, '#ffb070'); mg.addColorStop(.55, KSKIN[0]); mg.addColorStop(1, KSKIN[2]);
+  g.fillStyle = mg; g.beginPath(); g.ellipse(0, -u * .85, u * .78, u * 1.0, 0, 0, 7); g.fill();
+  g.beginPath(); g.ellipse(0, u * .05, u * .82, u * .32, 0, 0, 7); g.fill();
+  krakenSpots(g, u, 0, -u * .85, .7, .9);
+  for (const sx of [-1, 1]) drawKrakenEye(g, u, sx * KR.eyeX * u, KR.eyeY * u, KR.eyeR * u, blink, look);
+}
+function drawKrakenEye(g, u, x, y, r, blink, look) {
+  // bulging socket
+  g.fillStyle = KSKIN[1]; g.beginPath(); g.arc(x, y, r * 1.3, 0, 7); g.fill();
+  g.save(); g.beginPath(); g.arc(x, y, r, 0, 7); g.clip();
+  const ig = g.createRadialGradient(x - r * .2, y - r * .2, r * .05, x, y, r);
+  ig.addColorStop(0, '#fff3b8'); ig.addColorStop(.5, '#f2c14e'); ig.addColorStop(1, '#a8741a');
+  g.fillStyle = ig; g.fillRect(x - r, y - r, r * 2, r * 2);
+  // iris fibres, visible when the eye fills the screen
+  if (look > .2) {
+    const fr = rng(77);
+    for (let i = 0; i < 220; i++) {
+      const a = fr() * Math.PI * 2, r0 = r * (.3 + fr() * .2), r1 = r * (.7 + fr() * .3), bend = (fr() - .5) * .25;
+      g.strokeStyle = (fr() < .5 ? 'rgba(120, 70, 10, ' : 'rgba(255, 240, 190, ') + ((.12 + fr() * .2) * look) + ')';
+      g.lineWidth = Math.max(.8, r * (.002 + fr() * .006));
+      g.beginPath(); g.moveTo(x + Math.cos(a) * r0, y + Math.sin(a) * r0 * .8);
+      g.quadraticCurveTo(x + Math.cos(a + bend) * (r0 + r1) / 2, y + Math.sin(a + bend) * (r0 + r1) / 2, x + Math.cos(a) * r1, y + Math.sin(a) * r1); g.stroke();
+    }
+    const rim = g.createRadialGradient(x, y, r * .7, x, y, r);
+    rim.addColorStop(0, 'rgba(90, 50, 5, 0)'); rim.addColorStop(1, 'rgba(90, 50, 5, ' + (.5 * look) + ')');
+    g.fillStyle = rim; g.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+  // horizontal octopus pupil
+  g.fillStyle = '#0b0b0b';
+  const pw = r * .95, ph = r * .32;
+  g.beginPath(); g.moveTo(x - pw / 2 + ph / 2, y - ph / 2); g.lineTo(x + pw / 2 - ph / 2, y - ph / 2); g.arc(x + pw / 2 - ph / 2, y, ph / 2, -Math.PI / 2, Math.PI / 2); g.lineTo(x - pw / 2 + ph / 2, y + ph / 2); g.arc(x - pw / 2 + ph / 2, y, ph / 2, Math.PI / 2, Math.PI * 1.5); g.fill();
+  g.fillStyle = 'rgba(255,255,255,.55)'; g.beginPath(); g.ellipse(x - r * .35, y - r * .45, r * .12, r * .07, -.5, 0, 7); g.fill();
+  g.fillStyle = 'rgba(255,255,255,.3)'; g.beginPath(); g.ellipse(x + r * .4, y + r * .4, r * .05, r * .03, -.5, 0, 7); g.fill();
+  // eyelid for blinking
+  if (blink > 0) {
+    const lg = g.createLinearGradient(0, y - r, 0, y - r + blink * 2 * r);
+    lg.addColorStop(0, KSKIN[2]); lg.addColorStop(1, KSKIN[0]);
+    g.fillStyle = lg; g.fillRect(x - r, y - r, r * 2, blink * 2 * r);
+    g.strokeStyle = KSKIN[2]; g.lineWidth = Math.max(1, r * .04); g.beginPath(); g.moveTo(x - r, y - r + blink * 2 * r); g.lineTo(x + r, y - r + blink * 2 * r); g.stroke();
+  }
   g.restore();
 }
 
@@ -850,7 +1144,15 @@ function logic(dt) {
   if (status !== st.status) setStatus(status);
 
   if (st.mode !== 'idle' && !st.paused) {
-    if (!st.shark) { st.sharkT += dt; if (st.sharkT >= S.sharkSeconds) { st.sharkT = 0; spawnShark(); } }
+    st.sharkT += dt;
+    if (st.sharkT >= S.sharkSeconds) {
+      st.sharkT -= S.sharkSeconds; st.tick++;
+      queueEvent('shark');
+      if (st.tick % S.mA === 0) queueEvent('whale');
+      if (st.tick % S.mB === 0) queueEvent('sub');
+      if (st.tick % S.mC === 0) queueEvent('kraken');
+    }
+    updateEvents(dt);
     const speed = st.mode === 'demo' && $('#demoFast').checked ? 10 : 1;
     if (st.status !== 'loud') {
       st.loudT = 0;
@@ -862,7 +1164,7 @@ function logic(dt) {
       if (S.swimAway && st.loudT >= 10) { st.loudT = 0; removeFish(); }
     }
   }
-  if (st.shark) { const sh = st.shark; sh.x += sh.dir * sh.v * dt; sh.ph += dt * 4; sh.y = sh.y0 + Math.sin(sh.ph * .25) * 12 * U; if ((sh.dir > 0 && sh.x > W + sh.L) || (sh.dir < 0 && sh.x < -sh.L)) st.shark = null; }
+  // visitors are updated with the timer above
   // fish
   for (const f of fish) updateFish(f, dt);
   fish = fish.filter(f => !(f.leaving && (f.x < -150 || f.x > W + 150)));
@@ -915,7 +1217,7 @@ function render() {
   // fish
   const sorted = fish.slice().sort((a, b) => a.k - b.k);
   for (const f of sorted) drawFish(ctx, f);
-  if (st.shark) drawShark(ctx, st.shark);
+  drawVisitorBehindReef(ctx);
   // foreground corals
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(fgLayer, 0, 0); ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   // seaweed
@@ -951,6 +1253,17 @@ function render() {
   // bubbles
   ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 1.5;
   for (const b of bubbles) { ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.stroke(); ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.arc(b.x - b.r * .35, b.y - b.r * .35, b.r * .25, 0, 7); ctx.fill(); }
+  if (st.ev && st.ev.kind === 'kraken') drawKraken(ctx, st.ev);
+  // the submarine makes water and reef shake: stronger the closer it is
+  const sk = shakeAmount();
+  if (sk > 0.001) {
+    const A = (reduceMotion ? 1.5 : 7) * U * sk * DPR, pad = A * 2.2;
+    const ox = (Math.sin(st.t * 31) + Math.sin(st.t * 17.3) * .6) * A * .6, oy = (Math.cos(st.t * 27) + Math.sin(st.t * 13.1) * .6) * A * .6;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(cv, -pad + ox, -pad + oy, cv.width + pad * 2, cv.height + pad * 2);
+    ctx.fillStyle = 'rgba(5, 25, 45, ' + (.12 * sk).toFixed(3) + ')'; ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
 }
 
 /* ---------- Status, HUD, messages ---------- */
@@ -1067,7 +1380,7 @@ $('#btnFull').addEventListener('click', async () => {
 
 /* ---------- Start / modes ---------- */
 function beginSession(mode) {
-  setShark($('#sharkSec').value); st.sharkT = 0; st.shark = null;
+  setShark($('#sharkSec').value); readMults(); resetVisitors();
   st.mode = mode;
   $('#startOverlay').hidden = true;
   fish = fish.filter(f => !f.ambient);
@@ -1113,6 +1426,7 @@ function syncInputs() {
   $('#thr').value = S.threshold; $('#fishSec').value = String(S.fishSeconds); $('#goal').value = String(S.goal);
   $('#tol').value = String(S.tolerance); $('#swimAway').checked = S.swimAway;
   $('#sharkSec').value = S.sharkSeconds; $('#sharkSec2').value = S.sharkSeconds;
+  $('#mA').value = S.mA; $('#mB').value = S.mB; $('#mC').value = S.mC;
 }
 syncInputs();
 $('#thr').addEventListener('input', e => { S.threshold = +e.target.value; persist(); });
@@ -1138,8 +1452,14 @@ $('#btnCalib').addEventListener('click', () => {
 });
 function resetRound() {
   fish.forEach(f => { if (!f.ambient && !f.leaving) { f.leaving = true; f.tx = f.x < W / 2 ? -200 : W + 200; } });
-  st.progress = 0; st.celebrated = false; persist(); updateCounter();
+  st.progress = 0; st.celebrated = false; resetVisitors(); persist(); updateCounter();
 }
+function resetVisitors() { st.sharkT = 0; st.tick = 0; st.sharkCount = 0; st.events = []; st.ev = null; }
+function readMults() {
+  for (const k of ['mA', 'mB', 'mC']) { const n = Math.round(+$('#' + k).value); S[k] = clamp(Number.isFinite(n) && n > 0 ? n : S[k], 1, 100); $('#' + k).value = S[k]; }
+  persist();
+}
+['mA', 'mB', 'mC'].forEach(k => $('#' + k).addEventListener('change', readMults));
 $('#btnReset').addEventListener('click', () => { $('#resetConfirm').hidden = false; });
 $('#btnResetNo').addEventListener('click', () => { $('#resetConfirm').hidden = true; });
 $('#btnResetYes').addEventListener('click', () => { resetRound(); $('#resetConfirm').hidden = true; closeSheet(); say('Neue Runde! Das Riff wartet auf Fische.', 3); });
