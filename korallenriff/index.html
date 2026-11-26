@@ -615,6 +615,7 @@ function buildReef() {
     weeds.push({ x: x + (r() < .5 ? -1 : 1) * (55 + r() * 20) * U, y: sandCurve(x) + 24 * U, h: (80 + r() * 100) * U, col: r() < .5 ? '#2c8a4b' : '#4a9c3a', ph: r() * 6 });
     if (i % 2 === 0) anemones.push({ x: x + (r() - .5) * 50 * U, y: y - 22 * U, r: (16 + r() * 8) * U, col: r() < .5 ? '#f3a6c8' : '#c9e88a', ph: r() * 6 });
   }
+  if (vents.length > 3) { const a = Math.floor(vents.length * .25), b = Math.floor(vents.length * .75); vents = vents.filter((v, i) => i !== a && i !== b); } // two fewer bubble sources
   for (let i = 0; i < 3; i++) { const x = W * (0.15 + r() * .7), y = sandCurve(x) + (34 + r() * 30) * U; star(g, x, y, 13 * U, i % 2 ? '#e2623b' : '#f0a030'); }
   // soft vignette
   const vg = g.createRadialGradient(W / 2, H * .45, Math.min(W, H) * .35, W / 2, H * .5, Math.max(W, H) * .8);
@@ -1180,6 +1181,25 @@ function drawWhale(g, e) {
   g.restore();
 }
 
+/* where the person in the submarine is: waves at the 4th window, walks to the last window before that one leaves the picture, waves again */
+function subFigure(e, Hh) {
+  const L = e.L, pr = Hh * .07, x0 = L * (.32 - 3 * .06), x1 = L * (.32 - 8 * .06);
+  const tExit = (W + .6 * L + pr - x0) / e.v, walk = 4, t0 = tExit - walk - 1.5, k = clamp((e.t - t0) / walk, 0, 1);
+  const walking = k > 0 && k < 1;
+  return { x: lerp(x0, x1, sm(k)), bob: walking ? -Math.abs(Math.sin(e.t * 7)) * pr * .1 : 0, wave: !walking };
+}
+function subPerson(g, x, y, pr, waveT) {
+  g.fillStyle = g.strokeStyle = '#76512a'; g.lineCap = 'round'; // opaque, so overlapping parts don't show darker
+  const hx = x - pr * .1;
+  g.beginPath(); g.arc(hx, y - pr * .3, pr * .24, 0, 7); g.fill();                                   // head
+  g.fillRect(hx - pr * .09, y - pr * .1, pr * .18, pr * .26);                                       // neck
+  g.beginPath(); g.ellipse(hx, y + pr * .72, pr * .5, pr * .58, 0, 0, 7); g.fill();               // shoulders and body
+  if (waveT !== null) {
+    const a = -2.1 + Math.sin(waveT * 5) * .45, sx = hx + pr * .36, sy = y + pr * .38, ax = sx + Math.cos(a) * pr * .62, ay = sy + Math.sin(a) * pr * .62;
+    g.lineWidth = pr * .17; g.beginPath(); g.moveTo(sx, sy); g.lineTo(ax, ay); g.stroke();
+    g.beginPath(); g.arc(ax, ay, pr * .11, 0, 7); g.fill();
+  }
+}
 function drawSub(g, e) {
   const L = e.L, Hh = L * .18, p = subGeom(e); // a bulky hull
   g.save(); g.translate(p.x, p.y); g.scale(e.dir, 1); g.rotate(Math.sin(e.t * .3) * .01);
@@ -1217,20 +1237,15 @@ function drawSub(g, e) {
   for (let i = 0; i < 16; i++) { g.fillStyle = 'rgba(140, 80, 30, ' + (.12 + r() * .15) + ')'; g.fillRect((r() - .5) * L * .9, -Hh * .2 + r() * Hh * .2, L * .003, Hh * (.15 + r() * .3)); }
   g.restore();
   // portholes with warm light
+  const fig = subFigure(e, Hh);
   for (let i = 0; i < 9; i++) {
     const px = L * (.32 - i * .06), py = -Hh * .08, pr = Hh * .07;
     g.fillStyle = '#20282c'; g.beginPath(); g.arc(px, py, pr * 1.35, 0, 7); g.fill();
     const lg = g.createRadialGradient(px - pr * .3, py - pr * .3, 1, px, py, pr);
     lg.addColorStop(0, '#fff7c2'); lg.addColorStop(1, '#e8a730');
     g.fillStyle = lg; g.beginPath(); g.arc(px, py, pr, 0, 7); g.fill();
-    if (i === 3) { // the shadow of someone waving behind the glass
-      g.save(); g.beginPath(); g.arc(px, py, pr, 0, 7); g.clip(); g.fillStyle = 'rgba(70, 38, 8, .72)'; g.strokeStyle = 'rgba(70, 38, 8, .72)'; g.lineCap = 'round';
-      g.beginPath(); g.arc(px - pr * .2, py - pr * .12, pr * .27, 0, 7); g.fill();
-      g.beginPath(); g.ellipse(px - pr * .2, py + pr * .78, pr * .55, pr * .55, 0, 0, 7); g.fill();
-      const a = -2.1 + Math.sin(e.t * 5) * .45, sx = px + pr * .2, sy = py + pr * .38, hx = sx + Math.cos(a) * pr * .62, hy = sy + Math.sin(a) * pr * .62;
-      g.lineWidth = pr * .17; g.beginPath(); g.moveTo(sx, sy); g.lineTo(hx, hy); g.stroke();
-      g.beginPath(); g.arc(hx, hy, pr * .11, 0, 7); g.fill(); g.restore();
-    }
+    // someone behind the glass: waves, walks back past the other windows and waves again from the last one
+    if (Math.abs(fig.x - px) < pr * 2) { g.save(); g.beginPath(); g.arc(px, py, pr, 0, 7); g.clip(); subPerson(g, fig.x, py + fig.bob, pr, fig.wave ? e.t : null); g.restore(); }
   }
   // conning tower with planes and periscope
   g.fillStyle = '#3d4a50';
@@ -1243,9 +1258,17 @@ function drawSub(g, e) {
   // searchlight beam
   g.save(); g.globalCompositeOperation = 'lighter';
   const bm = g.createLinearGradient(L * .5, 0, L * .9, 0);
-  bm.addColorStop(0, 'rgba(255, 245, 200, .25)'); bm.addColorStop(1, 'rgba(255, 245, 200, 0)');
-  g.fillStyle = bm; g.beginPath(); g.moveTo(L * .49, -Hh * .05); g.lineTo(L * .95, -Hh * .9); g.lineTo(L * .95, Hh * .9); g.closePath(); g.fill();
+  bm.addColorStop(0, 'rgba(255, 245, 200, .4)'); bm.addColorStop(1, 'rgba(255, 245, 200, 0)');
+  g.fillStyle = bm; g.beginPath(); g.moveTo(L * .48, -Hh * .1); g.lineTo(L * .98, -Hh * 1.1); g.lineTo(L * .98, Hh * .8); g.lineTo(L * .48, Hh * .06); g.closePath(); g.fill();
+  const lx = L * .478, ly = -Hh * .02, lr = Hh * .1, lg2 = g.createRadialGradient(lx, ly, 0, lx, ly, lr * 3.2);
+  lg2.addColorStop(0, 'rgba(255, 250, 225, .75)'); lg2.addColorStop(1, 'rgba(255, 245, 200, 0)');
+  g.fillStyle = lg2; g.beginPath(); g.arc(lx, ly, lr * 3.2, 0, 7); g.fill();
   g.restore();
+  // the headlight itself on the bow
+  g.fillStyle = '#1e2629'; g.beginPath(); g.ellipse(lx, ly, lr * .75, lr * 1.25, 0, 0, 7); g.fill();
+  const lens = g.createRadialGradient(lx + lr * .15, ly - lr * .2, 0, lx, ly, lr);
+  lens.addColorStop(0, '#ffffff'); lens.addColorStop(.5, '#fff6cf'); lens.addColorStop(1, '#f0d27a');
+  g.fillStyle = lens; g.beginPath(); g.ellipse(lx + lr * .12, ly, lr * .5, lr * .95, 0, 0, 7); g.fill();
   g.restore();
 }
 
@@ -1265,7 +1288,7 @@ function krakenPose(t) {
     const k = sm((t - 5.5) / 2.3); rot = SW * (1 - k); yaw = -SW * (1 - k); spread = k; jet = 5.5 + (t - 5.5) * (1 - k);
     y = C.y - Math.sin(k * Math.PI) * 10 * U;
   } else if (t < 8.6) { rot = 0; yaw = 0; spread = 1; y = C.y + Math.sin((t - 7.8) * 3) * 3 * U; }
-  else if (t < 16.6) {                                      // swim towards the screen until one eye fills it
+  else if (t <= 16.6) {                                     // swim towards the screen until one eye fills it
     const k = t < 11.6 ? sm((t - 8.6) / 3) : t < 14.2 ? 1 : 1 - sm((t - 14.2) / 2.4);
     rot = 0; spread = 1; yaw = KEYE.phi * k; look = k; jet = 0;
     const uE = .5 * Math.max(W, H) / KEYE.r;
@@ -1347,9 +1370,10 @@ function drawOcto(g, p, t) {
   arms.sort((A, B) => A.d - B.d);
   for (const A of arms) if (A.d < .15) krakenArm(g, u, t, A, p, pulse);
   // web between the arms
-  { const wg = g.createRadialGradient(0, u * .25, u * .1, 0, u * .4, u * (.8 + p.spread * .4));
-    wg.addColorStop(0, KSKIN[2]); wg.addColorStop(1, 'rgba(184,70,15,0)');
-    g.fillStyle = wg; g.beginPath(); g.ellipse(0, u * (.35 + p.spread * .1), u * (.55 + p.spread * .55), u * (.35 + p.spread * .15), 0, 0, 7); g.fill(); }
+  // (kept small and in skin colour, so no dark shadow shows round the 'hip')
+  { const cy = u * (.32 + p.spread * .06), rx = u * (.5 + p.spread * .12), wg = g.createRadialGradient(0, cy, 0, 0, cy, rx);
+    wg.addColorStop(0, KSKIN[1]); wg.addColorStop(.75, KSKIN[1]); wg.addColorStop(1, 'rgba(239,106,31,0)');
+    g.fillStyle = wg; g.beginPath(); g.ellipse(0, cy, rx, u * .28, 0, 0, 7); g.fill(); }
   krakenMantle(g, u, t, p, pulse);
   // the eyes sit on the sides of the head and slide round when it turns
   for (const s of [-1, 1]) {
