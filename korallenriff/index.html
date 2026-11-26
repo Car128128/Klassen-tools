@@ -527,7 +527,7 @@ function rock(g, r, x, y, w, h, col) {
 }
 
 const CORAL_COLS = ['#f2b630', '#f07a2a', '#8a4fd0', '#d9558a', '#ef5a3c', '#b48ae6', '#f6d35c'];
-let causticPattern = null, sandPath = null, anemones = [], snow = [], vents = [];
+let causticPattern = null, sandPath = null, anemones = [], snow = [], vents = [], inks = [];
 
 function makeCaustics() {
   const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
@@ -982,11 +982,11 @@ function startEvent(kind) {
     return { kind, t: 0, dir, L, v, dur: (W + 1.2 * L) / v, y0: Math.min(H * .32, sandY * .45), ph: 0 };
   }
   if (kind === 'sub') {
-    const L = Math.max(W * 1.6, 700), v = (W + 1.15 * L) / 18, pre = 5;
+    const L = Math.max(W * 1.6, 700), v = (W + 1.15 * L) / 36, pre = 5; // slow and heavy, like the shark
     // starts out of view, rumbling for 5 s before, and keeps rumbling (fading) after it has left
-    return { kind, t: -pre, dir, L, v, pre, dur: (W + 1.15 * L) / v + 5, y0: sandY * .5, ph: 0, bubT: 0 };
+    return { kind, t: -pre, dir, L, v, pre, dur: (W + 1.15 * L) / v + 5, y0: sandY * .56, ph: 0, bubT: 0 };
   }
-  return { kind: 'kraken', t: 0, dir, dur: 21, ph: 0 };
+  return { kind: 'kraken', t: 0, dir, dur: 18.8, ph: 0 };
 }
 function updateEvents(dt) {
   if (!st.ev && st.events.length) st.ev = startEvent(st.events.shift().kind);
@@ -996,6 +996,11 @@ function updateEvents(dt) {
     e.bubT -= dt;
     const g = subGeom(e);
     if (e.bubT <= 0) { e.bubT = .05; const sx = g.x - e.dir * e.L * .5; if (sx > -50 && sx < W + 50) spawnBubble(sx + (Math.random() - .5) * 20, g.y + (Math.random() - .5) * e.L * .05, true); }
+  }
+  if (e.kind === 'kraken') {
+    // after its visit the octopus stays and roams the reef; a loud class scares it away
+    if (st.status === 'loud') e.scared = true;
+    if (e.t >= e.dur || (e.scared && (e.t < 8.6 || e.t > 16.6))) { octoFromVisit(e); st.ev = null; return; }
   }
   if (e.t >= e.dur) st.ev = null;
 }
@@ -1012,6 +1017,7 @@ function shakeAmount() {
 }
 
 function drawVisitorBehindReef(g) {
+  if (st.octo) drawOcto(g, octoPose(st.octo), st.t);
   const e = st.ev; if (!e) return;
   if (e.kind === 'shark') drawShark(g, e);
   else if (e.kind === 'whale') drawWhale(g, e);
@@ -1159,7 +1165,7 @@ function drawWhale(g, e) {
 }
 
 function drawSub(g, e) {
-  const L = e.L, Hh = L * .12, p = subGeom(e);
+  const L = e.L, Hh = L * .18, p = subGeom(e); // a bulky hull
   g.save(); g.translate(p.x, p.y); g.scale(e.dir, 1); g.rotate(Math.sin(e.t * .3) * .01);
   // propeller
   g.save(); g.translate(-L * .5, 0);
@@ -1252,8 +1258,58 @@ function krakenPose(t) {
   for (const tb of [12.1, 13.3]) { const b = (t - tb) / .7; if (b > 0 && b < 1) blink = Math.max(blink, Math.sin(Math.PI * b)); }
   return { x, y, u, rot, yaw, spread, look, blink, jet };
 }
-function drawKraken(g, e) {
-  const p = krakenPose(e.t), t = e.t, u = p.u;
+function drawKraken(g, e) { drawOcto(g, krakenPose(e.t), e.t); }
+/* the octopus that stays: hovers, then jets criss-cross through the reef; startled by noise it inks and flees */
+function octoFromVisit(e) {
+  const p = krakenPose(Math.min(e.t, e.dur));
+  st.octo = { x: p.x, y: p.y, u: p.u, rot: p.rot, yaw: p.yaw, spread: p.spread, jet: p.jet, t: 0, state: 'hover', wait: 1.5, blinkT: 3 };
+  if (e.scared) octoStartle(st.octo);
+}
+function octoTarget(o) {
+  const u = o.u; o.state = 'swim';
+  o.tx = o.x < W / 2 ? W * (.58 + Math.random() * .3) : W * (.12 + Math.random() * .3);
+  o.ty = lerp(Math.max(H * .08 + 2.3 * u, H * .2), sandY - .4 * u, Math.random());
+}
+function octoStartle(o) {
+  o.state = 'flee';
+  o.tx = o.x < W / 2 ? W + o.u * 9 : -o.u * 9;        // the far edge
+  o.ty = clamp(o.y - o.u * .6, H * .08 + 2.3 * o.u, sandY - o.u);
+  o.inkT = .7;
+  for (let i = 0; i < 12; i++) inks.push({ x: o.x + (Math.random() - .5) * o.u, y: o.y + (Math.random() - .3) * o.u, r: o.u * (.3 + Math.random() * .4), vr: o.u * (.5 + Math.random() * .6), vx: (Math.random() - .5) * o.u * .8, vy: (Math.random() - .5) * o.u * .5, a: .85 });
+}
+const angTo = (a, b) => { let d = b - a; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; };
+function updateOcto(dt) {
+  for (const k of inks) { k.r += k.vr * dt; k.vr *= 1 - dt * .5; k.x += k.vx * dt; k.y += k.vy * dt - 4 * U * dt; k.a -= dt * .16; }
+  inks = inks.filter(k => k.a > 0);
+  const o = st.octo; if (!o) return;
+  o.t += dt; const u = o.u;
+  if (o.state !== 'flee' && st.status === 'loud') octoStartle(o);
+  let trot = 0, tyaw = 0, tsp = 1;
+  if (o.state === 'hover') {
+    o.y += Math.sin(o.t * 1.3) * 6 * U * dt; o.wait -= dt;
+    if (o.wait <= 0) octoTarget(o);
+  } else {
+    const dx = o.tx - o.x, dy = o.ty - o.y, d = Math.hypot(dx, dy) || 1, tilt = clamp(Math.atan2(dy, Math.abs(dx)), -.6, .6);
+    if (dx >= 0) { trot = Math.PI / 2 + tilt; tyaw = -Math.PI / 2; } else { trot = -Math.PI / 2 - tilt; tyaw = Math.PI / 2; }
+    tsp = 0; o.jet += dt * (o.state === 'flee' ? 1.8 : 1);
+    const aligned = Math.abs(angTo(o.rot, trot)) < .5 || o.state === 'flee';
+    const sp = aligned ? (o.state === 'flee' ? 7 : 1.1) * u * (.45 + .9 * Math.max(0, Math.sin(o.jet * 4.2))) : 0;
+    o.x += dx / d * sp * dt; o.y += dy / d * sp * dt;
+    if (o.state === 'flee') {
+      if (o.inkT > 0) { o.inkT -= dt; if (Math.random() < dt * 30) inks.push({ x: o.x, y: o.y + u * .3, r: u * .25, vr: u * .7, vx: -Math.sign(dx) * u * .4, vy: (Math.random() - .5) * u * .3, a: .8 }); }
+      if (o.x < -u * 6 || o.x > W + u * 6) st.octo = null;
+    } else if (d < u * .5) { o.state = 'hover'; o.wait = 2 + Math.random() * 3; }
+  }
+  const k = 1 - Math.exp(-dt * (o.state === 'flee' ? 7 : 1.6));
+  o.rot += angTo(o.rot, trot) * k; o.yaw += (tyaw - o.yaw) * k; o.spread += (tsp - o.spread) * k;
+  o.blinkT -= dt; if (o.blinkT < -.6) o.blinkT = 3 + Math.random() * 5;
+}
+function octoPose(o) { const b = o.blinkT < 0 ? Math.sin(Math.PI * -o.blinkT / .6) : 0; return { x: o.x, y: o.y, u: o.u, rot: o.rot, yaw: o.yaw, spread: o.spread, look: 0, blink: b, jet: o.jet }; }
+function drawInk(g) {
+  for (const k of inks) { const rg = g.createRadialGradient(k.x, k.y, 0, k.x, k.y, k.r); rg.addColorStop(0, 'rgba(22, 10, 30, ' + (k.a * .75).toFixed(3) + ')'); rg.addColorStop(.6, 'rgba(30, 15, 40, ' + (k.a * .4).toFixed(3) + ')'); rg.addColorStop(1, 'rgba(30, 15, 40, 0)'); g.fillStyle = rg; g.beginPath(); g.arc(k.x, k.y, k.r, 0, 7); g.fill(); }
+}
+function drawOcto(g, p, t) {
+  const u = p.u;
   g.save(); g.translate(p.x, p.y); g.rotate(p.rot);
   const pulse = p.spread < 1 ? Math.sin(p.jet * 4.2) * (1 - p.spread) : 0;   // mantle contracts while jetting
   const arms = [];
@@ -1545,11 +1601,12 @@ function logic(dt) {
       else if (st.done.sub && !st.done.kraken && st.tick >= S.mC) { st.done.kraken = true; queueEvent('kraken'); }
     }
     updateEvents(dt);
+    updateOcto(dt);
     const speed = st.mode === 'demo' && $('#demoFast').checked ? 10 : 1;
     if (st.status !== 'loud') {
       st.loudT = 0;
       st.progress += dt * speed;
-      if (st.progress >= S.fishSeconds) { st.progress = 0; if (residentFish().length < 60) addFish(); }
+      if (st.progress >= S.fishSeconds) { st.progress = 0; if (residentFish().length < 20) addFish(); } // at most 20 fish in the reef
     } else {
       st.progress = 0;
       st.loudT += dt;
@@ -1662,6 +1719,7 @@ function render() {
   // bubbles
   ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 1.5;
   for (const b of bubbles) { ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.stroke(); ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.arc(b.x - b.r * .35, b.y - b.r * .35, b.r * .25, 0, 7); ctx.fill(); }
+  if (inks.length) drawInk(ctx);
   if (st.ev && st.ev.kind === 'kraken') drawKraken(ctx, st.ev);
   // the submarine makes water and reef shake: stronger the closer it is
   const sk = shakeAmount();
@@ -1906,7 +1964,7 @@ function resetRound() {
   st.progress = 0; st.celebrated = false; resetVisitors(); persist(); updateCounter();
   if (st.mode !== 'idle') fish.push(newFish(nextSpecies()));
 }
-function resetVisitors() { st.sharkT = 0; st.tick = 0; st.sharkCount = 0; st.events = []; st.ev = null; st.silentT = 0; st.done = { whale: false, sub: false, kraken: false }; }
+function resetVisitors() { st.octo = null; inks = []; st.sharkT = 0; st.tick = 0; st.sharkCount = 0; st.events = []; st.ev = null; st.silentT = 0; st.done = { whale: false, sub: false, kraken: false }; }
 function readMults() {
   for (const k of ['mA', 'mB', 'mC']) { const n = Math.round(+$('#' + k).value); S[k] = clamp(Number.isFinite(n) && n > 0 ? n : S[k], 1, 100); $('#' + k).value = S[k]; }
   persist();
