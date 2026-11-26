@@ -129,6 +129,7 @@ button { cursor: pointer; }
 .meas-mic .dot { width: 10px; height: 10px; border-radius: 50%; background: #ff4d4d; animation: pulse 1.6s infinite; }
 .mults { flex-basis: 100%; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .mults input { width: 4.2em; }
+.photo-prev { width: 100%; max-width: 360px; height: auto; align-self: center; background: repeating-conic-gradient(#e6f1f5 0 25%, #fff 0 50%) 0 0 / 20px 20px; border-radius: 14px; }
 /* Settings sheet */
 .sheet { position: fixed; top: 0; right: 0; bottom: 0; width: min(420px, 100%); background: var(--paper); color: var(--ink); z-index: 30; box-shadow: -10px 0 40px rgba(0,0,0,.35); display: flex; flex-direction: column; transform: translateX(105%); transition: transform .3s ease; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); padding-right: env(safe-area-inset-right, 0px); user-select: text; -webkit-user-select: text; }
 .sheet.open { transform: none; }
@@ -167,6 +168,9 @@ button { cursor: pointer; }
   <div class="top">
     <div class="brand"><b>Lärmampel</b></div>
     <div class="tools">
+      <button class="iconbtn" id="btnCam" title="Gemalten Fisch fotografieren" aria-label="Gemalten Fisch fotografieren">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 8h3l1.6-2.4h6.8L17 8h3v11H4z"/><circle cx="12" cy="13.2" r="3.4"/></svg>
+      </button>
       <button class="iconbtn" id="btnPause" title="Pause" aria-label="Pause">
         <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.5"/><rect x="14" y="5" width="4" height="14" rx="1.5"/></svg>
       </button>
@@ -217,6 +221,7 @@ button { cursor: pointer; }
         <li>Es wird nichts aufgenommen, gespeichert oder übertragen.</li>
         <li>Die App läuft komplett auf diesem Gerät, ohne Internet, ohne Konten, ohne Tracking.</li>
         <li>Solange gemessen wird, leuchtet unten ein roter Punkt „Mikrofon aktiv“.</li>
+        <li>Fotos von gemalten Fischen bleiben nur im Arbeitsspeicher und verschwinden beim Schließen.</li>
       </ul>
     </div>
     <div class="shark-set">
@@ -253,6 +258,7 @@ button { cursor: pointer; }
     <p class="err" id="micErr" hidden></p>
     <div class="btns">
       <button class="btn primary" id="btnStartMic">Mikrofon starten</button>
+      <button class="btn" id="btnCam2">Gemalten Fisch fotografieren</button>
       <button class="btn" id="btnStartDemo">Ohne Mikrofon ausprobieren</button>
     </div>
     <button class="linkbtn" id="btnInfo1">Datenschutzerklärung und Infos für Leitung und Eltern</button>
@@ -276,7 +282,9 @@ button { cursor: pointer; }
       <p>Es gibt keine Konten, keine Namen, keine Profile von Kindern und keine Zuordnung zu einzelnen Personen. Die Ampel bewertet immer nur die Lautstärke im ganzen Raum.</p>
       <h3>5. Was auf dem Gerät bleibt</h3>
       <p>Damit die Einstellungen nicht jedes Mal neu gemacht werden müssen, merkt sich der Browser auf diesem Gerät nur: Lautstärke-Grenze, Wartezeit, Ziel, Toleranz und die Zahl und Art der Fische im Riff. Das sind keine personenbezogenen Daten. Mit dem Knopf unten lässt sich das jederzeit löschen.</p>
-      <h3>6. Mikrofonzugriff</h3>
+      <h3>6. Kamera für gemalte Fische</h3>
+      <p>Die Kamera wird nur geöffnet, wenn jemand auf „Gemalten Fisch fotografieren“ tippt. Das Foto wird sofort auf diesem Gerät ausgeschnitten und nur als kleines Bild im Arbeitsspeicher behalten, solange die App offen ist. Es wird nicht gespeichert, nicht in die Fotos-Mediathek gelegt und nicht übertragen. „Gemalte Fische entfernen“ in den Einstellungen löscht die Bilder sofort. Bitte nur die Zeichnung fotografieren, ohne Gesichter und ohne Namen.</p>
+      <h3>7. Mikrofonzugriff</h3>
       <p>Der Browser fragt vor dem Start um Erlaubnis. Solange gemessen wird, zeigt die App unten einen roten Punkt „Mikrofon aktiv“. Beim Schließen der Seite wird das Mikrofon sofort freigegeben. Die Erlaubnis kann in den Browser-Einstellungen jederzeit entzogen werden.</p>
       <p class="small">Verantwortlich für den Einsatz ist die Einrichtung, die die App verwendet. Rechtsgrundlage ist in der Regel der Bildungs- und Erziehungsauftrag; da keine personenbezogenen Daten verarbeitet werden, ist keine Einwilligung einzelner Kinder nötig. Bitte im Zweifel mit der oder dem Datenschutzbeauftragten der Einrichtung abstimmen.</p>
       <div class="btns"><button class="btn" id="btnWipe">Gespeicherte Einstellungen auf diesem Gerät löschen</button></div>
@@ -285,7 +293,7 @@ button { cursor: pointer; }
     <section>
       <h2>Kurzinfo für Leitung und Eltern</h2>
       <p>In unserer Gruppe nutzen wir eine digitale Lärmampel. Sie zeigt mit einem Korallenriff, wie leise es im Raum ist: Je länger es ruhig bleibt, desto mehr bunte Fische schwimmen ins Riff. Wird es zu laut, verstecken sich die Fische, und die Ampel wird rot. So lernen die Kinder spielerisch, auf die Lautstärke zu achten.</p>
-      <p>Die App misst nur die Gesamtlautstärke im Raum. Sie nimmt nichts auf, erkennt keine Stimmen oder Inhalte, speichert keinen Ton und sendet keine Daten. Sie läuft offline auf einem Gerät der Einrichtung, ohne Namen oder Profile der Kinder. Bei Fragen sprechen Sie uns gern an.</p>
+      <p>Die App misst nur die Gesamtlautstärke im Raum. Sie nimmt nichts auf, erkennt keine Stimmen oder Inhalte, speichert keinen Ton und sendet keine Daten. Sie läuft offline auf einem Gerät der Einrichtung, ohne Namen oder Profile der Kinder. Die Kinder können ihre gemalten Fische abfotografieren lassen, dann schwimmen sie im Riff mit. Fotografiert wird nur die Zeichnung, ohne Gesichter und ohne Namen. Das Foto bleibt nur, solange die App offen ist, und wird weder gespeichert noch verschickt. Bei Fragen sprechen Sie uns gern an.</p>
     </section>
     <section>
       <h2>Empfehlung zum Gerät</h2>
@@ -307,6 +315,21 @@ button { cursor: pointer; }
       <button class="btn primary" id="btnWinNew">Neue Runde</button>
       <button class="btn" id="btnWinKeep">Weiter beobachten</button>
     </div>
+  </div>
+</div>
+
+<input type="file" id="photoInput" accept="image/*" capture="environment" hidden>
+<div class="overlay" id="photoOverlay" hidden>
+  <div class="card" role="dialog" aria-labelledby="photoTitle">
+    <h1 id="photoTitle">Gemalter Fisch</h1>
+    <p id="photoMsg"></p>
+    <canvas id="photoPrev" class="photo-prev" width="360" height="220" hidden></canvas>
+    <div class="btns" id="photoActions" hidden>
+      <button class="btn primary" id="btnPhotoAdd">Ins Riff setzen</button>
+      <button class="btn" id="btnPhotoFlip">Umdrehen</button>
+      <button class="btn" id="btnPhotoCancel">Abbrechen</button>
+    </div>
+    <p class="small">Bitte nur das Bild fotografieren, ohne Gesichter und ohne Namen. Das Foto wird nur auf diesem Gerät ausgeschnitten, nicht gespeichert und nicht übertragen. Beim Schließen der App ist es weg.</p>
   </div>
 </div>
 
@@ -361,6 +384,9 @@ button { cursor: pointer; }
         <button class="btn" id="btnResetNo">Abbrechen</button>
       </div>
       <div class="btns">
+        <button class="btn" id="btnClearDrawn">Gemalte Fische entfernen</button>
+      </div>
+      <div class="btns">
         <button class="btn" id="btnMode">Zum Demo-Modus wechseln</button>
       </div>
     </div>
@@ -389,7 +415,7 @@ try {
 let noStore = false;
 function persist() {
   if (noStore) return;
-  try { localStorage.setItem(KEY, JSON.stringify({ settings: S, species: fish.filter(f => !f.leaving && !f.ambient).map(f => f.sp) })); } catch (e) {}
+  try { localStorage.setItem(KEY, JSON.stringify({ settings: S })); } catch (e) {}
 }
 
 /* ---------- State ---------- */
@@ -609,15 +635,17 @@ function newFish(sp, opts = {}) {
   const fromLeft = opts.fromLeft ?? Math.random() < .5;
   const f = {
     sp, k, size: 0, x: opts.x ?? (fromLeft ? -80 : W + 80), y: opts.y ?? H * (0.2 + Math.random() * .45),
-    vx: 0, vy: 0, tx: 0, ty: 0, face: fromLeft ? 1 : -1, ph: Math.random() * 6, speed: 40 + Math.random() * 30,
+    vx: 0, vy: 0, tx: 0, ty: 0, face: fromLeft ? 1 : -1, ph: Math.random() * 6, speed: (18 + Math.random() * 12) * U,
     hide: Math.floor(Math.random() * 1000), tuck: 0, leaving: false, ambient: !!opts.ambient, born: st.t
   };
   f.size = fishSize(sp, k); pickTarget(f);
   return f;
 }
+// fish cruise from one side of the picture to the other and back
 function pickTarget(f) {
-  f.tx = W * (0.08 + Math.random() * .84);
-  f.ty = H * (0.18 + Math.random() * .5);
+  f.side = f.side === undefined ? (f.x < W / 2 ? 1 : -1) : -f.side;
+  f.tx = f.side > 0 ? W * (.9 + Math.random() * .06) : W * (.04 + Math.random() * .06);
+  f.ty = clamp((f.ty || f.y) + (Math.random() - .5) * H * .15, H * .15, Math.min(H * .62, sandY - 40 * U));
 }
 function nextSpecies() {
   // cycle through all species so the reef gets colorful quickly
@@ -627,7 +655,7 @@ function nextSpecies() {
   const opts = SP_KEYS.filter(k => counts[k] === min);
   return opts[Math.floor(Math.random() * opts.length)];
 }
-function residentFish() { return fish.filter(f => !f.leaving && !f.ambient); }
+function residentFish() { return fish.filter(f => !f.leaving && !f.ambient && !f.drawn); }
 
 function addFish() {
   const f = newFish(nextSpecies());
@@ -674,6 +702,7 @@ function finRays(g, x0, y0, pts, col) {
 }
 
 function drawFish(g, f) {
+  if (f.drawn) return drawDrawnFish(g, f);
   const s = SPECIES[f.sp], L = f.size, Hh = L * s.H;
   const v = Math.hypot(f.vx, f.vy);
   const wag = Math.sin(f.ph) * (0.1 + Math.min(v / 220, .22)) * Hh;
@@ -787,7 +816,12 @@ function drawFish(g, f) {
 }
 
 function updateFish(f, dt) {
-  const scared = (st.status === 'loud' || !!st.ev) && !f.leaving && !f.ambient;
+  if (f.dropping) {
+    f.ph += dt * 3; f.y += 55 * U * dt; f.x += Math.sin(f.ph * .7) * 10 * dt;
+    if (f.y >= f.dropY) { f.dropping = false; f.ty = f.y; pickTarget(f); }
+    return;
+  }
+  const scared = st.status === 'loud' && !f.leaving && !f.ambient && !f.dropping;
   let tx = f.tx, ty = f.ty, maxV = f.speed;
   if (scared && hideSpots.length) {
     const h = hideSpots[f.hide % hideSpots.length];
@@ -796,7 +830,7 @@ function updateFish(f, dt) {
   } else if (f.leaving) maxV = 140;
   const dx = tx - f.x, dy = ty - f.y, d = Math.hypot(dx, dy);
   if (!scared && !f.leaving && d < 30) pickTarget(f);
-  const acc = scared ? 320 : f.leaving ? 120 : 60;
+  const acc = scared ? 320 : f.leaving ? 120 : 30;
   if (d > 1) { f.vx += dx / d * acc * dt; f.vy += dy / d * acc * dt * .8; }
   const v = Math.hypot(f.vx, f.vy);
   const lim = scared && d < 25 ? 12 : maxV;
@@ -817,7 +851,7 @@ function queueEvent(kind) {
   st.events.push({ kind });
 }
 function startEvent(kind) {
-  const dir = Math.random() < .5 ? 1 : -1;
+  const dir = 1; // visitors always come from the left and leave to the right
   if (kind === 'shark') {
     st.sharkCount++;
     const L = clamp(Math.min(W * .42, H * .7), 220, 620), v = (W + 2 * L) / 9;
@@ -864,108 +898,136 @@ function drawVisitorBehindReef(g) {
   else if (e.kind === 'sub' && e.t > 0) drawSub(g, e);
 }
 
-function drawShark(g, e) {
-  const L = e.L, Hh = L * .24, wag = Math.sin(e.ph * 4) * Hh * .28;
-  const x = sweepX(e, e.t), y = e.y0 + Math.sin(e.ph) * 12 * U;
-  g.save(); g.translate(x, y); g.scale(e.dir, 1);
-  g.save(); g.translate(-L * .42, 0); g.rotate(Math.sin(e.ph * 4 - .6) * .12);
-  g.fillStyle = '#5d6b78';
-  g.beginPath(); g.moveTo(0, -Hh * .08); g.quadraticCurveTo(-L * .1, -Hh * .5, -L * .2, -Hh * 1.1 + wag * .3); g.quadraticCurveTo(-L * .12, -Hh * .2, -L * .1, 0); g.quadraticCurveTo(-L * .13, Hh * .25, -L * .15, Hh * .65 + wag * .3); g.quadraticCurveTo(-L * .06, Hh * .3, 0, Hh * .08); g.closePath(); g.fill();
-  g.restore();
-  g.fillStyle = '#56636f';
-  g.beginPath(); g.moveTo(L * .05, -Hh * .42); g.quadraticCurveTo(-L * .02, -Hh * .9, -L * .1, -Hh * 1.15); g.quadraticCurveTo(-L * .08, -Hh * .7, -L * .14, -Hh * .36); g.closePath(); g.fill();
-  g.beginPath(); g.moveTo(-L * .3, -Hh * .2); g.lineTo(-L * .35, -Hh * .42); g.lineTo(-L * .36, -Hh * .16); g.closePath(); g.fill();
-  g.beginPath(); g.moveTo(-L * .28, Hh * .22); g.lineTo(-L * .33, Hh * .4); g.lineTo(-L * .34, Hh * .15); g.closePath(); g.fill();
+/* body outline from two half-height profiles, bent by a travelling wave (s: 0 = snout … sEnd = tail stock) */
+function profilePath(g, L, sEnd, top, bot, wave, n) {
+  n = n || 40;
   g.beginPath();
-  g.moveTo(L * .5, Hh * .02);
-  g.bezierCurveTo(L * .46, -Hh * .38, L * .2, -Hh * .5, -L * .05, -Hh * .44);
-  g.bezierCurveTo(-L * .25, -Hh * .36, -L * .38, -Hh * .14, -L * .44, -Hh * .06);
-  g.lineTo(-L * .44, Hh * .06);
-  g.bezierCurveTo(-L * .36, Hh * .16, -L * .2, Hh * .38, L * .02, Hh * .4);
-  g.bezierCurveTo(L * .25, Hh * .42, L * .42, Hh * .3, L * .5, Hh * .02);
+  for (let i = 0; i <= n; i++) { const s = sEnd * i / n; const x = L * (.5 - s), y = -top(s) * L + wave(s); i ? g.lineTo(x, y) : g.moveTo(x, y); }
+  for (let i = n; i >= 0; i--) { const s = sEnd * i / n; g.lineTo(L * (.5 - s), bot(s) * L + wave(s)); }
   g.closePath();
-  const bg = g.createLinearGradient(0, -Hh * .5, 0, Hh * .45);
-  bg.addColorStop(0, '#4c5966'); bg.addColorStop(.48, '#7d8b97'); bg.addColorStop(.58, '#dfe5ea'); bg.addColorStop(1, '#f4f6f8');
+}
+const ease = (a, b, s) => sm((s - a) / (b - a));
+
+function drawShark(g, e) {
+  const L = e.L, t = e.t, w = 3.4;                       // calm tail beat
+  const x = sweepX(e, t), y = e.y0 + Math.sin(t * .35) * 14 * U;
+  const pitch = Math.cos(t * .35) * .02;
+  const wave = s => L * .012 * s * s * Math.sin(w * t - 5 * s);
+  const yaw = Math.sin(w * t - 4.3);                     // tail swings sideways: looks narrower/wider from the side
+  const top = s => s < .3 ? .11 * Math.pow(s / .3, .55) : .11 - .085 * ease(.3, .86, s);
+  const bot = s => s < .06 ? .035 * (s / .06) : s < .32 ? .035 + .065 * ease(.06, .32, s) : .1 - .078 * ease(.32, .86, s);
+  g.save(); g.translate(x, y); g.rotate(pitch);
+  const P = s => [L * (.5 - s), wave(s)];
+  // far pectoral fin (darker, behind body)
+  { const [px, py] = P(.3); g.fillStyle = '#3e4a55';
+    g.beginPath(); g.moveTo(px + L * .02, py + L * .06); g.quadraticCurveTo(px - L * .04, py + L * .12, px - L * .12, py + L * .17); g.quadraticCurveTo(px - L * .05, py + L * .1, px - L * .04, py + L * .06); g.closePath(); g.fill(); }
+  // caudal fin (heterocercal), foreshortened by the sideways tail swing
+  { const [cx, cy] = P(.86), ang = Math.atan2(wave(.86) - wave(.8), L * .06) * -1, sx = .65 + .35 * Math.abs(yaw);
+    g.save(); g.translate(cx, cy); g.rotate(ang); g.scale(sx, 1);
+    const cg = g.createLinearGradient(0, -L * .2, 0, L * .14); cg.addColorStop(0, '#4a5866'); cg.addColorStop(1, '#5d6b78');
+    g.fillStyle = cg; g.beginPath(); g.moveTo(L * .01, -L * .022);
+    g.bezierCurveTo(-L * .05, -L * .06, -L * .1, -L * .14, -L * .155, -L * .205);
+    g.quadraticCurveTo(-L * .12, -L * .1, -L * .095, -L * .01);
+    g.quadraticCurveTo(-L * .11, L * .06, -L * .13, L * .125);
+    g.bezierCurveTo(-L * .07, L * .08, -L * .03, L * .04, L * .01, L * .018);
+    g.closePath(); g.fill(); g.restore(); }
+  // body
+  profilePath(g, L, .86, top, bot, wave);
+  const bg = g.createLinearGradient(0, -L * .11, 0, L * .1);
+  bg.addColorStop(0, '#3b4651'); bg.addColorStop(.45, '#68778466'.slice(0, 7)); bg.addColorStop(1, '#7a8894');
   g.fillStyle = bg; g.fill();
   g.save(); g.clip();
-  const hl = g.createRadialGradient(L * .1, -Hh * .35, 2, L * .05, -Hh * .2, L * .45);
-  hl.addColorStop(0, 'rgba(255,255,255,.22)'); hl.addColorStop(1, 'rgba(255,255,255,0)');
-  g.fillStyle = hl; g.fillRect(-L * .5, -Hh, L, Hh * 2);
+  // white belly with the typical jagged border
+  g.fillStyle = '#f1f3f4'; g.beginPath();
+  for (let i = 0; i <= 50; i++) { const s = .02 + .8 * i / 50; const yy = wave(s) + L * (.012 + .008 * Math.sin(s * 40) + .006 * Math.sin(s * 91) + (s > .5 ? .02 * (s - .5) : 0)); i ? g.lineTo(L * (.5 - s), yy) : g.moveTo(L * (.5 - s), yy); }
+  g.lineTo(-L * .5, L * .3); g.lineTo(L * .6, L * .3); g.closePath(); g.fill();
+  const hl = g.createLinearGradient(0, -L * .11, 0, 0); hl.addColorStop(0, 'rgba(200,225,240,.22)'); hl.addColorStop(1, 'rgba(200,225,240,0)');
+  g.fillStyle = hl; g.fillRect(-L * .5, -L * .12, L, L * .12);
   g.restore();
-  // gill slits: one more on every visit, so the class can count the visits
-  const n = Math.max(1, e.gills), span = L * .22, step = Math.min(L * .028, span / Math.max(1, n - 1));
-  g.strokeStyle = 'rgba(40, 50, 60, .55)'; g.lineWidth = Math.max(1.2, Math.min(L * .0045, step * .35)); g.lineCap = 'round';
-  for (let i = 0; i < n; i++) { const gx = L * .29 - i * step; g.beginPath(); g.moveTo(gx, -Hh * .13); g.quadraticCurveTo(gx - L * .01, Hh * .02, gx, Hh * .15); g.stroke(); }
-  g.fillStyle = '#5f6d79';
-  g.save(); g.translate(L * .18, Hh * .22); g.rotate(.35 + Math.sin(e.ph * 2) * .05);
-  g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(-L * .05, Hh * .45, -L * .14, Hh * .7); g.quadraticCurveTo(-L * .07, Hh * .3, -L * .08, 0); g.closePath(); g.fill(); g.restore();
-  g.fillStyle = '#111'; g.beginPath(); g.arc(L * .39, -Hh * .1, Math.max(2, L * .011), 0, 7); g.fill();
-  g.fillStyle = 'rgba(255,255,255,.7)'; g.beginPath(); g.arc(L * .393, -Hh * .115, Math.max(.8, L * .0035), 0, 7); g.fill();
-  g.strokeStyle = 'rgba(60, 60, 70, .55)'; g.lineWidth = Math.max(1, L * .004);
-  g.beginPath(); g.moveTo(L * .44, Hh * .15); g.quadraticCurveTo(L * .38, Hh * .22, L * .33, Hh * .16); g.stroke();
+  // dorsal fin
+  { const [dx, dy] = P(.36); g.fillStyle = '#3a4550';
+    g.beginPath(); g.moveTo(dx + L * .03, dy - top(.36) * L + L * .006);
+    g.bezierCurveTo(dx + L * .0, dy - L * .14, dx - L * .04, dy - L * .2, dx - L * .085, dy - L * .225);
+    g.quadraticCurveTo(dx - L * .065, dy - L * .16, dx - L * .1, dy - top(.47) * L + L * .004); g.closePath(); g.fill(); }
+  // second dorsal, pelvic and anal fins
+  g.fillStyle = '#4a5662';
+  for (const [s, up, h] of [[.74, -1, .035], [.6, 1, .04], [.76, 1, .03]]) { const [fx, fy] = P(s); const base = (up < 0 ? -top(s) : bot(s)) * L;
+    g.beginPath(); g.moveTo(fx + L * .02, fy + base); g.lineTo(fx - L * .02, fy + base + up * h * L); g.lineTo(fx - L * .03, fy + base); g.closePath(); g.fill(); }
+  // caudal keel
+  { const [kx, ky] = P(.82); g.strokeStyle = 'rgba(30,38,45,.6)'; g.lineWidth = L * .006; g.beginPath(); g.moveTo(kx + L * .03, ky); g.lineTo(kx - L * .04, ky); g.stroke(); }
+  // gill slits: one more on every visit
+  { const n = Math.max(1, e.gills), span = L * .1, step = Math.min(L * .02, span / Math.max(1, n - 1));
+    g.strokeStyle = 'rgba(30, 38, 46, .55)'; g.lineWidth = Math.max(1.2, Math.min(L * .004, step * .4)); g.lineCap = 'round';
+    for (let i = 0; i < n; i++) { const s = .2 + i * step / L, [gx, gy] = P(s); g.beginPath(); g.moveTo(gx + L * .004, gy - L * .045); g.quadraticCurveTo(gx - L * .008, gy, gx, gy + L * .045); g.stroke(); } }
+  // near pectoral fin
+  { const [px, py] = P(.29), flap = Math.sin(t * .8) * .03; g.fillStyle = '#4f5d6a';
+    g.save(); g.translate(px, py + L * .05); g.rotate(flap);
+    g.beginPath(); g.moveTo(L * .03, 0); g.bezierCurveTo(L * .0, L * .05, -L * .07, L * .12, -L * .15, L * .16);
+    g.bezierCurveTo(-L * .1, L * .09, -L * .06, L * .04, -L * .05, 0); g.closePath(); g.fill(); g.restore(); }
+  // eye, nostril, mouth
+  { const [ex, ey] = P(.1); g.fillStyle = '#05070a'; g.beginPath(); g.ellipse(ex, ey - L * .028, L * .0085, L * .0075, 0, 0, 7); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.55)'; g.beginPath(); g.arc(ex + L * .002, ey - L * .031, L * .0022, 0, 7); g.fill();
+    const [nx, ny] = P(.035); g.fillStyle = 'rgba(20,25,30,.5)'; g.beginPath(); g.ellipse(nx, ny + L * .008, L * .006, L * .002, .3, 0, 7); g.fill();
+    const [m1x, m1y] = P(.05), [m2x, m2y] = P(.16);
+    g.strokeStyle = 'rgba(40,30,35,.7)'; g.lineWidth = L * .003; g.beginPath(); g.moveTo(m1x, m1y + L * .03); g.quadraticCurveTo((m1x + m2x) / 2, m1y + L * .052, m2x, m2y + L * .04); g.stroke(); }
   g.restore();
 }
 
 function drawWhale(g, e) {
-  const L = e.L, Hh = L * .2, x = sweepX(e, e.t), y = e.y0 + Math.sin(e.ph * .4) * 10 * U;
-  const flap = Math.sin(e.ph * 1.1);
-  g.save(); g.translate(x, y); g.scale(e.dir, 1); g.rotate(Math.sin(e.ph * .4) * .02);
-  // flukes
-  g.save(); g.translate(-L * .46, flap * Hh * .1); g.rotate(flap * .18);
-  g.fillStyle = '#2b3a4a';
-  g.beginPath(); g.moveTo(L * .02, 0);
-  g.bezierCurveTo(-L * .04, -Hh * .1, -L * .08, -Hh * .5, -L * .12, -Hh * .72);
-  g.quadraticCurveTo(-L * .1, -Hh * .25, -L * .14, -Hh * .02);
-  g.quadraticCurveTo(-L * .1, Hh * .25, -L * .12, Hh * .72);
-  g.bezierCurveTo(-L * .08, Hh * .5, -L * .04, Hh * .1, L * .02, 0);
-  g.fill(); g.restore();
-  // far pectoral fin
-  g.fillStyle = '#9fb0bd';
-  g.save(); g.translate(L * .16, Hh * .25); g.rotate(-.55 + Math.sin(e.ph * .8) * .08);
-  g.beginPath(); g.ellipse(-L * .13, 0, L * .15, Hh * .1, 0, 0, 7); g.fill(); g.restore();
+  const L = e.L, t = e.t, w = 1.15;                      // slow up-and-down fluke strokes
+  const x = sweepX(e, t), y = e.y0 + Math.sin(t * .25) * 12 * U;
+  const wave = s => L * .045 * Math.pow(s, 2.2) * Math.sin(w * t - 3.2 * s) - L * .01 * Math.sin(w * t) * (1 - s);
+  const top = s => s < .18 ? .03 + .06 * ease(0, .18, s) + .01 * Math.sin(s * 30) * (s < .15 ? 1 : 0) : s < .45 ? .095 : .095 - .08 * ease(.45, .86, s);
+  const bot = s => s < .05 ? .03 * s / .05 : s < .4 ? .03 + .085 * ease(.05, .35, s) : .115 - .1 * ease(.4, .86, s);
+  const P = s => [L * (.5 - s), wave(s)];
+  g.save(); g.translate(x, y); g.rotate(Math.cos(t * .25) * .015);
+  // far flipper
+  { const [px, py] = P(.3), a = .35 + Math.sin(t * .6) * .12; g.save(); g.translate(px, py + L * .06); g.rotate(a);
+    g.fillStyle = '#7e8d98'; g.beginPath(); g.moveTo(0, 0); g.bezierCurveTo(-L * .08, L * .02, -L * .2, L * .02, -L * .3, L * .05); g.quadraticCurveTo(-L * .15, L * .05, 0, L * .03); g.closePath(); g.fill(); g.restore(); }
+  // flukes, seen slightly from above, pitching with the stroke
+  { const s0 = .86, [fx, fy] = P(s0), slope = (wave(s0) - wave(.8)) / (L * .06), a = Math.atan(slope) * -1.4;
+    g.save(); g.translate(fx, fy); g.rotate(a);
+    g.fillStyle = '#26323e'; g.beginPath(); g.moveTo(L * .02, -L * .012);
+    g.bezierCurveTo(-L * .05, -L * .05, -L * .12, -L * .06, -L * .16, -L * .045);
+    for (let i = 0; i <= 8; i++) { const q = i / 8; g.lineTo(-L * (.16 - .05 * Math.sin(q * Math.PI)) + (i % 2) * L * .004, -L * .045 + q * L * .09); }
+    g.bezierCurveTo(-L * .12, L * .06, -L * .05, L * .05, L * .02, L * .012); g.closePath(); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.12)'; g.beginPath(); g.ellipse(-L * .1, -L * .02, L * .05, L * .012, 0, 0, 7); g.fill();
+    g.restore(); }
   // body
-  g.beginPath();
-  g.moveTo(L * .5, Hh * .05);
-  g.bezierCurveTo(L * .5, -Hh * .35, L * .3, -Hh * .55, L * .05, -Hh * .52);
-  g.bezierCurveTo(-L * .2, -Hh * .48, -L * .38, -Hh * .2, -L * .48, -Hh * .05);
-  g.lineTo(-L * .48, Hh * .06);
-  g.bezierCurveTo(-L * .36, Hh * .22, -L * .1, Hh * .5, L * .15, Hh * .5);
-  g.bezierCurveTo(L * .35, Hh * .5, L * .48, Hh * .35, L * .5, Hh * .05);
-  g.closePath();
-  const bg = g.createLinearGradient(0, -Hh * .55, 0, Hh * .5);
-  bg.addColorStop(0, '#1f2c3a'); bg.addColorStop(.5, '#3b4d60'); bg.addColorStop(.7, '#8d9eab'); bg.addColorStop(1, '#c9d3da');
+  profilePath(g, L, .86, top, bot, wave, 50);
+  const bg = g.createLinearGradient(0, -L * .1, 0, L * .12);
+  bg.addColorStop(0, '#1c2733'); bg.addColorStop(.5, '#2f3d4b'); bg.addColorStop(.75, '#4a5a68'); bg.addColorStop(1, '#5c6c78');
   g.fillStyle = bg; g.fill();
   g.save(); g.clip();
-  // throat grooves
-  g.strokeStyle = 'rgba(40, 55, 70, .35)'; g.lineWidth = Math.max(1, L * .002);
-  for (let i = 0; i < 9; i++) { const yy = Hh * (.2 + i * .035); g.beginPath(); g.moveTo(L * .46, yy - Hh * .05); g.quadraticCurveTo(L * .2, yy + Hh * .02, -L * .02, yy); g.stroke(); }
-  // light from above and mottling
-  const hl = g.createLinearGradient(0, -Hh * .6, 0, 0);
-  hl.addColorStop(0, 'rgba(180, 220, 255, .18)'); hl.addColorStop(1, 'rgba(180, 220, 255, 0)');
-  g.fillStyle = hl; g.fillRect(-L * .5, -Hh, L, Hh);
+  // throat pleats (ventral grooves)
+  g.strokeStyle = 'rgba(210, 222, 230, .35)'; g.lineWidth = Math.max(1, L * .0018);
+  for (let i = 0; i < 12; i++) { g.beginPath(); for (let k = 0; k <= 20; k++) { const s = .03 + .4 * k / 20, [px, py] = P(s); const yy = py + bot(s) * L * (.25 + i * .06); k ? g.lineTo(px, yy) : g.moveTo(px, yy); } g.stroke(); }
+  // pale belly patches and mottling
   const r = rng(42);
-  for (let i = 0; i < 40; i++) { g.fillStyle = 'rgba(220, 230, 240, ' + (.05 + r() * .1) + ')'; g.beginPath(); g.ellipse((r() - .4) * L * .8, (r() - .7) * Hh * .6, L * (.004 + r() * .01), Hh * (.01 + r() * .02), 0, 0, 7); g.fill(); }
+  for (let i = 0; i < 26; i++) { const s = .1 + r() * .65, [px, py] = P(s); g.fillStyle = 'rgba(225, 232, 238, ' + (.12 + r() * .25) + ')'; g.beginPath(); g.ellipse(px, py + bot(s) * L * (.55 + r() * .4), L * (.01 + r() * .03), L * (.004 + r() * .01), 0, 0, 7); g.fill(); }
+  for (let i = 0; i < 40; i++) { const s = .1 + r() * .7, [px, py] = P(s); g.fillStyle = 'rgba(160, 180, 195, ' + (.05 + r() * .08) + ')'; g.beginPath(); g.ellipse(px, py - top(s) * L * r() * .8, L * (.004 + r() * .01), L * (.002 + r() * .005), r() * 3, 0, 7); g.fill(); }
+  const hl = g.createLinearGradient(0, -L * .1, 0, -L * .02); hl.addColorStop(0, 'rgba(170, 210, 240, .2)'); hl.addColorStop(1, 'rgba(170, 210, 240, 0)');
+  g.fillStyle = hl; g.fillRect(-L * .5, -L * .11, L, L * .1);
   g.restore();
-  // head knobs and barnacles
-  g.fillStyle = 'rgba(25, 35, 45, .5)';
-  for (let i = 0; i < 9; i++) { g.beginPath(); g.arc(L * (.46 - i * .022), -Hh * (.32 - (i % 2) * .04) + Math.sin(i) * Hh * .03, L * .005, 0, 7); g.fill(); }
-  g.fillStyle = 'rgba(230, 230, 220, .6)';
-  for (let i = 0; i < 6; i++) { g.beginPath(); g.arc(L * (.47 - i * .012), Hh * (.12 + (i % 3) * .05), L * .004, 0, 7); g.fill(); }
-  // dorsal hump
-  g.fillStyle = '#23303e'; g.beginPath(); g.moveTo(-L * .18, -Hh * .45); g.quadraticCurveTo(-L * .22, -Hh * .62, -L * .26, -Hh * .4); g.closePath(); g.fill();
-  // near pectoral fin (long, pale, like a humpback)
-  g.save(); g.translate(L * .2, Hh * .3); g.rotate(-.45 + Math.sin(e.ph * .8) * .1);
-  const pg = g.createLinearGradient(0, 0, -L * .3, 0);
-  pg.addColorStop(0, '#5f7383'); pg.addColorStop(1, '#d7e0e6');
-  g.fillStyle = pg; g.beginPath(); g.moveTo(0, -Hh * .06);
-  g.bezierCurveTo(-L * .1, -Hh * .12, -L * .26, -Hh * .08, -L * .32, Hh * .02);
-  g.bezierCurveTo(-L * .25, Hh * .1, -L * .1, Hh * .1, 0, Hh * .07); g.fill();
-  g.restore();
-  // eye and mouth line
-  g.strokeStyle = 'rgba(15, 20, 30, .6)'; g.lineWidth = Math.max(1.5, L * .003);
-  g.beginPath(); g.moveTo(L * .49, Hh * .08); g.quadraticCurveTo(L * .38, Hh * .14, L * .3, Hh * .06); g.stroke();
-  g.fillStyle = '#0b0f14'; g.beginPath(); g.ellipse(L * .3, Hh * .0, L * .007, L * .005, 0, 0, 7); g.fill();
-  g.fillStyle = 'rgba(255,255,255,.6)'; g.beginPath(); g.arc(L * .302, -L * .001, L * .002, 0, 7); g.fill();
+  // tubercles on the head, barnacles on the chin
+  g.fillStyle = 'rgba(15, 22, 30, .55)';
+  for (let i = 0; i < 12; i++) { const s = .015 + i * .012, [px, py] = P(s); g.beginPath(); g.arc(px, py - top(s) * L + L * .006, L * .0045, 0, 7); g.fill(); }
+  g.fillStyle = 'rgba(225, 225, 210, .75)';
+  for (let i = 0; i < 9; i++) { const s = .02 + (i % 5) * .012, [px, py] = P(s); g.beginPath(); g.arc(px, py + bot(s) * L - L * (.004 + (i > 4 ? .006 : 0)), L * .0035, 0, 7); g.fill(); }
+  // small dorsal fin and hump
+  { const [dx, dy] = P(.62); g.fillStyle = '#1d2834'; g.beginPath(); g.moveTo(dx + L * .03, dy - top(.6) * L + L * .002); g.quadraticCurveTo(dx - L * .01, dy - top(.62) * L - L * .03, dx - L * .035, dy - top(.66) * L - L * .015); g.lineTo(dx - L * .04, dy - top(.67) * L + L * .004); g.closePath(); g.fill(); }
+  // mouth line and eye
+  { g.strokeStyle = 'rgba(10, 14, 20, .6)'; g.lineWidth = Math.max(1.5, L * .0025); g.beginPath();
+    for (let k = 0; k <= 16; k++) { const s = .005 + .2 * k / 16, [px, py] = P(s); const yy = py + L * (.006 + .012 * Math.sin(k / 16 * Math.PI * .9)); k ? g.lineTo(px, yy) : g.moveTo(px, yy); } g.stroke();
+    const [ex, ey] = P(.215); g.fillStyle = '#06090c'; g.beginPath(); g.ellipse(ex, ey + L * .012, L * .006, L * .004, 0, 0, 7); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.5)'; g.beginPath(); g.arc(ex + L * .0015, ey + L * .0105, L * .0015, 0, 7); g.fill(); }
+  // near flipper: very long and pale, with knobbly leading edge
+  { const [px, py] = P(.29), a = .45 + Math.sin(t * .6 + .5) * .14; g.save(); g.translate(px, py + L * .075); g.rotate(a);
+    const fg = g.createLinearGradient(0, 0, -L * .32, 0); fg.addColorStop(0, '#5d6d79'); fg.addColorStop(.4, '#c9d4db'); fg.addColorStop(1, '#eef2f4');
+    g.fillStyle = fg; g.beginPath(); g.moveTo(L * .01, -L * .012);
+    for (let i = 0; i <= 10; i++) { const q = i / 10; g.lineTo(-L * .31 * q, -L * .016 + L * .03 * q * q - (i % 2) * L * .004); }
+    g.quadraticCurveTo(-L * .33, L * .03, -L * .29, L * .03); g.bezierCurveTo(-L * .18, L * .025, -L * .06, L * .03, L * .01, L * .02); g.closePath(); g.fill();
+    g.restore(); }
   g.restore();
 }
 
@@ -1146,6 +1208,103 @@ function drawKrakenEye(g, u, x, y, r, blink, look) {
   g.restore();
 }
 
+/* ---------- Children's drawings: photographed, processed only in memory, never stored ---------- */
+async function loadPhoto(file) {
+  if (window.createImageBitmap) { try { return await createImageBitmap(file); } catch (e) {} }
+  return await new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onload = () => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = fr.result; };
+    fr.onerror = rej; fr.readAsDataURL(file);
+  });
+}
+// Removes the paper around the drawing: flood fill from the border over light, low-colour pixels.
+function cutOutDrawing(img) {
+  const maxSide = 700, sc = Math.min(1, maxSide / Math.max(img.width, img.height));
+  const w = Math.max(1, Math.round(img.width * sc)), h = Math.max(1, Math.round(img.height * sc));
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d'); g.drawImage(img, 0, 0, w, h);
+  const id = g.getImageData(0, 0, w, h), d = id.data;
+  // paper colour = median-ish of the border
+  let rs = 0, gs = 0, bs = 0, n = 0;
+  for (let x = 0; x < w; x += 4) for (const y of [2, h - 3]) { const i = (y * w + x) * 4; rs += d[i]; gs += d[i + 1]; bs += d[i + 2]; n++; }
+  for (let y = 0; y < h; y += 4) for (const x of [2, w - 3]) { const i = (y * w + x) * 4; rs += d[i]; gs += d[i + 1]; bs += d[i + 2]; n++; }
+  const pr = rs / n, pg = gs / n, pb = bs / n;
+  const isPaper = i => { const dr = d[i] - pr, dg = d[i + 1] - pg, db = d[i + 2] - pb; return dr * dr + dg * dg + db * db < 70 * 70 && Math.max(d[i], d[i + 1], d[i + 2]) - Math.min(d[i], d[i + 1], d[i + 2]) < 60; };
+  const seen = new Uint8Array(w * h), stack = [];
+  for (let x = 0; x < w; x++) { stack.push(x, (h - 1) * w + x); }
+  for (let y = 0; y < h; y++) { stack.push(y * w, y * w + w - 1); }
+  while (stack.length) {
+    const p = stack.pop(); if (seen[p]) continue; seen[p] = 1;
+    if (!isPaper(p * 4)) continue;
+    d[p * 4 + 3] = 0;
+    const x = p % w;
+    if (x > 0) stack.push(p - 1); if (x < w - 1) stack.push(p + 1);
+    if (p >= w) stack.push(p - w); if (p < w * (h - 1)) stack.push(p + w);
+  }
+  // soften the edge a little and find the bounding box
+  let x0 = w, y0 = h, x1 = -1, y1 = -1;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = (y * w + x) * 4; if (d[i + 3] > 0) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; } }
+  if (x1 < 0 || (x1 - x0) < 12 || (y1 - y0) < 8) return null;
+  g.putImageData(id, 0, 0);
+  const cw = x1 - x0 + 1, ch = y1 - y0 + 1, s2 = Math.min(1, 320 / Math.max(cw, ch));
+  const out = document.createElement('canvas'); out.width = Math.round(cw * s2); out.height = Math.round(ch * s2);
+  out.getContext('2d').drawImage(c, x0, y0, cw, ch, 0, 0, out.width, out.height);
+  // wipe the working canvas
+  g.clearRect(0, 0, w, h); c.width = c.height = 1;
+  return out;
+}
+function mirrorCanvas(src) {
+  const c = document.createElement('canvas'); c.width = src.width; c.height = src.height;
+  const g = c.getContext('2d'); g.translate(c.width, 0); g.scale(-1, 1); g.drawImage(src, 0, 0); return c;
+}
+let pendingDrawing = null;
+async function onPhoto(file) {
+  if (!file) return;
+  const ov = $('#photoOverlay'), msg = $('#photoMsg');
+  ov.hidden = false; msg.textContent = 'Das Bild wird auf diesem Gerät ausgeschnitten …'; $('#photoPrev').hidden = true; $('#photoActions').hidden = true;
+  try {
+    const img = await loadPhoto(file);
+    const cut = cutOutDrawing(img);
+    if (img.close) img.close();
+    if (!cut) { msg.textContent = 'Auf dem Foto war kein Fisch zu erkennen. Am besten den Fisch auf weißem Papier dicht und gerade von oben fotografieren.'; $('#photoActions').hidden = false; $('#btnPhotoAdd').hidden = true; $('#btnPhotoFlip').hidden = true; return; }
+    pendingDrawing = cut; showPending();
+  } catch (e) { msg.textContent = 'Das Foto konnte nicht gelesen werden. Bitte noch einmal versuchen.'; $('#photoActions').hidden = false; $('#btnPhotoAdd').hidden = true; $('#btnPhotoFlip').hidden = true; }
+}
+function showPending() {
+  const pv = $('#photoPrev'), g = pv.getContext('2d');
+  pv.width = 360; pv.height = 220; g.clearRect(0, 0, pv.width, pv.height);
+  const s = Math.min(pv.width / pendingDrawing.width, pv.height / pendingDrawing.height) * .9;
+  g.drawImage(pendingDrawing, (pv.width - pendingDrawing.width * s) / 2, (pv.height - pendingDrawing.height * s) / 2, pendingDrawing.width * s, pendingDrawing.height * s);
+  pv.hidden = false; $('#photoActions').hidden = false; $('#btnPhotoAdd').hidden = false; $('#btnPhotoFlip').hidden = false;
+  $('#photoMsg').textContent = 'So sieht der Fisch aus. Er soll nach rechts schauen. Wenn nicht: „Umdrehen“.';
+}
+function closePhoto() { $('#photoOverlay').hidden = true; pendingDrawing = null; const pv = $('#photoPrev'); pv.getContext('2d').clearRect(0, 0, pv.width, pv.height); $('#photoInput').value = ''; }
+function addDrawnFish(img) {
+  const size = clamp(Math.min(W, H) * .16, 70, 190) * (0.9 + Math.random() * .2);
+  const f = {
+    sp: 'drawn', drawn: true, img, k: 1.05, size, x: W * (.2 + Math.random() * .6), y: -size, vx: 0, vy: 40, tx: 0, ty: 0,
+    face: 1, ph: Math.random() * 6, speed: (16 + Math.random() * 10) * U, hide: Math.floor(Math.random() * 1000), tuck: 0,
+    leaving: false, ambient: false, dropping: true, dropY: H * (.25 + Math.random() * .3), side: Math.random() < .5 ? 1 : -1
+  };
+  for (let i = 0; i < 14; i++) spawnBubble(f.x + (Math.random() - .5) * size, 6, true);
+  fish.push(f);
+}
+function drawDrawnFish(g, f) {
+  const img = f.img, L = f.size, Hh = L * img.height / img.width, N = 14, sw = img.width / N;
+  const v = Math.hypot(f.vx, f.vy), amp = Hh * (.03 + Math.min(v / 400, .05));
+  g.save(); g.translate(f.x, f.y + Math.sin(f.ph * .3) * 2);
+  g.scale(f.face * (1 - f.tuck * .1), 1 - f.tuck * .1);
+  g.rotate(f.dropping ? Math.sin(f.ph * .8) * .25 : clamp(f.vy / 300, -.3, .3) * Math.sign(f.face || 1));
+  g.globalAlpha = 1 - f.tuck * .35;
+  // the picture bends like a swimming fish: the tail end (left) moves most
+  for (let i = 0; i < N; i++) {
+    const q = 1 - i / N, dy = Math.sin(f.ph - i * .45) * amp * q * q;
+    g.drawImage(img, i * sw, 0, sw + .6, img.height, -L / 2 + i * L / N, -Hh / 2 + dy, L / N + .6, Hh);
+  }
+  g.restore();
+}
+function removeDrawnFish() { fish = fish.filter(f => !f.drawn); }
+
 /* ---------- Bubbles ---------- */
 function spawnBubble(x, y, burst) {
   bubbles.push({ x: x ?? Math.random() * W, y: y ?? sandY, r: (burst ? 2 + Math.random() * 5 : 2 + Math.random() * 4) * U, vy: 30 + Math.random() * 40, ph: Math.random() * 6 });
@@ -1173,7 +1332,7 @@ function logic(dt) {
   if (status !== st.status) setStatus(status);
 
   if (st.mode !== 'idle' && !st.paused) {
-    st.sharkT += dt;
+    if (st.status === 'loud') st.sharkT = 0; else st.sharkT += dt; // timers stay at zero while it is too loud
     if (st.sharkT >= S.sharkSeconds) {
       st.sharkT -= S.sharkSeconds; st.tick++;
       queueEvent('shark');
@@ -1286,11 +1445,11 @@ function render() {
   // the submarine makes water and reef shake: stronger the closer it is
   const sk = shakeAmount();
   if (sk > 0.001) {
-    const A = (reduceMotion ? 1.5 : 7) * U * sk * DPR, pad = A * 2.2;
+    const A = (reduceMotion ? .45 : 2.1) * U * sk * DPR, pad = A * 2.2;
     const ox = (Math.sin(st.t * 31) + Math.sin(st.t * 17.3) * .6) * A * .6, oy = (Math.cos(st.t * 27) + Math.sin(st.t * 13.1) * .6) * A * .6;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.drawImage(cv, -pad + ox, -pad + oy, cv.width + pad * 2, cv.height + pad * 2);
-    ctx.fillStyle = 'rgba(5, 25, 45, ' + (.12 * sk).toFixed(3) + ')'; ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.fillStyle = 'rgba(5, 25, 45, ' + (.036 * sk).toFixed(3) + ')'; ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   }
 }
@@ -1304,7 +1463,10 @@ function setStatus(s) {
   if (s === 'loud') say('Psst … die Fische verstecken sich!', 999);
   else if (prev === 'loud') say('Danke! Die Fische kommen wieder raus.', 3);
 }
-function onLoud() { st.progress = 0; }
+function onLoud() {
+  // too loud: the fish timer and all visitor timers start again from zero
+  st.progress = 0; st.sharkT = 0; st.tick = 0; st.events = [];
+}
 let msgTimer = 0;
 function say() { /* on-screen comments removed on request */ }
 function updateCounter() {
@@ -1417,9 +1579,7 @@ function beginSession(mode) {
   st.mode = mode;
   $('#startOverlay').hidden = true;
   fish = fish.filter(f => !f.ambient);
-  if (!fish.length && saved.species.length) {
-    saved.species.forEach(sp => { if (SPECIES[sp]) fish.push(newFish(sp, { x: Math.random() * W })); });
-  }
+  if (!residentFish().length) fish.push(newFish(nextSpecies())); // start with one fish
   st.celebrated = residentFish().length >= S.goal;
   $('#demoBar').hidden = mode !== 'demo';
   const pill = $('#micPill');
@@ -1432,6 +1592,14 @@ function beginSession(mode) {
 }
 $('#btnStartMic').addEventListener('click', async () => { if (await startMic()) beginSession('mic'); });
 $('#btnStartDemo').addEventListener('click', () => beginSession('demo'));
+const openCamera = () => { $('#photoInput').value = ''; $('#photoInput').click(); };
+$('#btnCam').addEventListener('click', openCamera);
+$('#btnCam2').addEventListener('click', openCamera);
+$('#photoInput').addEventListener('change', e => onPhoto(e.target.files && e.target.files[0]));
+$('#btnPhotoFlip').addEventListener('click', () => { if (pendingDrawing) { pendingDrawing = mirrorCanvas(pendingDrawing); showPending(); } });
+$('#btnPhotoAdd').addEventListener('click', () => { if (pendingDrawing) addDrawnFish(pendingDrawing); pendingDrawing = null; closePhoto(); });
+$('#btnPhotoCancel').addEventListener('click', closePhoto);
+$('#btnClearDrawn').addEventListener('click', () => { removeDrawnFish(); closeSheet(); });
 function markPreset() { $('#preStill').classList.toggle('on', S.threshold === 32); $('#preGroup').classList.toggle('on', S.threshold === 50); }
 for (const id of ['preStill', 'preGroup']) $('#' + id).addEventListener('click', e => { setThr(+e.currentTarget.dataset.v); });
 $('#btnMeasure').addEventListener('click', async () => {
@@ -1510,6 +1678,7 @@ $('#btnCalib').addEventListener('click', () => {
 function resetRound() {
   fish.forEach(f => { if (!f.ambient && !f.leaving) { f.leaving = true; f.tx = f.x < W / 2 ? -200 : W + 200; } });
   st.progress = 0; st.celebrated = false; resetVisitors(); persist(); updateCounter();
+  if (st.mode !== 'idle') fish.push(newFish(nextSpecies()));
 }
 function resetVisitors() { st.sharkT = 0; st.tick = 0; st.sharkCount = 0; st.events = []; st.ev = null; }
 function readMults() {
