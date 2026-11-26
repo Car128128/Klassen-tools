@@ -684,7 +684,7 @@ function addFish() {
 }
 function flee(f) {
   // turn to the nearest edge, speed up and leave the reef
-  f.leaving = true; f.flee = true; f.trail = [];
+  f.leaving = true; f.flee = true; f.fleeT = 0; f.trail = [];
   f.tx = f.x < W / 2 ? -260 : W + 260; f.ty = clamp(f.y + (Math.random() - .5) * 60 * U, H * .1, sandY - 20 * U);
 }
 function removeFish() {
@@ -898,20 +898,28 @@ function fishSprite(sp, L) {
 function drawFish(g, f) {
   if (f.drawn) return drawDrawnFish(g, f);
   const S = SPECIES[f.sp], L = f.size, { s: sp, k } = fishSprite(f.sp, L);
-  const v = Math.hypot(f.vx, f.vy), amp = .022 + Math.min(v / (L * 6), .035);
+  const v = Math.hypot(f.vx, f.vy), amp = .03 + Math.min(v / (L * 5), .04);
   g.save(); g.translate(f.x, f.y + Math.sin(f.ph * .25 + f.k * 9) * 2 * U);
   g.rotate(clamp(f.vy / 260, -.35, .35) * Math.sign(f.face || 1));
   g.scale(f.face * (1 - f.tuck * .1) * k, (1 - f.tuck * .1) * k);
   g.globalAlpha = 1 - f.tuck * .35;
   // swim: the head swings a little, the tail end a lot, and the tail fin turns towards/away from us
   const N = 20, sw = sp.cw / N, scl = sp.c.width / sp.cw, qL = sp.cw * (1 / 1.7);
+  { // a soft glow around the fish
+    const gc = shade(S.low, .35).replace('rgb(', 'rgba(').replace(')', ', ');
+    const gr = g.createRadialGradient(0, 0, qL * .05, 0, 0, qL * .62);
+    gr.addColorStop(0, gc + '.32)'); gr.addColorStop(.5, gc + '.12)'); gr.addColorStop(1, gc + '0)');
+    g.save(); g.globalCompositeOperation = 'lighter'; g.fillStyle = gr; g.beginPath(); g.ellipse(0, 0, qL * .62, qL * (S.H * .5 + .22), 0, 0, 7); g.fill(); g.restore();
+  }
   const headX = sp.ox + qL * .5;
   let cur = sp.cw; // draw from the head (right) to the tail (left)
   for (let i = N - 1; i >= 0; i--) {
     const sx = i * sw, mid = sx + sw / 2, q = clamp((headX - mid) / qL, 0, 1.3);
     const wave = Math.sin(f.ph - q * 2.4);
-    const dy = amp * qL * (Math.pow(q, 2.2) - .1) * wave;
-    const fore = q > .78 ? 1 - .32 * (.5 + .5 * Math.cos(f.ph - q * 2.4)) * clamp((q - .78) / .25, 0, 1) : 1;
+    // the whole body flexes with the tail beat: a wave runs from head to tail, growing towards the tail
+    const dy = amp * qL * (Math.pow(q, 1.5) - .12) * wave;
+    const bend = .5 + .5 * Math.cos(f.ph - q * 2.4);
+    const fore = 1 - .1 * bend * clamp((q - .35) / .45, 0, 1) - .25 * bend * clamp((q - .78) / .25, 0, 1);
     const dw = sw * fore;
     g.drawImage(sp.c, sx * scl, 0, sw * scl + 1, sp.c.height, cur - dw - sp.ox, -sp.oy + dy, dw + .5, sp.ch);
     cur -= dw;
@@ -939,11 +947,11 @@ function updateFish(f, dt) {
     const h = hideSpots[f.hide % hideSpots.length];
     tx = h.x + ((f.hide * 37) % 60 - 30) * U; ty = h.y + ((f.hide * 13) % 30) * U;
     maxV = 300;
-  } else if (f.flee) maxV = 460 * U;
+  } else if (f.flee) { f.fleeT += dt; maxV = lerp(f.speed * 1.2, 460 * U, sm(f.fleeT / 1.4)); } // visibly speeds up
   else if (f.leaving) maxV = 140;
   const dx = tx - f.x, dy = ty - f.y, d = Math.hypot(dx, dy);
   if (!scared && !f.leaving && (d < 12 || (f.side > 0 ? f.x >= f.tx - 2 : f.x <= f.tx + 2))) pickTarget(f);
-  const acc = scared ? 320 : f.flee ? 700 : f.leaving ? 120 : 30;
+  const acc = scared ? 320 : f.flee ? 260 : f.leaving ? 120 : 30;
   if (d > 1) { f.vx += dx / d * acc * dt; f.vy += dy / d * acc * dt * .8; }
   const v = Math.hypot(f.vx, f.vy);
   const lim = scared && d < 25 ? 12 : maxV;
