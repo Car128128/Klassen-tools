@@ -2113,10 +2113,10 @@ function render() {
   if (st.ev && st.ev.kind === 'kraken') drawKraken(ctx, st.ev);
   if (st.ev && st.ev.kind === 'inkpass') drawInkPass(ctx, st.ev);
   // the diver comes up from behind the ink and ends up in front of it, at the glass
-  const dv = st.ev && st.ev.kind === 'diver' ? st.ev : null, dvs = dv ? (dv.d = diverState(dv)) : null, front = dv ? sm((dv.t - 3.8) / 1.4) : 0;
-  if (dv && front < 1) drawDiver(ctx, dv, dvs, 1);
+  // the diver is in the water behind the inked glass: he only becomes clear where he has wiped
+  const dv = st.ev && st.ev.kind === 'diver' ? st.ev : null;
+  if (dv) drawDiver(ctx, dv, dv.d = diverState(dv), 1);
   drawVeil(ctx);
-  if (dv && front > 0) drawDiver(ctx, dv, dvs, front);
   // the submarine makes water and reef shake: stronger the closer it is
   const sk = shakeAmount();
   if (sk > 0.001) {
@@ -2213,8 +2213,7 @@ async function startMic() {
       : 'Das Mikrofon konnte nicht gestartet werden. In dieser Vorschau ist es gesperrt: Öffne die Datei direkt im Browser oder probiere den Demo-Modus.';
     err.hidden = false; return false;
   }
-  const AC = window.AudioContext || window.webkitAudioContext;
-  audioCtx = new AC();
+  primeAudio();
   const src = audioCtx.createMediaStreamSource(stream);
   analyser = audioCtx.createAnalyser(); analyser.fftSize = 2048; analyser.smoothingTimeConstant = 0;
   src.connect(analyser); // not connected to speakers, nothing is recorded
@@ -2222,12 +2221,37 @@ async function startMic() {
   if (audioCtx.state === 'suspended') try { await audioCtx.resume(); } catch (e) {}
   return true;
 }
+/* iPad/Safari: the audio context must be created and resumed inside a tap, and it can be suspended
+   later (camera opened for a photo, app in the background, phone call). Then it is resumed or the mic restarted. */
+function primeAudio() {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!audioCtx && AC) audioCtx = new AC();
+  if (audioCtx && audioCtx.state !== 'running') audioCtx.resume().catch(() => {});
+}
+let micFixing = false, micCheckT = 0;
+async function checkMic(dt) {
+  if (st.mode !== 'mic' || micFixing) return;
+  micCheckT += dt; if (micCheckT < 1) return; micCheckT = 0;
+  const tr = stream && stream.getAudioTracks()[0];
+  if (audioCtx && audioCtx.state !== 'running' && audioCtx.state !== 'closed') audioCtx.resume().catch(() => {});
+  if (!tr || tr.readyState === 'ended' || (audioCtx && audioCtx.state === 'closed')) {
+    micFixing = true; // the microphone was taken away (e.g. by the camera): start it again
+    try { stopMic(); await startMic(); } catch (e) {}
+    micFixing = false;
+  }
+  const ok = analyser && audioCtx && audioCtx.state === 'running';
+  $('#micTxt').textContent = ok ? 'Mikrofon aktiv · misst nur die Lautstärke, nimmt nichts auf' : 'Mikrofon pausiert · bitte einmal auf den Bildschirm tippen';
+  $('#micPill').classList.toggle('on', !!ok);
+}
+document.addEventListener('pointerdown', () => { if (st.mode === 'mic' && audioCtx && audioCtx.state !== 'running') audioCtx.resume().catch(() => {}); }, true);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') micCheckT = 1; });
 function stopMic() {
   if (stream) stream.getTracks().forEach(t => t.stop());
   if (audioCtx) audioCtx.close().catch(() => {});
   stream = null; audioCtx = null; analyser = null;
 }
 function readLevel(dt) {
+  checkMic(dt);
   let target = 0;
   if (analyser && (st.mode === 'mic' || st.measuring)) {
     analyser.getFloatTimeDomainData(buf);
@@ -2274,7 +2298,7 @@ function beginSession(mode) {
   updateCounter(); keepAwake();
   say(mode === 'mic' ? 'Los geht’s! Seid leise, dann kommen die Fische.' : 'Demo: Schiebe den Regler, um laut oder leise zu spielen.', 4);
 }
-$('#btnStartMic').addEventListener('click', async () => { if (await startMic()) beginSession('mic'); });
+$('#btnStartMic').addEventListener('click', async () => { primeAudio(); if (await startMic()) beginSession('mic'); });
 $('#btnStartDemo').addEventListener('click', () => beginSession('demo'));
 function stopSession() {
   // back to the start screen: microphone off, the reef (and any photographed fish) is cleared
@@ -2299,7 +2323,7 @@ $('#btnClearDrawn').addEventListener('click', () => { removeDrawnFish(); closeSh
 function markPreset() { $('#preStill').classList.toggle('on', S.threshold === 32); $('#preGroup').classList.toggle('on', S.threshold === 50); }
 for (const id of ['preStill', 'preGroup']) $('#' + id).addEventListener('click', e => { setThr(+e.currentTarget.dataset.v); });
 $('#btnMeasure').addEventListener('click', async () => {
-  if (await startMic()) { st.measuring = true; $('#measLive').hidden = false; $('#btnMeasure').hidden = true; }
+  primeAudio(); if (await startMic()) { st.measuring = true; $('#measLive').hidden = false; $('#btnMeasure').hidden = true; }
 });
 $('#btnMeasureStop').addEventListener('click', () => {
   st.measuring = false; stopMic(); $('#measLive').hidden = true; $('#btnMeasure').hidden = false;
@@ -2313,7 +2337,7 @@ function updateMeasure() {
 }
 $('#btnMode').addEventListener('click', async () => {
   if (st.mode === 'mic') { stopMic(); beginSession('demo'); }
-  else { if (await startMic()) beginSession('mic'); else { closeSheet(); $('#startOverlay').hidden = false; st.mode = 'idle'; } }
+  else { primeAudio(); if (await startMic()) beginSession('mic'); else { closeSheet(); $('#startOverlay').hidden = false; st.mode = 'idle'; } }
 });
 window.addEventListener('pagehide', stopMic);
 
