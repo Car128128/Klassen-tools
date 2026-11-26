@@ -216,7 +216,7 @@ button { cursor: pointer; }
 <div class="overlay" id="startOverlay">
   <div class="card" role="dialog" aria-labelledby="startTitle">
     <h1 id="startTitle">Lärmampel Korallenriff</h1>
-    <p>Solange die Klasse leise ist, schwimmt nach und nach ein bunter Fisch nach dem anderen ins Riff. Wird es zu laut, verstecken sich die Fische in den Korallen. Bleibt es lange laut, schwimmt auch mal einer davon.</p>
+    <p>Solange die Klasse leise ist, schwimmt nach und nach ein bunter Fisch nach dem anderen ins Riff. Wird es zu laut, flitzen die Fische aus dem Riff und kommen erst wieder, wenn es leise ist.</p>
     <div class="privacy">
       <strong>Datenschutz</strong>
       <ul>
@@ -491,6 +491,24 @@ function tubes(g, r, x, y, h, col) {
     g.strokeStyle = shade(col, .3); g.lineWidth = 1.2 * U; g.beginPath(); g.ellipse(tx + tw / 2 + lean, y - th, tw * .5, 3.2 * U, 0, 0, 7); g.stroke();
   }
 }
+function tableCoral(g, r, x, y, w, col) {
+  // a flat table coral on a short stalk
+  g.fillStyle = shade(col, -.45); g.fillRect(x - 5 * U, y - w * .18, 10 * U, w * .2);
+  const lg = g.createLinearGradient(0, y - w * .32, 0, y - w * .14); lg.addColorStop(0, shade(col, .35)); lg.addColorStop(.6, col); lg.addColorStop(1, shade(col, -.4));
+  g.fillStyle = lg; g.beginPath(); g.moveTo(x - w * .6, y - w * .2);
+  for (let i = 0; i <= 20; i++) { const q = i / 20; g.lineTo(x - w * .6 + w * 1.2 * q, y - w * (.24 + .06 * Math.sin(q * Math.PI)) - r() * 3 * U); }
+  g.lineTo(x + w * .55, y - w * .15); g.quadraticCurveTo(x, y - w * .1, x - w * .55, y - w * .15); g.closePath(); g.fill();
+  g.fillStyle = shade(col, .55); for (let i = 0; i < 40; i++) { g.beginPath(); g.arc(x - w * .55 + r() * w * 1.1, y - w * (.22 + r() * .08), (.8 + r()) * U, 0, 7); g.fill(); }
+}
+function softCoral(g, r, x, y, h, col) {
+  // a tuft of soft coral fingers with tiny polyps
+  for (let i = 0; i < 9; i++) {
+    const a = -Math.PI / 2 + (i - 4) * .17 + (r() - .5) * .15, len = h * (.6 + r() * .5), ex = x + Math.cos(a) * len, ey = y + Math.sin(a) * len;
+    const lg = g.createLinearGradient(x, y, ex, ey); lg.addColorStop(0, shade(col, -.35)); lg.addColorStop(1, shade(col, .2));
+    g.strokeStyle = lg; g.lineCap = 'round'; g.lineWidth = (6 + r() * 3) * U; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + Math.cos(a) * len * .5 + (r() - .5) * 8 * U, y + Math.sin(a) * len * .5, ex, ey); g.stroke();
+    g.fillStyle = shade(col, .6); for (let k = 0; k < 5; k++) { g.beginPath(); g.arc(ex + (r() - .5) * 7 * U, ey + (r() - .5) * 7 * U, 1.4 * U, 0, 7); g.fill(); }
+  }
+}
 function roundRect(g, x, y, w, h, rr) { g.beginPath(); g.moveTo(x + rr, y); g.arcTo(x + w, y, x + w, y + h, rr); g.arcTo(x + w, y + h, x, y + h, rr); g.arcTo(x, y + h, x, y, rr); g.arcTo(x, y, x + w, y, rr); g.closePath(); }
 function rock(g, r, x, y, w, h, col) {
   g.save();
@@ -508,8 +526,8 @@ function rock(g, r, x, y, w, h, col) {
   g.restore();
 }
 
-const CORAL_COLS = ['#e8577d', '#f08a3a', '#9b5de5', '#f2c14e', '#3fbfb0', '#e5484d', '#ff9fb2'];
-let causticPattern = null, sandPath = null, anemones = [], snow = [];
+const CORAL_COLS = ['#f2b630', '#f07a2a', '#8a4fd0', '#d9558a', '#ef5a3c', '#b48ae6', '#f6d35c'];
+let causticPattern = null, sandPath = null, anemones = [], snow = [], vents = [];
 
 function makeCaustics() {
   const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
@@ -573,20 +591,23 @@ function buildReef() {
 
   // foreground: rocks + corals the fish hide behind
   [fgLayer, g] = mkLayer();
-  hideSpots = []; weeds = []; anemones = [];
+  hideSpots = []; weeds = []; anemones = []; vents = [];
   const n = Math.max(5, Math.round(W / (170 * U)));
   for (let i = 0; i < n; i++) {
     const x = W * (i + .5) / n + (r() - .5) * 40 * U, y = sandCurve(x) + 16 * U, c = CORAL_COLS[(i * 3 + 1) % CORAL_COLS.length];
     rock(g, r, x, y + 6 * U, (120 + r() * 60) * U, (40 + r() * 22) * U, i % 2 ? '#6b6f6a' : '#7a6f66');
     const kind = i % 4;
-    if (kind === 0) brainCoral(g, r, x, y - 12 * U, 64 * U, CORAL_COLS[3]);
+    if (kind === 0) brainCoral(g, r, x, y - 12 * U, 64 * U, i % 8 === 0 ? '#e9b443' : '#c98a3a');
     else if (kind === 1) branchCoral(g, r, x, y - 12 * U, 50 * U, -Math.PI / 2 + (r() - .5) * .3, 15 * U, 3, c);
     else if (kind === 2) fanCoral(g, r, x, y - 10 * U, 115 * U, c);
+    else if (i % 8 === 3) tableCoral(g, r, x, y - 14 * U, 92 * U, '#e8a23a');
     else tubes(g, r, x, y - 6 * U, 100 * U, CORAL_COLS[2]);
     // a second, smaller coral on the rock
     const x2 = x + (r() < .5 ? -1 : 1) * 38 * U;
     if (r() < .75) branchCoral(g, r, x2, y - 4 * U, 26 * U, -Math.PI / 2 + (r() - .5) * .6, 8 * U, 2, CORAL_COLS[(i + 4) % CORAL_COLS.length]);
     hideSpots.push({ x, y: y - 38 * U });
+    if (kind !== 2) vents.push({ x: x + (r() - .5) * 30 * U, y: y - (kind === 3 ? 100 : 60) * U, t: r() * 5, n: 0 });
+    if (r() < .6) softCoral(g, r, x + (r() < .5 ? -1 : 1) * (48 + r() * 16) * U, y + 2 * U, (34 + r() * 16) * U, r() < .5 ? '#b48ae6' : '#f2a65a');
     weeds.push({ x: x + (r() < .5 ? -1 : 1) * (55 + r() * 20) * U, y: sandCurve(x) + 24 * U, h: (80 + r() * 100) * U, col: r() < .5 ? '#2c8a4b' : '#4a9c3a', ph: r() * 6 });
     if (i % 2 === 0) anemones.push({ x: x + (r() - .5) * 50 * U, y: y - 22 * U, r: (16 + r() * 8) * U, col: r() < .5 ? '#f3a6c8' : '#c9e88a', ph: r() * 6 });
   }
@@ -624,17 +645,21 @@ function newFish(sp, opts = {}) {
   const fromLeft = opts.fromLeft ?? Math.random() < .5;
   const f = {
     sp, k, size: 0, x: opts.x ?? (fromLeft ? -80 : W + 80), y: opts.y ?? H * (0.2 + Math.random() * .45),
-    vx: 0, vy: 0, tx: 0, ty: 0, face: fromLeft ? 1 : -1, ph: Math.random() * 6, speed: (18 + Math.random() * 12) * U,
+    vx: 0, vy: 0, tx: 0, ty: 0, face: fromLeft ? 1 : -1, ph: Math.random() * 6, speed: SPECIES[sp].spd * (15 + Math.random() * 9) * U,
+    homeY: 0,
     hide: Math.floor(Math.random() * 1000), tuck: 0, leaving: false, ambient: !!opts.ambient, born: st.t
   };
+  const band = SPECIES[sp].y; f.homeY = H * (band[0] + Math.random() * (band[1] - band[0]));
+  if (opts.y === undefined) f.y = f.homeY;
   f.size = fishSize(sp, k); pickTarget(f);
   return f;
 }
 // fish cruise from one side of the picture to the other and back
 function pickTarget(f) {
   f.side = f.side === undefined ? (f.x < W / 2 ? 1 : -1) : -f.side;
-  f.tx = f.side > 0 ? W * (.9 + Math.random() * .06) : W * (.04 + Math.random() * .06);
-  f.ty = clamp((f.ty || f.y) + (Math.random() - .5) * H * .15, H * .15, Math.min(H * .62, sandY - 40 * U));
+  f.tx = f.side > 0 ? W * (.68 + Math.random() * .27) : W * (.05 + Math.random() * .27);
+  // every fish keeps to its own depth and only drifts a little up or down
+  f.ty = clamp((f.homeY || f.y) + (Math.random() - .5) * H * .06, H * .1, Math.min(H * .66, sandY - 30 * U));
 }
 function nextSpecies() {
   // cycle through all species so the reef gets colorful quickly
@@ -666,145 +691,235 @@ function removeFish() {
   persist(); updateCounter();
 }
 
+/* ---------- Reef fish: painted once per species and size into a sprite (watercolor look), then bent while swimming ---------- */
+// a: where the body is highest (smaller = further forward), b: head bluntness, ped: tail stock, tl: tail length, th: tail height
 const SPECIES = {
-  clown:  { L: 1.0, H: .5, top: '#b8400a', mid: '#f2711c', low: '#ffb070', fin: '#f2711c', edge: '#151515', tail: 'round', nm: 'Clownfisch' },
-  tang:   { L: 1.15, H: .62, top: '#0b2a78', mid: '#2363e0', low: '#6fa0f5', fin: '#1a3f9e', edge: '#0a1530', tailCol: '#ffcf1a', tail: 'lunate', nm: 'Paletten-Doktorfisch' },
-  yellow: { L: 0.9, H: .88, top: '#d9a90c', mid: '#f8d633', low: '#fff3b0', fin: '#f5cf2a', edge: '#262626', tail: 'round', nm: 'Falterfisch' },
-  pink:   { L: 0.85, H: .46, top: '#d9476a', mid: '#ff7f95', low: '#ffc8b0', fin: '#c58cff', tail: 'lyre', nm: 'Fahnenbarsch' },
-  wrasse: { L: 1.25, H: .34, top: '#0f6e5b', mid: '#22b893', low: '#a8f2db', fin: '#1f8fd0', tail: 'round', nm: 'Lippfisch' },
-  puffer: { L: 0.8, H: .68, top: '#8a744a', mid: '#d3c093', low: '#fbf7ea', fin: '#cdb274', tail: 'round', nm: 'Kugelfisch' },
-  royal:  { L: 0.95, H: .48, top: '#5a1aa0', mid: '#9346dd', low: '#c08cf0', fin: '#f2b90f', tail: 'round', nm: 'Königs-Feenbarsch' }
+  clown:  { nm: 'Clownfisch', L: .9, H: .5, a: .9, b: .55, ped: .38, tl: .2, th: .3, tf: 1, bf: .95, tail: 'round', spd: .8, y: [.42, .62],
+            top: '#d9530f', mid: '#f47a22', low: '#ffb067', fin: '#f2731d', finEdge: '#1a1410',
+            dorsal: [[.28, .52, .1, .45, 0], [.55, .86, .12, .4, 0]], anal: [[.58, .86, .11, .45, 0]] },
+  btang:  { nm: 'Paletten-Doktorfisch', L: 1.1, H: .56, a: .85, b: .62, ped: .26, tl: .2, th: .34, tf: 1, bf: .95, tail: 'lunate', spd: 1.15, y: [.15, .5],
+            top: '#173c9e', mid: '#2565de', low: '#62a3f2', fin: '#163c9a', finEdge: '#0b1a40', tailCol: '#ffcf1f',
+            dorsal: [[.22, .9, .08, .5, 0]], anal: [[.48, .9, .07, .5, 0]] },
+  ytang:  { nm: 'Gelber Segelflossendoktor', L: .95, H: .74, a: .8, b: .7, ped: .2, tl: .19, th: .3, tf: 1, bf: 1, tail: 'truncate', spd: 1, y: [.2, .55],
+            top: '#e6b400', mid: '#ffd61f', low: '#fff09a', fin: '#ffd21a', finEdge: '#d8a400',
+            dorsal: [[.2, .9, .2, .45, 0]], anal: [[.42, .9, .18, .5, 0]] },
+  emperor:{ nm: 'Imperator-Kaiserfisch', L: 1.15, H: .62, a: .85, b: .62, ped: .3, tl: .18, th: .3, tf: 1, bf: 1, tail: 'round', spd: .7, y: [.25, .58],
+            top: '#0f2b74', mid: '#1b48a8', low: '#2c5fc0', fin: '#16357f', finEdge: '#ffd23a', tailCol: '#ffcc1a',
+            dorsal: [[.24, .92, .1, .75, .03]], anal: [[.48, .92, .1, .75, .03]] },
+  regal:  { nm: 'Pfauen-Kaiserfisch', L: 1, H: .62, a: .85, b: .62, ped: .3, tl: .18, th: .3, tf: 1, bf: 1, tail: 'round', spd: .75, y: [.3, .6],
+            top: '#e9821c', mid: '#f5a326', low: '#ffd75a', fin: '#f2a52a', finEdge: '#1d3c8c', tailCol: '#ffd040',
+            dorsal: [[.24, .92, .1, .75, .03]], anal: [[.48, .92, .1, .75, .03]] },
+  idol:   { nm: 'Halfterfisch', L: .95, H: .82, a: .78, b: .75, ped: .14, tl: .17, th: .26, tf: 1, bf: 1, tail: 'lunate', spd: .75, y: [.18, .5], snout: .12,
+            top: '#f4f0e2', mid: '#fbf8ee', low: '#ffffff', fin: '#f4f0e2', finEdge: '#1b1b1b', tailCol: '#1c1c1c',
+            dorsal: [[.18, .46, .36, .3, .12]], anal: [[.36, .7, .2, .3, .05]], filament: true },
+  copper: { nm: 'Kupferstreifen-Pinzettfisch', L: .9, H: .66, a: .9, b: .75, ped: .22, tl: .16, th: .24, tf: 1, bf: 1, tail: 'truncate', spd: .7, y: [.3, .6], snout: .14,
+            top: '#f6f1e4', mid: '#fffdf6', low: '#ffffff', fin: '#f9f2df', finEdge: '#1f1f1f', tailCol: '#f9f2df',
+            dorsal: [[.28, .88, .14, .7, 0]], anal: [[.5, .88, .12, .7, 0]] },
+  lion:   { nm: 'Rotfeuerfisch', L: 1.2, H: .42, a: .8, b: .6, ped: .3, tl: .2, th: .24, tf: 1, bf: 1, tail: 'round', spd: .45, y: [.38, .62], lion: true,
+            top: '#7a2a14', mid: '#a5442a', low: '#f1d5c2', fin: '#c46a4a', finEdge: '#5a2210',
+            dorsal: [[.2, .62, .16, .3, 0], [.64, .9, .14, .4, 0]], anal: [[.62, .9, .14, .4, 0]] },
+  puffer: { nm: 'Kugelfisch', L: .8, H: .72, a: .9, b: .5, ped: .22, tl: .17, th: .2, tf: 1, bf: 1.08, tail: 'round', spd: .5, y: [.35, .62],
+            top: '#8c7a55', mid: '#d6c79f', low: '#fbf6e6', fin: '#d3bf8c', finEdge: '#8a7448',
+            dorsal: [[.7, .86, .1, .5, 0]], anal: [[.72, .88, .09, .5, 0]] },
+  parrot: { nm: 'Papageifisch', L: 1.25, H: .42, a: .95, b: .62, ped: .3, tl: .2, th: .3, tf: 1, bf: .95, tail: 'lunate', spd: .95, y: [.25, .6],
+            top: '#11796e', mid: '#25b4a0', low: '#a9ecd9', fin: '#2a8fc8', finEdge: '#e86aa6', tailCol: '#27a8c9',
+            dorsal: [[.24, .88, .06, .5, 0]], anal: [[.6, .88, .06, .5, 0]] },
+  anthias:{ nm: 'Fahnenbarsch', L: .85, H: .42, a: .95, b: .6, ped: .3, tl: .22, th: .32, tf: 1, bf: .95, tail: 'lyre', spd: 1.1, y: [.15, .45],
+            top: '#e5486c', mid: '#ff7a8a', low: '#ffc7a6', fin: '#ff8f6b', finEdge: '#c35cf0', tailCol: '#ff8a6e',
+            dorsal: [[.22, .86, .08, .2, 0]], anal: [[.6, .86, .08, .5, 0]] },
+  gramma: { nm: 'Königs-Feenbarsch', L: .7, H: .38, a: .95, b: .6, ped: .32, tl: .2, th: .28, tf: 1, bf: .95, tail: 'round', spd: 1, y: [.4, .62],
+            top: '#6a1ab0', mid: '#9244de', low: '#c58cf5', fin: '#f2b90f', finEdge: '#d98e00', tailCol: '#f6c120',
+            dorsal: [[.24, .88, .08, .4, 0]], anal: [[.6, .88, .07, .4, 0]] }
 };
-
 const SP_KEYS = Object.keys(SPECIES);
-
-function bodyPath(g, L, Hh) {
-  g.beginPath();
-  g.moveTo(L * .5, Hh * .04);
-  g.bezierCurveTo(L * .47, -Hh * .42, L * .1, -Hh * .56, -L * .18, -Hh * .38);
-  g.bezierCurveTo(-L * .3, -Hh * .28, -L * .37, -Hh * .15, -L * .41, -Hh * .11);
-  g.lineTo(-L * .41, Hh * .11);
-  g.bezierCurveTo(-L * .37, Hh * .15, -L * .3, Hh * .28, -L * .18, Hh * .38);
-  g.bezierCurveTo(L * .1, Hh * .54, L * .45, Hh * .42, L * .5, Hh * .04);
+const spriteCache = new Map();
+function fishGeom(S, L) {
+  const Lb = L * (1 - S.tl), Hh = L * S.H;
+  const f = s => (1 - S.ped) * Math.pow(Math.sin(Math.PI * Math.min(1, Math.pow(Math.max(s, 0), S.a))), S.b) + S.ped * s * s * s;
+  return { L, Lb, Hh, X: s => L * .5 - s * Lb, T: s => -Hh * .5 * f(s) * S.tf, B: s => Hh * .5 * f(s) * S.bf };
+}
+function fishBodyPath(g, G, S) {
+  g.beginPath(); const n = 36;
+  for (let i = 0; i <= n; i++) { const s = i / n; g.lineTo(G.X(s), G.T(s)); }
+  for (let i = n; i >= 0; i--) { const s = i / n; g.lineTo(G.X(s), G.B(s)); }
   g.closePath();
 }
-function finRays(g, x0, y0, pts, col) {
-  g.strokeStyle = col; g.lineWidth = .7; g.globalAlpha *= .5;
-  for (const [x, y] of pts) { g.beginPath(); g.moveTo(x0, y0); g.lineTo(x, y); g.stroke(); }
-  g.globalAlpha /= .5;
+function finShape(g, G, S, d, side) {
+  const [s0, s1, h, pk, trail] = d, L = G.L, base = side < 0 ? G.T : G.B;
+  const hd = u => u < pk ? Math.pow(Math.sin(Math.PI / 2 * u / pk), .7) : Math.pow(Math.cos(Math.PI / 2 * (u - pk) / (1 - pk)), .8);
+  g.beginPath(); const n = 24;
+  for (let i = 0; i <= n; i++) { const s = s0 + (s1 - s0) * i / n; g.lineTo(G.X(s), base(s) - side * -1 * 0); }
+  for (let i = n; i >= 0; i--) { const u = i / n, s = s0 + (s1 - s0) * u; g.lineTo(G.X(s) - trail * L * Math.pow(u, 3), base(s) + side * (h * L * hd(u) + (u > .98 ? trail * L * .15 : 0))); }
+  g.closePath();
 }
-
+function tailShape(g, G, S) {
+  const xp = G.X(1), ph = Math.max(G.B(1), G.L * .02), tl = S.tl * G.L * 1.05, th = S.th * G.L, t = S.tail;
+  g.beginPath(); g.moveTo(xp + G.L * .02, -ph);
+  if (t === 'round') { g.bezierCurveTo(xp - tl * .4, -th * .9, xp - tl * 1.05, -th * 1.0, xp - tl, 0); g.bezierCurveTo(xp - tl * 1.05, th * 1.0, xp - tl * .4, th * .9, xp + G.L * .02, ph); }
+  else if (t === 'truncate') { g.quadraticCurveTo(xp - tl * .5, -th * .9, xp - tl, -th); g.quadraticCurveTo(xp - tl * .88, 0, xp - tl, th); g.quadraticCurveTo(xp - tl * .5, th * .9, xp + G.L * .02, ph); }
+  else if (t === 'lunate') { g.quadraticCurveTo(xp - tl * .6, -th * .7, xp - tl * 1.1, -th * 1.15); g.quadraticCurveTo(xp - tl * .45, 0, xp - tl * 1.1, th * 1.15); g.quadraticCurveTo(xp - tl * .6, th * .7, xp + G.L * .02, ph); }
+  else { g.quadraticCurveTo(xp - tl * .6, -th * .7, xp - tl * 1.6, -th * 1.25); g.quadraticCurveTo(xp - tl * .7, -th * .3, xp - tl * .7, 0); g.quadraticCurveTo(xp - tl * .7, th * .3, xp - tl * 1.6, th * 1.25); g.quadraticCurveTo(xp - tl * .6, th * .7, xp + G.L * .02, ph); }
+  g.closePath();
+}
+function paintFin(g, G, S, col, edge, pathFn, r) {
+  pathFn(); g.save(); g.clip();
+  const L = G.L;
+  g.fillStyle = col; g.globalAlpha = .82; g.fillRect(-L, -L, L * 2, L * 2);
+  g.globalAlpha = .3; g.strokeStyle = shade(col.startsWith('#') ? col : '#888888', -.35); g.lineWidth = Math.max(.6, L * .005);
+  for (let i = 0; i < 40; i++) { const a = i / 40 * Math.PI * 2; g.beginPath(); g.moveTo(G.X(.55), 0); g.lineTo(G.X(.55) + Math.cos(a) * L, Math.sin(a) * L); g.stroke(); }
+  for (let i = 0; i < 18; i++) { g.globalAlpha = .07 + r() * .08; g.fillStyle = r() < .5 ? '#ffffff' : shade(col.startsWith('#') ? col : '#888888', -.4); g.beginPath(); g.ellipse((r() - .5) * L * 1.3, (r() - .5) * L * 1.2, L * (.02 + r() * .05), L * (.015 + r() * .03), r() * 3, 0, 7); g.fill(); }
+  g.globalAlpha = 1; g.restore();
+  if (edge) { pathFn(); g.strokeStyle = edge; g.globalAlpha = .75; g.lineWidth = Math.max(1, L * .014); g.stroke(); g.globalAlpha = 1; }
+}
+function bandPath(g, G, s, w, bend) {
+  // a vertical band that follows the body, slightly curved
+  const x0 = G.X(s - w / 2), x1 = G.X(s + w / 2), top = -G.L, bot = G.L, c = bend * G.L;
+  g.beginPath(); g.moveTo(x0, top); g.quadraticCurveTo(x0 + c, 0, x0, bot); g.lineTo(x1, bot); g.quadraticCurveTo(x1 + c, 0, x1, top); g.closePath();
+}
+function fishPattern(g, G, S, sp, r) {
+  const L = G.L, Hh = G.Hh;
+  const band = (s, w, col, edge, ew, bend) => { if (edge) { bandPath(g, G, s, w + ew * 2, bend); g.fillStyle = edge; g.fill(); } bandPath(g, G, s, w, bend); g.fillStyle = col; g.fill(); };
+  if (sp === 'clown') { band(.17, .085, '#fbfbf6', '#151515', .018, .02); band(.47, .1, '#fbfbf6', '#151515', .018, -.03); band(.92, .06, '#fbfbf6', '#151515', .015, 0); }
+  else if (sp === 'btang') {
+    g.fillStyle = '#0c1430'; g.beginPath(); g.moveTo(G.X(.18), G.T(.2) * .55);
+    g.bezierCurveTo(G.X(.35), G.T(.35) * 1.05, G.X(.75), G.T(.7) * 1.1, G.X(.95), G.T(.95) * .4);
+    g.bezierCurveTo(G.X(.78), G.T(.7) * .2, G.X(.62), G.B(.6) * .05, G.X(.55), G.B(.55) * .25);
+    g.bezierCurveTo(G.X(.5), G.T(.5) * .2, G.X(.62), G.T(.62) * .55, G.X(.48), G.T(.48) * .55);
+    g.bezierCurveTo(G.X(.36), G.T(.36) * .5, G.X(.26), G.T(.26) * .2, G.X(.18), G.T(.2) * .55); g.fill();
+    g.fillStyle = '#ffcf1f'; g.beginPath(); g.ellipse(G.X(.4), G.B(.4) * .75, L * .05, L * .012, -.15, 0, 7); g.fill();
+  }
+  else if (sp === 'ytang') { g.fillStyle = 'rgba(255,255,255,.9)'; g.beginPath(); g.ellipse(G.X(.94), 0, L * .02, L * .007, 0, 0, 7); g.fill(); }
+  else if (sp === 'emperor') {
+    g.lineWidth = L * .018; g.strokeStyle = '#ffd43b';
+    for (let k = -7; k <= 7; k++) { g.beginPath(); for (let i = 0; i <= 24; i++) { const s = .22 + .78 * i / 24, x = G.X(s), y = k * L * .035 + (s - .22) * (s - .22) * L * .12 * Math.sign(k || 1) - L * .03; i ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke(); }
+    g.fillStyle = '#0b1636'; bandPath(g, G, .12, .07, .01); g.fill();
+    g.strokeStyle = '#8fd0ff'; g.lineWidth = L * .012; g.beginPath(); g.moveTo(G.X(.19), G.T(.19) * .9); g.quadraticCurveTo(G.X(.25), 0, G.X(.19), G.B(.19) * .9); g.stroke();
+    g.fillStyle = '#0b1636'; g.beginPath(); g.ellipse(G.X(.3), G.T(.3) * .7, L * .05, L * .07, 0, 0, 7); g.fill();
+  }
+  else if (sp === 'regal') {
+    for (const s of [.16, .3, .45, .6, .75]) band(s, .045, '#f7fbff', '#1f3f99', .015, -.015);
+    g.fillStyle = 'rgba(255, 220, 80, .5)'; g.fillRect(-L, G.B(.5) * .4, L * 2, L);
+  }
+  else if (sp === 'idol') {
+    band(.15, .11, '#151515', null, 0, .02); band(.58, .2, '#151515', null, 0, -.02);
+    band(.4, .1, '#ffd21f', null, 0, 0); g.fillStyle = '#ffd21f'; g.fillRect(G.X(.92), -L, L * .05, L * 2);
+    g.fillStyle = '#ff9a2a'; g.beginPath(); g.ellipse(G.X(.02), G.T(.05) * .3, L * .03, L * .015, 0, 0, 7); g.fill();
+  }
+  else if (sp === 'copper') {
+    for (const [s, w] of [[.1, .05], [.26, .08], [.46, .09], [.66, .08], [.86, .05]]) band(s, w, '#ef8a1e', '#1d1d1d', .012, 0);
+    g.fillStyle = '#121212'; g.beginPath(); g.arc(G.X(.72), G.T(.72) * .65, L * .045, 0, 7); g.fill(); g.strokeStyle = '#fff'; g.lineWidth = L * .01; g.stroke();
+  }
+  else if (sp === 'lion') { for (let i = 0; i < 16; i++) { const s = .06 + i * .06; band(s, .028, i % 2 ? '#f4e3d6' : '#7a2412', null, 0, (i % 3 - 1) * .02); } }
+  else if (sp === 'puffer') { for (let i = 0; i < 160; i++) { const x = G.X(r()), y = (r() - .65) * Hh; g.fillStyle = 'rgba(55, 40, 20, ' + (.35 + r() * .4) + ')'; g.beginPath(); g.arc(x, y, L * (.008 + r() * .012), 0, 7); g.fill(); } }
+  else if (sp === 'parrot') {
+    g.strokeStyle = 'rgba(240, 120, 170, .55)'; g.lineWidth = L * .006;
+    for (let i = 0; i < 14; i++) for (let j = -5; j <= 5; j++) { const x = G.X(.25 + i * .05), y = j * L * .032 + (i % 2) * L * .016; g.beginPath(); g.arc(x, y, L * .02, -1.2, 1.2); g.stroke(); }
+    g.fillStyle = '#ef7bb0'; g.beginPath(); g.moveTo(G.X(0), 0); g.lineTo(G.X(.1), -L * .02); g.lineTo(G.X(.1), L * .03); g.closePath(); g.fill();
+  }
+  else if (sp === 'anthias') { g.strokeStyle = '#c86cf0'; g.lineWidth = L * .012; g.beginPath(); g.moveTo(G.X(.05), L * .01); g.quadraticCurveTo(G.X(.15), L * .05, G.X(.3), L * .04); g.stroke(); g.strokeStyle = '#ffd04a'; g.beginPath(); g.moveTo(G.X(.06), L * .03); g.quadraticCurveTo(G.X(.16), L * .07, G.X(.28), L * .065); g.stroke(); }
+  else if (sp === 'gramma') { const lg = g.createLinearGradient(G.X(.4), 0, G.X(.6), 0); lg.addColorStop(0, 'rgba(250,200,30,0)'); lg.addColorStop(1, 'rgba(250,200,30,1)'); g.fillStyle = lg; g.fillRect(-L, -L, G.X(.4) + L, L * 2); }
+}
+function paintFishSprite(sp, L) {
+  const S = SPECIES[sp], G = fishGeom(S, L), r = rng(sp.length * 977 + Math.round(L));
+  const cw = Math.ceil(L * 1.7), ch = Math.ceil(L * (S.H + 1.25)), sc = DPR;
+  const c = document.createElement('canvas'); c.width = Math.ceil(cw * sc); c.height = Math.ceil(ch * sc);
+  const g = c.getContext('2d'); g.setTransform(sc, 0, 0, sc, cw * .58 * sc, ch * .5 * sc);
+  const ox = cw * .58, oy = ch * .5;
+  // fins behind the body
+  const tailCol = S.tailCol || S.fin;
+  paintFin(g, G, S, tailCol, S.tail === 'lyre' ? S.finEdge : null, () => tailShape(g, G, S), r);
+  for (const d of S.dorsal) paintFin(g, G, S, S.fin, S.finEdge, () => finShape(g, G, S, d, -1), r);
+  for (const d of S.anal) paintFin(g, G, S, S.fin, S.finEdge, () => finShape(g, G, S, d, 1), r);
+  if (S.lion) { // venomous spines with membranes
+    g.strokeStyle = '#5a1f0f'; g.lineWidth = Math.max(1, L * .006);
+    for (let i = 0; i < 13; i++) {
+      const s = .2 + i * .032, x = G.X(s), y = G.T(s), h = L * (.3 + .1 * Math.sin(i * 1.7)), tx = x - L * .07, ty = y - h;
+      g.fillStyle = i % 2 ? 'rgba(235, 200, 180, .45)' : 'rgba(170, 70, 40, .45)';
+      g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x - L * .02, y - h * .6, tx, ty); g.lineTo(x - L * .045, y - h * .35); g.lineTo(x - L * .03, y); g.closePath(); g.fill();
+      g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x - L * .02, y - h * .6, tx, ty); g.stroke();
+      g.fillStyle = '#f4e3d6'; for (let k = 1; k < 4; k++) { g.beginPath(); g.arc(lerp(x, tx, k / 4) - L * .005, lerp(y, ty, k / 4), L * .005, 0, 7); g.fill(); }
+    }
+  }
+  if (S.filament) { // long trailing streamer of the dorsal fin
+    const d = S.dorsal[0], sTip = d[0] + d[3] * (d[1] - d[0]), tx = G.X(sTip) - d[4] * L * Math.pow(d[3], 3), ty = G.T(sTip) - d[2] * L;
+    g.strokeStyle = '#f5f2ea'; g.lineCap = 'round';
+    for (const [w, a] of [[.018, .9], [.009, 1]]) { g.lineWidth = L * w; g.globalAlpha = a; g.beginPath(); g.moveTo(tx + L * .02, ty + L * .02); g.bezierCurveTo(tx - L * .15, ty - L * .05, G.X(.9), ty - L * .02, G.X(1.25), ty + L * .1); g.stroke(); }
+    g.globalAlpha = 1;
+  }
+  if (S.snout) { // tube snout, part of the body
+    const x0 = G.X(.12), x1 = G.X(0) + S.snout * L, tw = L * .03;
+    g.beginPath(); g.moveTo(x0, -tw * 1.3); g.lineTo(x1 - tw * .4, -tw * .75); g.quadraticCurveTo(x1 + tw * .4, 0, x1 - tw * .4, tw * .7); g.lineTo(x0, tw * 1.4); g.closePath();
+    const tg = g.createLinearGradient(0, -tw, 0, tw); tg.addColorStop(0, S.top); tg.addColorStop(1, S.low);
+    g.fillStyle = tg; g.fill(); g.strokeStyle = 'rgba(25, 20, 30, .55)'; g.lineWidth = Math.max(.8, L * .007); g.stroke();
+    if (sp === 'copper') { g.fillStyle = '#ef8a1e'; g.fillRect(G.X(0) + S.snout * L * .3, -tw * .9, L * .03, tw * 1.8); }
+  }
+  // body
+  fishBodyPath(g, G, S);
+  const bg = g.createLinearGradient(0, G.T(.4), 0, G.B(.4)); bg.addColorStop(0, S.top); bg.addColorStop(.5, S.mid); bg.addColorStop(1, S.low);
+  g.fillStyle = bg; g.fill();
+  g.save(); fishBodyPath(g, G, S); g.clip();
+  fishPattern(g, G, S, sp, r);
+  // watercolor blooms and granulation
+  for (let i = 0; i < 70; i++) { g.globalAlpha = .035 + r() * .06; g.fillStyle = r() < .55 ? shade(S.top, -.35) : '#fffdf4'; g.beginPath(); g.ellipse(G.X(r()), (r() - .5) * G.Hh, L * (.015 + r() * .06), L * (.01 + r() * .04), r() * 3, 0, 7); g.fill(); }
+  g.globalAlpha = .12; g.strokeStyle = shade(S.top, -.4); g.lineWidth = Math.max(.6, L * .004);
+  for (let i = 0; i < 90; i++) { const x = G.X(.25 + r() * .7), y = (r() - .5) * G.Hh * .9; g.beginPath(); g.arc(x, y, L * .018, -1.1, 1.1); g.stroke(); }
+  g.globalAlpha = 1;
+  const hl = g.createLinearGradient(0, G.T(.4), 0, 0); hl.addColorStop(0, 'rgba(255,255,255,0)'); hl.addColorStop(.55, 'rgba(255,255,255,.22)'); hl.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = hl; g.fillRect(-L, G.T(.4), L * 2, -G.T(.4));
+  const sh = g.createLinearGradient(0, 0, 0, G.B(.4)); sh.addColorStop(0, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(20,10,0,.12)');
+  g.fillStyle = sh; g.fillRect(-L, 0, L * 2, G.B(.4));
+  // gill cover
+  g.strokeStyle = 'rgba(30,20,10,.28)'; g.lineWidth = Math.max(.8, L * .007);
+  g.beginPath(); g.moveTo(G.X(.22), G.T(.22) * .8); g.quadraticCurveTo(G.X(.3), 0, G.X(.22), G.B(.22) * .8); g.stroke();
+  g.restore();
+  // ink outline, soft like a pen line
+  fishBodyPath(g, G, S); g.strokeStyle = 'rgba(25, 20, 30, .55)'; g.lineWidth = Math.max(.8, L * .007); g.stroke();
+  // pelvic fin
+  g.fillStyle = S.fin; g.globalAlpha = .8; g.beginPath(); const px = G.X(.3), py = G.B(.3) * .85;
+  g.moveTo(px, py); g.quadraticCurveTo(px - L * .05, py + L * .08, px - L * .1, py + L * .1); g.quadraticCurveTo(px - L * .06, py + L * .03, px - L * .07, py); g.closePath(); g.fill(); g.globalAlpha = 1;
+  // eye and mouth
+  const es = sp === 'puffer' ? .17 : .12, ex = G.X(es), ey = G.T(es) * .38, er = L * (sp === 'puffer' ? .055 : .04);
+  g.fillStyle = sp === 'idol' || sp === 'copper' || sp === 'lion' ? '#d8b25a' : '#f2e3a8'; g.beginPath(); g.arc(ex, ey, er, 0, 7); g.fill();
+  g.fillStyle = '#0d0d10'; g.beginPath(); g.arc(ex + er * .1, ey, er * .62, 0, 7); g.fill();
+  g.fillStyle = 'rgba(255,255,255,.85)'; g.beginPath(); g.arc(ex + er * .3, ey - er * .3, er * .2, 0, 7); g.fill();
+  g.strokeStyle = 'rgba(20,15,10,.5)'; g.lineWidth = Math.max(.8, L * .006); g.beginPath(); g.arc(ex, ey, er, 0, 7); g.stroke();
+  const mx = G.X(0) + (S.snout ? S.snout * L * 1.05 : 0); g.strokeStyle = 'rgba(60,20,20,.6)'; g.beginPath(); g.moveTo(mx, L * .008); g.lineTo(mx - L * .035, L * .014); g.stroke();
+  return { c, cw, ch, ox, oy };
+}
+function fishSprite(sp, L) {
+  const q = Math.max(16, Math.round(L / 6) * 6), key = sp + '|' + q + '|' + DPR;
+  let s = spriteCache.get(key); if (!s) { s = paintFishSprite(sp, q); spriteCache.set(key, s); }
+  return { s, k: L / q };
+}
 function drawFish(g, f) {
   if (f.drawn) return drawDrawnFish(g, f);
-  const s = SPECIES[f.sp], L = f.size, Hh = L * s.H;
-  const v = Math.hypot(f.vx, f.vy);
-  const wag = Math.sin(f.ph) * (0.1 + Math.min(v / 220, .22)) * Hh;
-  const bend = Math.sin(f.ph - .8) * .04;
-  g.save();
-  g.translate(f.x, f.y + Math.sin(f.ph * .3) * 2);
-  g.scale(f.face * (1 - f.tuck * .15), 1 - f.tuck * .15);
-  g.rotate(clamp(f.vy / 300, -.35, .35) * Math.sign(f.face || 1));
-  const baseA = (1 - f.tuck * .55) * (0.8 + Math.min(1, f.k) * .2);
-  g.globalAlpha = baseA;
-  const finA = .82;
-
-  // tail
-  g.save(); g.translate(-L * .4, 0); g.rotate(bend);
-  g.fillStyle = s.tailCol || s.fin; g.globalAlpha = baseA * finA;
-  g.beginPath();
-  if (s.tail === 'lunate') { g.moveTo(0, 0); g.lineTo(-L * .27, -Hh * .5 + wag); g.quadraticCurveTo(-L * .16, wag * .8, -L * .27, Hh * .5 + wag); }
-  else if (s.tail === 'lyre') { g.moveTo(0, 0); g.quadraticCurveTo(-L * .15, -Hh * .3 + wag, -L * .38, -Hh * .55 + wag); g.quadraticCurveTo(-L * .18, wag, -L * .38, Hh * .55 + wag); g.quadraticCurveTo(-L * .15, Hh * .3 + wag, 0, 0); }
-  else { g.moveTo(0, 0); g.quadraticCurveTo(-L * .1, -Hh * .45 + wag, -L * .22, -Hh * .38 + wag); g.quadraticCurveTo(-L * .27, wag, -L * .22, Hh * .38 + wag); g.quadraticCurveTo(-L * .1, Hh * .45 + wag, 0, 0); }
-  g.closePath(); g.fill();
-  if (s.edge && f.sp === 'clown') { g.strokeStyle = s.edge; g.lineWidth = L * .015; g.stroke(); }
-  finRays(g, 0, 0, [[-L * .24, -Hh * .35 + wag], [-L * .25, -Hh * .15 + wag], [-L * .25, wag], [-L * .25, Hh * .15 + wag], [-L * .24, Hh * .35 + wag]], shade(s.tailCol || s.fin, -.4));
-  g.restore();
-  g.globalAlpha = baseA * finA;
-
-  // dorsal fin
-  g.fillStyle = f.sp === 'royal' ? s.fin : s.fin;
-  const dh = f.sp === 'yellow' ? .62 : f.sp === 'tang' ? .55 : .5;
-  g.beginPath(); g.moveTo(L * .2, -Hh * .42);
-  g.quadraticCurveTo(L * .05, -Hh * (dh + .2) - wag * .1, -L * .3, -Hh * (dh - .05));
-  g.quadraticCurveTo(-L * .36, -Hh * .28, -L * .38, -Hh * .14);
-  g.lineTo(-L * .2, -Hh * .36); g.closePath(); g.fill();
-  if (s.edge) { g.strokeStyle = s.edge; g.lineWidth = L * .012; g.stroke(); }
-  finRays(g, 0, -Hh * .2, [[L * .12, -Hh * .6], [0, -Hh * .66], [-L * .12, -Hh * .66], [-L * .24, -Hh * .58]], shade(s.fin, -.4));
-  // anal fin
-  g.fillStyle = f.sp === 'royal' ? s.fin : s.fin;
-  g.beginPath(); g.moveTo(L * .02, Hh * .44);
-  g.quadraticCurveTo(-L * .12, Hh * (dh + .12), -L * .32, Hh * (dh - .12));
-  g.quadraticCurveTo(-L * .36, Hh * .25, -L * .38, Hh * .14); g.lineTo(-L * .2, Hh * .36); g.closePath(); g.fill();
-  if (s.edge) { g.strokeStyle = s.edge; g.lineWidth = L * .012; g.stroke(); }
-  // pelvic fin
-  g.beginPath(); g.moveTo(L * .2, Hh * .38); g.quadraticCurveTo(L * .1, Hh * .7, L * .03, Hh * .62); g.lineTo(L * .1, Hh * .4); g.closePath(); g.fill();
-  g.globalAlpha = baseA;
-
-  // body with countershading
-  bodyPath(g, L, Hh);
-  const bg = g.createLinearGradient(0, -Hh * .5, 0, Hh * .5);
-  bg.addColorStop(0, s.top); bg.addColorStop(.45, s.mid); bg.addColorStop(1, s.low);
-  g.fillStyle = bg; g.fill();
-  g.save(); g.clip();
-  // species markings
-  if (f.sp === 'clown') {
-    for (const [bx, bw] of [[L * .25, .06], [-L * .02, .07], [-L * .33, .045]]) {
-      g.fillStyle = '#fbfbf7'; g.strokeStyle = s.edge; g.lineWidth = L * .018;
-      g.beginPath(); g.ellipse(bx, 0, L * bw, Hh * .75, -.08, 0, 7); g.fill(); g.stroke();
-    }
-  } else if (f.sp === 'tang') {
-    g.strokeStyle = '#08122e'; g.lineCap = 'round'; g.lineWidth = Hh * .14;
-    g.beginPath(); g.moveTo(L * .28, -Hh * .12); g.quadraticCurveTo(L * .05, -Hh * .42, -L * .38, -Hh * .02); g.stroke();
-    g.lineWidth = Hh * .1; g.beginPath(); g.moveTo(-L * .02, -Hh * .3); g.quadraticCurveTo(-L * .05, Hh * .12, -L * .36, Hh * .06); g.stroke();
-  } else if (f.sp === 'yellow') {
-    g.fillStyle = '#1e1e1e'; g.beginPath(); g.ellipse(L * .33, -Hh * .05, L * .045, Hh * .7, .1, 0, 7); g.fill();
-    g.fillStyle = 'rgba(0,0,0,.75)'; g.beginPath(); g.arc(-L * .22, -Hh * .22, L * .05, 0, 7); g.fill();
-    g.strokeStyle = 'rgba(160, 110, 0, .35)'; g.lineWidth = 1;
-    for (let i = -3; i <= 3; i++) { g.beginPath(); g.moveTo(-L * .4, i * Hh * .12 - Hh * .2); g.lineTo(L * .25, i * Hh * .12 + Hh * .2); g.stroke(); }
-  } else if (f.sp === 'pink') {
-    g.strokeStyle = '#ffd23f'; g.lineWidth = Hh * .07; g.lineCap = 'round';
-    g.beginPath(); g.moveTo(L * .38, -Hh * .02); g.quadraticCurveTo(L * .2, Hh * .12, L * .05, Hh * .18); g.stroke();
-  } else if (f.sp === 'wrasse') {
-    g.strokeStyle = 'rgba(255, 110, 180, .85)'; g.lineWidth = Hh * .06;
-    for (const ly of [-Hh * .22, -Hh * .02, Hh * .18]) { g.beginPath(); g.moveTo(-L * .45, ly); g.quadraticCurveTo(0, ly - Hh * .08, L * .5, ly - Hh * .02); g.stroke(); }
-  } else if (f.sp === 'puffer') {
-    g.fillStyle = 'rgba(80, 55, 25, .7)';
-    for (let i = 0; i < 26; i++) { const a = i * 2.39996, rr = Math.sqrt(i / 26); g.beginPath(); g.arc(Math.cos(a) * rr * L * .38 - L * .02, Math.sin(a) * rr * Hh * .3 - Hh * .12, L * .022, 0, 7); g.fill(); }
-  } else if (f.sp === 'royal') {
-    const rg = g.createLinearGradient(-L * .05, 0, L * .08, 0);
-    rg.addColorStop(0, '#f5bf12'); rg.addColorStop(1, 'rgba(245, 191, 18, 0)');
-    g.fillStyle = rg; g.fillRect(-L * .5, -Hh, L * .58, Hh * 2);
-    g.strokeStyle = 'rgba(30, 10, 60, .6)'; g.lineWidth = Hh * .04; g.beginPath(); g.moveTo(L * .48, -Hh * .05); g.lineTo(L * .2, -Hh * .2); g.stroke();
+  const S = SPECIES[f.sp], L = f.size, { s: sp, k } = fishSprite(f.sp, L);
+  const v = Math.hypot(f.vx, f.vy), amp = .022 + Math.min(v / (L * 6), .035);
+  g.save(); g.translate(f.x, f.y + Math.sin(f.ph * .25 + f.k * 9) * 2 * U);
+  g.rotate(clamp(f.vy / 260, -.35, .35) * Math.sign(f.face || 1));
+  g.scale(f.face * (1 - f.tuck * .1) * k, (1 - f.tuck * .1) * k);
+  g.globalAlpha = 1 - f.tuck * .35;
+  // swim: the head swings a little, the tail end a lot, and the tail fin turns towards/away from us
+  const N = 20, sw = sp.cw / N, scl = sp.c.width / sp.cw, qL = sp.cw * (1 / 1.7);
+  const headX = sp.ox + qL * .5;
+  let cur = sp.cw; // draw from the head (right) to the tail (left)
+  for (let i = N - 1; i >= 0; i--) {
+    const sx = i * sw, mid = sx + sw / 2, q = clamp((headX - mid) / qL, 0, 1.3);
+    const wave = Math.sin(f.ph - q * 2.4);
+    const dy = amp * qL * (Math.pow(q, 2.2) - .1) * wave;
+    const fore = q > .78 ? 1 - .32 * (.5 + .5 * Math.cos(f.ph - q * 2.4)) * clamp((q - .78) / .25, 0, 1) : 1;
+    const dw = sw * fore;
+    g.drawImage(sp.c, sx * scl, 0, sw * scl + 1, sp.c.height, cur - dw - sp.ox, -sp.oy + dy, dw + .5, sp.ch);
+    cur -= dw;
   }
-  // scales
-  g.strokeStyle = 'rgba(0, 20, 40, .1)'; g.lineWidth = .8;
-  const sc = Math.max(4, L * .06);
-  for (let y = -Hh * .5; y < Hh * .5; y += sc * .7) for (let x = -L * .4 + ((y / sc) % 2 ? sc / 2 : 0); x < L * .2; x += sc) { g.beginPath(); g.arc(x, y, sc * .55, -1.2, 1.2); g.stroke(); }
-  // light from above + belly shadow
-  const hl = g.createRadialGradient(L * .1, -Hh * .3, 1, L * .05, -Hh * .2, L * .5);
-  hl.addColorStop(0, 'rgba(255,255,255,.35)'); hl.addColorStop(1, 'rgba(255,255,255,0)');
-  g.fillStyle = hl; g.fillRect(-L * .5, -Hh, L, Hh * 2);
-  const sh = g.createLinearGradient(0, Hh * .1, 0, Hh * .55);
-  sh.addColorStop(0, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0, 20, 40, .18)');
-  g.fillStyle = sh; g.fillRect(-L * .5, 0, L, Hh);
-  // lateral line and gill cover
-  g.strokeStyle = 'rgba(255,255,255,.22)'; g.lineWidth = 1; g.beginPath(); g.moveTo(L * .18, -Hh * .2); g.quadraticCurveTo(-L * .1, -Hh * .3, -L * .38, -Hh * .02); g.stroke();
-  g.strokeStyle = 'rgba(0, 10, 20, .3)'; g.lineWidth = Math.max(1, L * .012); g.beginPath(); g.arc(L * .44, 0, L * .2, Math.PI * .72, Math.PI * 1.28); g.stroke();
+  // pectoral fin, fluttering
+  const G = fishGeom(S, qL), px = G.X(.3), py = G.B(.3) * .15, fl = Math.sin(f.ph * 1.3) * .35;
+  g.save(); g.translate(px, py); g.rotate(.5 + fl);
+  g.globalAlpha *= S.lion ? .75 : .55; g.fillStyle = S.lion ? '#e6a080' : S.fin;
+  const pl = qL * (S.lion ? .42 : .14), pw = qL * (S.lion ? .16 : .05);
+  g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(-pl * .5, -pw, -pl, -pw * .4); g.quadraticCurveTo(-pl * 1.05, pw * .3, -pl * .9, pw); g.quadraticCurveTo(-pl * .4, pw * .7, 0, 0); g.fill();
+  if (S.lion) { g.strokeStyle = 'rgba(110,30,10,.6)'; g.lineWidth = 1; for (let i = 0; i < 7; i++) { g.beginPath(); g.moveTo(0, 0); g.lineTo(-pl * (.85 + .1 * Math.sin(i)), -pw * .4 + i * pw * .22); g.stroke(); } }
   g.restore();
-  // pectoral fin, beating
-  g.globalAlpha = baseA * .55; g.fillStyle = f.sp === 'royal' ? '#c08cf0' : s.fin;
-  g.save(); g.translate(L * .18, Hh * .08); g.rotate(.5 + Math.sin(f.ph * 1.4) * .35);
-  g.beginPath(); g.ellipse(-L * .07, 0, L * .09, Hh * .1, 0, 0, 7); g.fill(); g.restore();
-  g.globalAlpha = baseA;
-  // eye
-  const er = Math.max(2.5, L * .055), ex = L * .33, ey = -Hh * .1;
-  const ig = g.createRadialGradient(ex, ey, er * .2, ex, ey, er);
-  ig.addColorStop(0, '#000'); ig.addColorStop(.55, '#111'); ig.addColorStop(.75, f.sp === 'tang' ? '#2a2a2a' : '#c9a23a'); ig.addColorStop(1, '#3a2a10');
-  g.fillStyle = ig; g.beginPath(); g.arc(ex, ey, er, 0, 7); g.fill();
-  g.fillStyle = 'rgba(255,255,255,.85)'; g.beginPath(); g.arc(ex + er * .3, ey - er * .35, er * .25, 0, 7); g.fill();
-  // mouth
-  g.strokeStyle = 'rgba(40, 10, 10, .55)'; g.lineWidth = Math.max(1, L * .012); g.lineCap = 'round';
-  g.beginPath(); g.moveTo(L * .49, Hh * .06); g.lineTo(L * .44, Hh * .08); g.stroke();
   g.restore();
 }
 
@@ -840,7 +955,7 @@ function updateFish(f, dt) {
     while (f.trail.length && f.trail[0].a <= 0) f.trail.shift();
     if (!reduceMotion && Math.random() < dt * 14) spawnBubble(f.x - f.face * f.size * .5 + (Math.random() - .5) * 8, f.y + (Math.random() - .5) * f.size * .2, false, true);
   }
-  f.ph += dt * (6 + v / 12);
+  f.ph += dt * (f.drawn ? 6 + v / 12 : 3.2 + v / Math.max(20, f.size) * 5);
   f.tuck = lerp(f.tuck, scared && d < 60 ? 1 : 0, clamp(dt * 3, 0, 1));
 }
 
@@ -1445,7 +1560,14 @@ function logic(dt) {
   for (const f of fish) updateFish(f, dt);
   fish = fish.filter(f => !(f.leaving && (f.x < -150 || f.x > W + 150)));
   // bubbles
-  if (!reduceMotion && Math.random() < dt * (st.status === 'loud' ? 6 : 2.5)) spawnBubble(hideSpots.length ? hideSpots[Math.floor(Math.random() * hideSpots.length)].x : undefined, sandY);
+  if (!reduceMotion) {
+    // some corals let strings of bubbles rise now and then
+    for (const v of vents) {
+      v.t -= dt;
+      if (v.t <= 0) { if (v.n <= 0) v.n = 5 + Math.floor(Math.random() * 6); spawnBubble(v.x + (Math.random() - .5) * 4 * U, v.y, false); v.n--; v.t = v.n > 0 ? .14 + Math.random() * .1 : 2.5 + Math.random() * 4; }
+    }
+    if (Math.random() < dt * .8) spawnBubble(undefined, sandY);
+  }
   for (const b of bubbles) { b.y -= b.vy * dt; b.ph += dt * 2; b.x += Math.sin(b.ph) * 12 * dt; }
   bubbles = bubbles.filter(b => b.y > -20);
   // calibration
@@ -1471,10 +1593,14 @@ function render() {
   const t = reduceMotion ? 0 : st.t;
   // light rays
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
-  for (let i = 0; i < 5; i++) {
-    const x = W * (i / 4.5) + Math.sin(t * .15 + i) * 60 * U;
-    ctx.fillStyle = 'rgba(200, 245, 255, .05)';
-    ctx.beginPath(); ctx.moveTo(x - 30 * U, 0); ctx.lineTo(x + 50 * U, 0); ctx.lineTo(x + 200 * U, sandY); ctx.lineTo(x + 40 * U, sandY); ctx.closePath(); ctx.fill();
+  for (let i = 0; i < 7; i++) {
+    // sun rays from the surface, slowly drifting and breathing
+    const x = W * ((i + .3) / 6.5) + Math.sin(t * .11 + i * 1.7) * 50 * U, wTop = (28 + 22 * Math.sin(i * 2.1)) * U, spread = (120 + 60 * Math.sin(i)) * U;
+    const a = .1 + .06 * Math.sin(t * .35 + i * 1.3);
+    const lg = ctx.createLinearGradient(0, 0, 0, sandY);
+    lg.addColorStop(0, 'rgba(230, 250, 255, ' + a.toFixed(3) + ')'); lg.addColorStop(.6, 'rgba(210, 245, 255, ' + (a * .35).toFixed(3) + ')'); lg.addColorStop(1, 'rgba(210, 245, 255, 0)');
+    ctx.fillStyle = lg;
+    ctx.beginPath(); ctx.moveTo(x - wTop, 0); ctx.lineTo(x + wTop, 0); ctx.lineTo(x + wTop + spread + 90 * U, sandY); ctx.lineTo(x - wTop + 90 * U, sandY); ctx.closePath(); ctx.fill();
   }
   ctx.restore();
   // caustic light on the sand
@@ -1500,17 +1626,23 @@ function render() {
   // seaweed
   ctx.lineCap = 'round';
   for (const w of weeds) {
+    // seaweed grows from the sand and sways gently, more at the top than at the root
     for (let j = -1; j <= 1; j++) {
-      const sway = Math.sin(t * 1.1 + w.ph + j * .6) * 18 * U, bx = w.x + j * 11 * U, h = w.h * (1 - Math.abs(j) * .22), bw = 7 * U;
-      const tx = bx + j * 8 * U + sway, ty = w.y - h;
-      const lg = ctx.createLinearGradient(bx, w.y, tx, ty);
+      const bx = w.x + j * 10 * U, h = w.h * (1 - Math.abs(j) * .22), n = 12, Lp = [], Rp = [];
+      for (let k = 0; k <= n; k++) {
+        const q = k / n, sway = Math.sin(t * .75 + w.ph + j * .7 - q * 1.6) * 14 * U * Math.pow(q, 1.4) + j * 10 * U * q;
+        const x = bx + sway, y = w.y - h * q, bw = 6.5 * U * (1 - q * .75) * (1 + .25 * Math.sin(q * 9 + j));
+        Lp.push([x - bw, y]); Rp.push([x + bw, y]);
+      }
+      const lg = ctx.createLinearGradient(0, w.y, 0, w.y - h);
       lg.addColorStop(0, shade(w.col, -.45)); lg.addColorStop(.6, w.col); lg.addColorStop(1, shade(w.col, .3));
-      ctx.fillStyle = lg; ctx.beginPath();
-      ctx.moveTo(bx - bw, w.y);
-      ctx.bezierCurveTo(bx - bw + sway * .3, w.y - h * .35, bx - bw * .6 - sway * .3, w.y - h * .7, tx, ty);
-      ctx.bezierCurveTo(bx + bw * .6 - sway * .3, w.y - h * .7, bx + bw + sway * .3, w.y - h * .35, bx + bw, w.y);
+      ctx.fillStyle = lg; ctx.beginPath(); ctx.moveTo(Lp[0][0], Lp[0][1]);
+      for (const [x, y] of Lp) ctx.lineTo(x, y);
+      for (let k = n; k >= 0; k--) ctx.lineTo(Rp[k][0], Rp[k][1]);
       ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(bx, w.y); ctx.bezierCurveTo(bx + sway * .3, w.y - h * .35, bx - sway * .3, w.y - h * .7, tx, ty); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,.16)'; ctx.lineWidth = 1; ctx.beginPath();
+      for (let k = 0; k <= n; k++) ctx.lineTo((Lp[k][0] + Rp[k][0]) / 2, Lp[k][1]);
+      ctx.stroke();
     }
   }
   // sea anemones
@@ -1809,7 +1941,7 @@ try {
 window.addEventListener('resize', resize);
 resize();
 // a few ambient fish behind the start screen so it never looks empty
-function addAmbientFish() { ['clown', 'tang', 'yellow', 'pink', 'wrasse'].forEach((sp, i) => fish.push(newFish(sp, { x: W * (.15 + i * .17), y: H * (.25 + (i % 3) * .14), ambient: true }))); }
+function addAmbientFish() { ['clown', 'btang', 'ytang', 'idol', 'emperor'].forEach((sp, i) => fish.push(newFish(sp, { x: W * (.15 + i * .17), y: H * (.25 + (i % 3) * .14), ambient: true }))); }
 addAmbientFish();
 for (let i = 0; i < 15; i++) spawnBubble(Math.random() * W, Math.random() * H);
 updateCounter(); updateHud();
