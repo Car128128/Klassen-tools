@@ -1186,10 +1186,23 @@ function subFigure(e, Hh) {
   const L = e.L, pr = Hh * .07, x0 = L * (.32 - 3 * .06), x1 = L * (.32 - 8 * .06);
   const tExit = (W + .6 * L + pr - x0) / e.v, walk = 4, t0 = tExit - walk - 1.5, k = clamp((e.t - t0) / walk, 0, 1);
   const walking = k > 0 && k < 1;
-  return { x: lerp(x0, x1, sm(k)), bob: walking ? -Math.abs(Math.sin(e.t * 7)) * pr * .1 : 0, wave: !walking };
+  // a natural gait: one little hop per step, a slight lean into the walk
+  const step = sm(k) * 14 * Math.PI, hop = walking ? Math.abs(Math.sin(step)) : 0;
+  return { x: lerp(x0, x1, sm(k)), bob: -hop * pr * .16, wave: !walking, walking, step, k };
 }
-function subPerson(g, x, y, pr, waveT) {
+function subPerson(g, x, y, pr, waveT, fig) {
   g.fillStyle = g.strokeStyle = '#76512a'; g.lineCap = 'round'; // opaque, so overlapping parts don't show darker
+  if (fig && fig.walking) { // side view, walking towards the stern (to the left here): nose and chin show in profile
+    const hx = x, lean = -pr * .05, sw = Math.sin(fig.step) * .5;
+    g.beginPath(); g.arc(hx + lean, y - pr * .3, pr * .24, 0, 7); g.fill();                                       // head
+    g.beginPath(); g.moveTo(hx + lean - pr * .2, y - pr * .36); g.lineTo(hx + lean - pr * .36, y - pr * .25);      // nose
+    g.lineTo(hx + lean - pr * .21, y - pr * .2); g.closePath(); g.fill();
+    g.fillRect(hx + lean * .5 - pr * .08, y - pr * .1, pr * .16, pr * .26);                                       // neck
+    g.beginPath(); g.ellipse(hx, y + pr * .72, pr * .33, pr * .58, 0, 0, 7); g.fill();                         // body, narrower from the side
+    g.lineWidth = pr * .15; g.beginPath(); g.moveTo(hx, y + pr * .3);                                              // swinging arm
+    g.lineTo(hx + Math.sin(sw) * pr * .5, y + pr * .3 + Math.cos(sw) * pr * .5); g.stroke();
+    return;
+  }
   const hx = x - pr * .1;
   g.beginPath(); g.arc(hx, y - pr * .3, pr * .24, 0, 7); g.fill();                                   // head
   g.fillRect(hx - pr * .09, y - pr * .1, pr * .18, pr * .26);                                       // neck
@@ -1245,7 +1258,7 @@ function drawSub(g, e) {
     lg.addColorStop(0, '#fff7c2'); lg.addColorStop(1, '#e8a730');
     g.fillStyle = lg; g.beginPath(); g.arc(px, py, pr, 0, 7); g.fill();
     // someone behind the glass: waves, walks back past the other windows and waves again from the last one
-    if (Math.abs(fig.x - px) < pr * 2) { g.save(); g.beginPath(); g.arc(px, py, pr, 0, 7); g.clip(); subPerson(g, fig.x, py + fig.bob, pr, fig.wave ? e.t : null); g.restore(); }
+    if (Math.abs(fig.x - px) < pr * 2) { g.save(); g.beginPath(); g.arc(px, py, pr, 0, 7); g.clip(); subPerson(g, fig.x, py + fig.bob, pr, fig.wave ? e.t : null, fig); g.restore(); }
   }
   // conning tower with planes and periscope
   g.fillStyle = '#3d4a50';
