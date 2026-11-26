@@ -372,7 +372,7 @@ button { cursor: pointer; }
     </div>
     <div class="field">
       <label class="check"><input type="checkbox" id="swimAway" checked> Bei Lärm schwimmen die Fische davon</label>
-      <small>Wird es zu laut, schwimmt die Hälfte der Fische mit einer Wasserspur zum nächsten Rand davon, bleibt es 2 Sekunden länger zu laut, auch alle übrigen. Ausgeschaltet verstecken sie sich nur hinter den Steinen. Gemalte Fische verstecken sich immer nur.</small>
+      <small>Ist es eine halbe Sekunde zu laut, schwimmen 70 % der Fische mit einer Wasserspur zum nächsten Rand davon (mindestens 5 bleiben). Ab einer Sekunde verschwinden alle und alles beginnt von vorn; neue Fische kommen erst 4 Sekunden nach dem Lärm. Ausgeschaltet verstecken sie sich nur hinter den Steinen. Gemalte Fische verstecken sich immer nur.</small>
     </div>
     <div class="field">
       <span class="lbl">Runde</span>
@@ -1035,7 +1035,7 @@ function updateEvents(dt) {
     if (st.status === 'loud') e.scared = true;
     if (e.t >= e.dur || (e.scared && (e.t < 8.6 || e.t > 16.6))) { octoFromVisit(e); st.ev = null; return; }
   }
-  if (e.kind === 'inkpass' && !e.splat && e.t >= 8.3) { e.splat = true; const p = inkPassPose(7.8); st.veil = makeVeil(p.x, p.y + p.u * .3); }
+  if (e.kind === 'inkpass' && !e.splat && !e.noSplat && e.t >= 8.3) { e.splat = true; const p = inkPassPose(7.8); st.veil = makeVeil(p.x, p.y + p.u * .3); }
   if (e.kind === 'diver') {
     e.dt = dt;
     if (e.t >= 5 && e.t < 15) wipeVeil(e.t - 5);
@@ -1043,7 +1043,7 @@ function updateEvents(dt) {
     e.bubT -= dt; // the diver breathes out
     if (e.bubT <= 0 && e.d) { e.bubT = 2.4; const D = H * .32 * e.d.s, ca = Math.cos(e.d.tilt), sa = Math.sin(e.d.tilt); for (let k = 0; k < 6; k++) { const b = spawnBubble(e.d.x + (.27 * ca + .62 * sa) * D + (Math.random() - .5) * .05 * D, e.d.y + (.27 * sa - .62 * ca) * D, true); b.vx = (.5 - Math.random()) * 30 * U; } }
   }
-  if (st.veil && st.veil.a < 1 && !(e.kind === 'diver' && e.t >= 15)) st.veil.a = Math.min(1, st.veil.a + dt * 2.5);
+  if (st.veil && !st.veil.fading && st.veil.a < 1 && !(e.kind === 'diver' && e.t >= 15)) st.veil.a = Math.min(1, st.veil.a + dt * 2.5);
   if (e.t >= e.dur) st.ev = null;
 }
 function sweepX(e, t) { const p = t * e.v; return e.dir > 0 ? -e.L * .6 + p : W + e.L * .6 - p; }
@@ -1950,10 +1950,10 @@ function logic(dt) {
   else if (status === 'loud' && st.underT >= 1.5) { status = 'quiet'; st.overT = 0; } // quiet again: forget the noise that came before
   if (status !== 'loud') status = (lv >= thr - 8 || st.overT > 0.05) ? 'warn' : 'quiet';
   if (status !== st.status) setStatus(status);
-  fleeOnNoise();
+  fleeOnNoise(dt);
 
   if (st.mode !== 'idle' && !st.paused) {
-    if (st.status === 'loud') st.sharkT = 0; else st.sharkT += dt; // timers stay at zero while it is too loud
+    if (st.status === 'loud' || st.calmWait > 0) st.sharkT = 0; else st.sharkT += dt; // timers stay at zero while it is too loud
     if (lv < 5) st.silentT += dt; else st.silentT = 0;
     if (st.sharkT >= S.sharkSeconds) {
       st.sharkT -= S.sharkSeconds; st.tick++;
@@ -1975,7 +1975,7 @@ function logic(dt) {
     updateEvents(dt);
     updateOcto(dt);
     const speed = st.mode === 'demo' && $('#demoFast').checked ? 10 : 1;
-    if (st.status !== 'loud') {
+    if (st.status !== 'loud' && !(st.calmWait > 0)) {
       st.loudT = 0;
       st.progress += dt * speed;
       if (st.progress >= S.fishSeconds) { st.progress = 0; if (residentFish().length < 20) addFish(); } // at most 20 fish in the reef
@@ -1989,7 +1989,7 @@ function logic(dt) {
   for (const f of fish) updateFish(f, dt);
   fish = fish.filter(f => !(f.leaving && (f.x < -150 || f.x > W + 150)));
   // once every fish has fled, two new ones swim in straight away and the timer starts again
-  if (st.refill && st.mode !== 'idle' && !st.paused && st.status !== 'loud' && !fish.some(f => !f.ambient && !f.drawn)) {
+  if (st.refill && st.mode !== 'idle' && !st.paused && st.status !== 'loud' && !(st.calmWait > 0) && !fish.some(f => !f.ambient && !f.drawn && !f.leaving)) {
     st.refill = false; st.progress = 0;
     fish.push(newFish(nextSpecies(), { fromLeft: true })); fish.push(newFish(nextSpecies(), { fromLeft: false }));
   }
@@ -2142,17 +2142,29 @@ function onLoud() {
   // too loud: the fish timer and all visitor timers start again from zero
   for (const q of st.events) if (st.done[q.kind] !== undefined) st.done[q.kind] = false; // not seen yet, so it can still come
   st.progress = 0; st.sharkT = 0; st.tick = 0; st.events = []; st.silentT = 0;
-  st.fleeStage = 0; // the fish flee in two steps, see fleeOnNoise
 }
-/* as soon as it counts as too loud, half of the fish swim away; 2 s more above the limit and the rest go too */
-function fleeOnNoise() {
-  if (!S.swimAway || st.status !== 'loud') return;
-  const stage = st.overT >= S.tolerance + 2 ? 2 : 1;
+/* too loud for 0.5 s: 70 % of the fish swim away (but at least 5 stay); for 1 s: all of them, and the whole
+   sequence (sharks, whale, submarine, octopus, diver) starts again from the beginning, as after a restart.
+   New fish only come 4 s after it is quiet again. */
+function fleeOnNoise(dt) {
+  if (st.overT <= 0) st.fleeStage = 0;
+  if (st.veil && st.veil.fading) { st.veil.a -= dt * .8; if (st.veil.a <= 0) st.veil = null; }
+  if (st.calmWait > 0) { st.calmWait = st.level >= S.threshold ? 4 : st.calmWait - dt; if (st.calmWait < 0) st.calmWait = 0; }
+  if (!S.swimAway || st.mode === 'idle' || st.paused) return;
+  const stage = st.overT >= 1 ? 2 : st.overT >= .5 ? 1 : 0;
   if (stage <= (st.fleeStage || 0)) return;
   const fs = fish.filter(f => !f.leaving && !f.ambient && !f.drawn && !f.dropping);
-  const n = stage === 2 ? fs.length : Math.ceil(fs.length / 2);
+  const n = stage === 2 ? fs.length : Math.max(0, Math.min(Math.round(fs.length * .7), fs.length - 5));
   fs.sort(() => Math.random() - .5).slice(0, n).forEach(flee);
   st.fleeStage = stage; st.refill = true;
+  if (stage === 2) { restartSequence(); st.calmWait = 4; }
+}
+function restartSequence() {
+  // like a fresh start: all timers and the order of the visitors begin again; whoever is swimming just swims on
+  st.progress = 0; st.sharkT = 0; st.tick = 0; st.sharkCount = 0; st.events = []; st.silentT = 0; st.afterK = 0;
+  st.done = { whale: false, sub: false, kraken: false, inkpass: false, diver: false };
+  if (st.ev && st.ev.kind === 'inkpass') st.ev.noSplat = true;
+  if (st.veil) st.veil.fading = true;
 }
 let msgTimer = 0;
 function say() { /* on-screen comments removed on request */ }
