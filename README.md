@@ -3,7 +3,7 @@
 Zwei kleine Werkzeuge für den Unterricht, als Web-App für Laptop und iPad:
 
 - **Lärmampel** – zeigt mit Rot, Gelb und Grün, wie laut es in der Klasse ist. Mit sanftem Gong.
-- **Lärmampel Korallenriff** – je länger es leise ist, desto mehr bunte Fische schwimmen ins Riff. Bei Lärm verstecken sie sich.
+- **Lärmampel Korallenriff** – je länger es leise ist, desto mehr bunte Fische schwimmen ins Riff. Bei Lärm verstecken sie sich. Schallschwelle mit Voreinstellungen für Stillarbeit (32) und Gruppenarbeit (50), Live-Messung der Lautstärke auf dem Startbildschirm.
 - **Flüsterriff** – ein ruhiges Aquarium, das bei Lärm reagiert.
 
 Lärmampel, Korallenriff und Flüsterriff messen nur die Lautstärke, direkt auf dem Gerät. Es wird nichts aufgenommen, gespeichert oder verschickt.
