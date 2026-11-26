@@ -1854,7 +1854,7 @@ function beginSession(mode) {
   st.mode = mode;
   $('#startOverlay').hidden = true;
   fish = fish.filter(f => !f.ambient);
-  if (!residentFish().length) fish.push(newFish(nextSpecies())); // start with one fish
+  while (residentFish().length < 2) fish.push(newFish(nextSpecies(), { fromLeft: residentFish().length === 0 })); // start with two fish
   $('#demoBar').hidden = mode !== 'demo';
   const pill = $('#micPill');
   pill.classList.toggle('on', mode === 'mic');
@@ -1962,7 +1962,7 @@ $('#btnCalib').addEventListener('click', () => {
 function resetRound() {
   fish.forEach(f => { if (!f.ambient && !f.leaving) { f.leaving = true; f.tx = f.x < W / 2 ? -200 : W + 200; } });
   st.progress = 0; st.celebrated = false; resetVisitors(); persist(); updateCounter();
-  if (st.mode !== 'idle') fish.push(newFish(nextSpecies()));
+  if (st.mode !== 'idle') { fish.push(newFish(nextSpecies(), { fromLeft: true })); fish.push(newFish(nextSpecies(), { fromLeft: false })); }
 }
 function resetVisitors() { st.octo = null; inks = []; st.sharkT = 0; st.tick = 0; st.sharkCount = 0; st.events = []; st.ev = null; st.silentT = 0; st.done = { whale: false, sub: false, kraken: false }; }
 function readMults() {
