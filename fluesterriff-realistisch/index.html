@@ -359,9 +359,9 @@
     subDuration: 33,      // Sekunden für das U-Boot
     subRumble: 5,         // so lange wackelt es, bevor das U-Boot auftaucht
     krakenDuration: 25,   // Sekunden für den Kraken
-    whaleAt: 3,           // Vielfache der Hai-Zeit ohne laute Unterbrechung
-    subAt: 10,
-    krakenAt: 15,         // danach beginnt die Reihe von vorn
+    whaleAt: 5,           // Vielfache der Hai-Zeit ohne laute Unterbrechung
+    subAt: 7,
+    krakenAt: 10,         // danach beginnt die Reihe von vorn
     riseTau: 1 / 22,
     fallTau: 1 / 7
   };
@@ -1920,8 +1920,8 @@
         S.addProgress = 0;
       }
       if (!S.shark) {
-        // eine Uhr für alles: nach jeder Hai-Zeit kommt jemand, bei 3x der Wal,
-        // bei 10x das U-Boot, bei 15x der Kraken; Besuche halten die Uhr an
+        // eine Uhr für alles: nach jeder Hai-Zeit kommt jemand, bei 5x der Wal,
+        // bei 7x das U-Boot, bei 10x der Kraken; Besuche halten die Uhr an
         S.quietTime += dt;
         S.streak += dt;
         if (S.streak >= (S.step + 1) * settings.sharkTime) {
