@@ -1589,7 +1589,7 @@ function logic(dt) {
   let status = st.status;
   if (st.mode === 'idle') status = 'quiet';
   else if (status !== 'loud' && st.overT >= S.tolerance) { status = 'loud'; onLoud(); }
-  else if (status === 'loud' && st.underT >= 1.5) status = 'quiet';
+  else if (status === 'loud' && st.underT >= 1.5) { status = 'quiet'; st.overT = 0; } // quiet again: forget the noise that came before
   if (status !== 'loud') status = (lv >= thr - 8 || st.overT > 0.05) ? 'warn' : 'quiet';
   if (status !== st.status) setStatus(status);
 
@@ -1621,6 +1621,11 @@ function logic(dt) {
   // fish
   for (const f of fish) updateFish(f, dt);
   fish = fish.filter(f => !(f.leaving && (f.x < -150 || f.x > W + 150)));
+  // once every fish has fled, two new ones swim in straight away and the timer starts again
+  if (st.refill && st.mode !== 'idle' && !st.paused && st.status !== 'loud' && !fish.some(f => !f.ambient && !f.drawn)) {
+    st.refill = false; st.progress = 0;
+    fish.push(newFish(nextSpecies(), { fromLeft: true })); fish.push(newFish(nextSpecies(), { fromLeft: false }));
+  }
   // bubbles
   if (!reduceMotion) {
     // some corals let strings of bubbles rise now and then
@@ -1751,7 +1756,7 @@ function onLoud() {
   // too loud: the fish timer and all visitor timers start again from zero
   for (const q of st.events) if (st.done[q.kind] !== undefined) st.done[q.kind] = false; // not seen yet, so it can still come
   st.progress = 0; st.sharkT = 0; st.tick = 0; st.events = []; st.silentT = 0;
-  if (S.swimAway) for (const f of fish) if (!f.leaving && !f.ambient && !f.drawn && !f.dropping) flee(f);
+  if (S.swimAway) { for (const f of fish) if (!f.leaving && !f.ambient && !f.drawn && !f.dropping) flee(f); st.refill = true; }
 }
 let msgTimer = 0;
 function say() { /* on-screen comments removed on request */ }
