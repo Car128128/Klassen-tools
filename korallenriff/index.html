@@ -129,6 +129,8 @@ button { cursor: pointer; }
 .meas-mic .dot { width: 10px; height: 10px; border-radius: 50%; background: #ff4d4d; animation: pulse 1.6s infinite; }
 .mults { flex-basis: 100%; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .mults input { width: 4.2em; }
+.photo-ctl { display: flex; gap: 12px; align-items: center; font-weight: 600; }
+.photo-ctl input { flex: 1; }
 .photo-prev { width: 100%; max-width: 360px; height: auto; align-self: center; background: repeating-conic-gradient(#e6f1f5 0 25%, #fff 0 50%) 0 0 / 20px 20px; border-radius: 14px; }
 /* Settings sheet */
 .sheet { position: fixed; top: 0; right: 0; bottom: 0; width: min(420px, 100%); background: var(--paper); color: var(--ink); z-index: 30; box-shadow: -10px 0 40px rgba(0,0,0,.35); display: flex; flex-direction: column; transform: translateX(105%); transition: transform .3s ease; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); padding-right: env(safe-area-inset-right, 0px); user-select: text; -webkit-user-select: text; }
@@ -317,6 +319,8 @@ button { cursor: pointer; }
     <h1 id="photoTitle">Gemalter Fisch</h1>
     <p id="photoMsg"></p>
     <canvas id="photoPrev" class="photo-prev" width="360" height="220" hidden></canvas>
+    <label class="photo-ctl" id="photoCtl" hidden>Kontrast <input type="range" id="photoContrast" min="0" max="100" value="50" aria-label="Kontrast zum Ausschneiden"></label>
+    <small id="photoCtlHint" hidden>Mehr Kontrast lässt Papier und Schatten verschwinden, weniger behält zarte Farben.</small>
     <div class="btns" id="photoActions" hidden>
       <button class="btn primary" id="btnPhotoAdd">Ins Riff setzen</button>
       <button class="btn" id="btnPhotoFlip">Umdrehen</button>
@@ -981,16 +985,17 @@ function startEvent(kind) {
   const dir = 1; // visitors always come from the left and leave to the right
   if (kind === 'shark') {
     st.sharkCount++;
-    const L = clamp(Math.min(W * .42, H * .7), 220, 620), v = (W + 2 * L) / 16; // leisurely
-    return { kind, t: 0, dir, L, v, dur: (W + 2 * L) / v, y0: H * (.28 + Math.random() * .2), gills: st.sharkCount, ph: 0 };
+    const L = clamp(Math.min(W * .42, H * .7), 220, 620), v = (W + 2 * L) / 18; // leisurely
+    // sharks come from the left or the right, at different heights
+    return { kind, t: 0, dir: Math.random() < .5 ? 1 : -1, L, v, dur: (W + 2 * L) / v, y0: Math.min(H * (.16 + Math.random() * .42), sandY - L * .12), gills: st.sharkCount, ph: 0 };
   }
   if (kind === 'bigshark') {
     st.sharkCount++;
     const L = clamp(Math.min(W * .7, H * 1.1), 320, 980), v = (W + 2 * L) / 45;
-    return { kind: 'shark', big: true, t: 0, dir, L, v, dur: (W + 2 * L) / v, y0: H * .36, gills: st.sharkCount, ph: 0 };
+    return { kind: 'shark', big: true, t: 0, dir: Math.random() < .5 ? 1 : -1, L, v, dur: (W + 2 * L) / v, y0: Math.min(H * (.2 + Math.random() * .3), sandY - L * .12), gills: st.sharkCount, ph: 0 };
   }
   if (kind === 'whale') {
-    const L = Math.max(W * 1.05, 520), v = (W + 1.2 * L) / 28;
+    const L = Math.max(W * 1.05, 520), v = (W + 1.2 * L) / 30;
     return { kind, t: 0, dir, L, v, dur: (W + 1.2 * L) / v, y0: Math.min(H * .32, sandY * .45), ph: 0 };
   }
   if (kind === 'sub') {
@@ -998,7 +1003,7 @@ function startEvent(kind) {
     // starts out of view, rumbling for 5 s before, and keeps rumbling (fading) after it has left
     return { kind, t: -pre, dir, L, v, pre, dur: (W + 1.15 * L) / v + 5, y0: sandY * .56, ph: 0, bubT: 0 };
   }
-  return { kind: 'kraken', t: 0, dir, dur: 18.8, ph: 0 };
+  return { kind: 'kraken', t: 0, dir, dur: 16.6, ph: 0 };
 }
 function updateEvents(dt) {
   if (!st.ev && st.events.length) st.ev = startEvent(st.events.shift().kind);
@@ -1008,7 +1013,7 @@ function updateEvents(dt) {
   if (e.kind === 'sub' && e.t > 0 && !reduceMotion) {
     e.bubT -= dt;
     const g = subGeom(e);
-    if (e.bubT <= 0) { e.bubT = .05; const sx = g.x - e.dir * e.L * .5; if (sx > -50 && sx < W + 50) spawnBubble(sx + (Math.random() - .5) * 20, g.y + (Math.random() - .5) * e.L * .05, true); }
+    if (e.bubT <= 0) { e.bubT = .04; const sx = g.x - e.dir * e.L * .5; if (sx > -80 && sx < W + 80) for (let k = 0; k < 3; k++) { const b = spawnBubble(sx + (Math.random() - .5) * 16, g.y + (Math.random() - .5) * e.L * .05, k === 0, k > 0); b.vx = -e.dir * (50 + Math.random() * 110) * U; } }
   }
   if (e.kind === 'kraken') {
     // after its visit the octopus stays and roams the reef; a loud class scares it away
@@ -1029,6 +1034,27 @@ function shakeAmount() {
   return 1 - sm(dist / (5 * e.v));
 }
 
+function subWake(e) {
+  const p = subGeom(e), Hh = e.L * .18, px = p.x - e.dir * e.L * .5, len = e.L * .5;
+  const x0 = Math.max(0, Math.min(px, px - e.dir * len)), x1 = Math.min(W, Math.max(px, px - e.dir * len));
+  if (x1 - x0 < 4) return;
+  const y0 = Math.max(0, p.y - Hh * .45), y1 = Math.min(H, p.y + Hh * .45), sh = 4, segs = 6, sw = (x1 - x0) / segs;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  for (let y = y0; y < y1; y += sh) {
+    const vy = 1 - Math.abs((y - p.y) / (Hh * .45));
+    for (let k = 0; k < segs; k++) {
+      const sx = x0 + k * sw, mid = sx + sw / 2, near = 1 - Math.min(1, Math.abs(mid - px) / len);
+      const a = Math.sin(Math.PI * (k + .5) / segs) * vy * (.4 + .6 * near), dx = Math.sin(st.t * 7 + y * .11 + k) * 3 * U * a;
+      if (Math.abs(dx) < .2) continue;
+      ctx.drawImage(cv, sx * DPR, y * DPR, sw * DPR, sh * DPR, (sx + dx) * DPR, y * DPR, sw * DPR, sh * DPR);
+    }
+  }
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  // faint glints in the churned water
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = 'rgba(220, 245, 255, .1)'; ctx.lineWidth = 2 * U;
+  for (let k = 0; k < 5; k++) { const yy = p.y + (k - 2) * Hh * .12; ctx.beginPath(); for (let i = 0; i <= 20; i++) { const xx = px - e.dir * len * i / 20; ctx.lineTo(xx, yy + Math.sin(st.t * 5 + i * .8 + k) * 4 * U); } ctx.stroke(); }
+  ctx.restore();
+}
 function drawVisitorBehindReef(g) {
   if (st.octo) drawOcto(g, octoPose(st.octo), st.t);
   const e = st.ev; if (!e) return;
@@ -1058,11 +1084,11 @@ function drawShark(g, e) {
     g.fillStyle = gl; g.fillRect(x - L * .6, y - L * .6, L * 1.2, L * 1.2);
   }
   const pitch = Math.cos(t * .35) * .02;
-  const wave = s => L * .012 * s * s * Math.sin(w * t - 5 * s);
+  const wave = s => L * .03 * (Math.pow(s, 1.5) - .05) * Math.sin(w * t - 4.2 * s); // the whole body flexes with the tail beat
   const yaw = Math.sin(w * t - 4.3);                     // tail swings sideways: looks narrower/wider from the side
   const top = s => s < .3 ? .11 * Math.pow(s / .3, .55) : .11 - .085 * ease(.3, .86, s);
   const bot = s => s < .06 ? .035 * (s / .06) : s < .32 ? .035 + .065 * ease(.06, .32, s) : .1 - .078 * ease(.32, .86, s);
-  g.save(); g.translate(x, y); g.rotate(pitch);
+  g.save(); g.translate(x, y); g.scale(e.dir, 1); g.rotate(pitch);
   const P = s => [L * (.5 - s), wave(s)];
   // far pectoral fin (darker, behind body)
   { const [px, py] = P(.3); g.fillStyle = C.far;
@@ -1122,7 +1148,7 @@ function drawShark(g, e) {
 function drawWhale(g, e) {
   const L = e.L, t = e.t, w = 1.15;                      // slow up-and-down fluke strokes
   const x = sweepX(e, t), y = e.y0 + Math.sin(t * .25) * 12 * U;
-  const wave = s => L * .045 * Math.pow(s, 2.2) * Math.sin(w * t - 3.2 * s) - L * .01 * Math.sin(w * t) * (1 - s);
+  const wave = s => L * .055 * Math.pow(s, 1.6) * Math.sin(w * t - 3.2 * s) - L * .012 * Math.sin(w * t) * (1 - s); // body follows the fluke stroke
   const top = s => s < .18 ? .03 + .06 * ease(0, .18, s) + .01 * Math.sin(s * 30) * (s < .15 ? 1 : 0) : s < .45 ? .095 : .095 - .08 * ease(.45, .86, s);
   const bot = s => s < .05 ? .03 * s / .05 : s < .4 ? .03 + .085 * ease(.05, .35, s) : .115 - .1 * ease(.4, .86, s);
   const P = s => [L * (.5 - s), wave(s)];
@@ -1220,6 +1246,14 @@ function drawSub(g, e) {
     const lg = g.createRadialGradient(px - pr * .3, py - pr * .3, 1, px, py, pr);
     lg.addColorStop(0, '#fff7c2'); lg.addColorStop(1, '#e8a730');
     g.fillStyle = lg; g.beginPath(); g.arc(px, py, pr, 0, 7); g.fill();
+    if (i === 3) { // the shadow of someone waving behind the glass
+      g.save(); g.beginPath(); g.arc(px, py, pr, 0, 7); g.clip(); g.fillStyle = 'rgba(70, 38, 8, .72)'; g.strokeStyle = 'rgba(70, 38, 8, .72)'; g.lineCap = 'round';
+      g.beginPath(); g.arc(px - pr * .2, py - pr * .12, pr * .27, 0, 7); g.fill();
+      g.beginPath(); g.ellipse(px - pr * .2, py + pr * .78, pr * .55, pr * .55, 0, 0, 7); g.fill();
+      const a = -2.1 + Math.sin(e.t * 5) * .45, sx = px + pr * .2, sy = py + pr * .38, hx = sx + Math.cos(a) * pr * .62, hy = sy + Math.sin(a) * pr * .62;
+      g.lineWidth = pr * .17; g.beginPath(); g.moveTo(sx, sy); g.lineTo(hx, hy); g.stroke();
+      g.beginPath(); g.arc(hx, hy, pr * .11, 0, 7); g.fill(); g.restore();
+    }
   }
   // conning tower with planes and periscope
   g.fillStyle = '#3d4a50';
@@ -1256,10 +1290,13 @@ function krakenPose(t) {
   } else if (t < 8.6) { rot = 0; yaw = 0; spread = 1; y = C.y + Math.sin((t - 7.8) * 3) * 3 * U; }
   else if (t < 16.6) {                                      // swim towards the screen until one eye fills it
     const k = t < 11.6 ? sm((t - 8.6) / 3) : t < 14.2 ? 1 : 1 - sm((t - 14.2) / 2.4);
-    rot = 0; spread = 1; yaw = KEYE.phi * k; look = k;
+    rot = 0; spread = 1; yaw = KEYE.phi * k; look = k; jet = 0;
     const uE = .5 * Math.max(W, H) / KEYE.r;
     u = uC * Math.pow(uE / uC, k);
-    const [e0x, e0y] = eyeAt(0, uC), ex = lerp(C.x + e0x, W / 2, k), ey = lerp(C.y + e0y, H / 2, k);
+    // on the way back it curves off towards the right, already leaning into the swim
+    const a = t >= 14.2 ? sm((t - 14.2) / 2.4) : 0, bx = lerp(C.x, W * .66, a), by = C.y + Math.sin(a * Math.PI) * H * .07;
+    rot = SW * .45 * a; yaw = KEYE.phi * k - SW * .3 * a;
+    const [e0x, e0y] = eyeAt(0, uC), ex = lerp(bx + e0x, W / 2, k), ey = lerp(by + e0y, H / 2, k);
     const [eux, euy] = eyeAt(yaw, u); x = ex - eux; y = ey - euy;
   } else if (t < 18.8) {                                    // turn back into the side pose
     const k = sm((t - 16.6) / 2.2); rot = SW * k; yaw = -SW * k; spread = 1 - k; jet = (t - 16.6) * k;
@@ -1275,7 +1312,7 @@ function drawKraken(g, e) { drawOcto(g, krakenPose(e.t), e.t); }
 /* the octopus that stays: hovers, then jets criss-cross through the reef; startled by noise it inks and flees */
 function octoFromVisit(e) {
   const p = krakenPose(Math.min(e.t, e.dur));
-  st.octo = { x: p.x, y: p.y, u: p.u, rot: p.rot, yaw: p.yaw, spread: p.spread, jet: p.jet, t: 0, state: 'hover', wait: 1.5, blinkT: 3 };
+  st.octo = { x: p.x, y: p.y, u: p.u, rot: p.rot, yaw: p.yaw, spread: p.spread, jet: p.jet, t: 0, state: 'swim', glide: true, tx: W * .86, ty: p.y, wait: 0, blinkT: 3 };
   if (e.scared) octoStartle(st.octo);
 }
 function octoTarget(o) {
@@ -1305,13 +1342,13 @@ function updateOcto(dt) {
     const dx = o.tx - o.x, dy = o.ty - o.y, d = Math.hypot(dx, dy) || 1, tilt = clamp(Math.atan2(dy, Math.abs(dx)), -.6, .6);
     if (dx >= 0) { trot = Math.PI / 2 + tilt; tyaw = -Math.PI / 2; } else { trot = -Math.PI / 2 - tilt; tyaw = Math.PI / 2; }
     tsp = 0; o.jet += dt * (o.state === 'flee' ? 1.8 : .6);
-    const aligned = Math.abs(angTo(o.rot, trot)) < .5 || o.state === 'flee';
+    const aligned = Math.abs(angTo(o.rot, trot)) < .5 || o.state === 'flee' || o.glide;
     const sp = aligned ? (o.state === 'flee' ? 7 : .5) * u * (.45 + .9 * Math.max(0, Math.sin(o.jet * 4.2))) : 0;
     o.x += dx / d * sp * dt; o.y += dy / d * sp * dt;
     if (o.state === 'flee') {
       if (o.inkT > 0) { o.inkT -= dt; if (Math.random() < dt * 30) inks.push({ x: o.x, y: o.y + u * .3, r: u * .25, vr: u * .7, vx: -Math.sign(dx) * u * .4, vy: (Math.random() - .5) * u * .3, a: .8 }); }
       if (o.x < -u * 6 || o.x > W + u * 6) st.octo = null;
-    } else if (d < u * .5) { o.state = 'hover'; o.wait = 2 + Math.random() * 3; }
+    } else if (d < u * .5) { o.state = 'hover'; o.glide = false; o.wait = 2 + Math.random() * 3; }
   }
   const k = 1 - Math.exp(-dt * (o.state === 'flee' ? 7 : 1.6));
   o.rot += angTo(o.rot, trot) * k; o.yaw += (tyaw - o.yaw) * k; o.spread += (tsp - o.spread) * k;
@@ -1478,12 +1515,13 @@ async function loadPhoto(file) {
   });
 }
 // Removes the paper around the drawing: flood fill from the border over light, low-colour pixels.
-function cutOutDrawing(img) {
+function cutOutDrawing(img, contrast = 1) {
   const maxSide = 700, sc = Math.min(1, maxSide / Math.max(img.width, img.height));
   const w = Math.max(1, Math.round(img.width * sc)), h = Math.max(1, Math.round(img.height * sc));
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   const g = c.getContext('2d'); g.drawImage(img, 0, 0, w, h);
   const id = g.getImageData(0, 0, w, h), d = id.data;
+  if (contrast !== 1) for (let i = 0; i < d.length; i += 4) for (let k = 0; k < 3; k++) d[i + k] = clamp((d[i + k] - 128) * contrast + 128 + 12 * (contrast - 1), 0, 255);
   // paper colour = median-ish of the border
   let rs = 0, gs = 0, bs = 0, n = 0;
   for (let x = 0; x < w; x += 4) for (const y of [2, h - 3]) { const i = (y * w + x) * 4; rs += d[i]; gs += d[i + 1]; bs += d[i + 2]; n++; }
@@ -1517,15 +1555,29 @@ function mirrorCanvas(src) {
   const c = document.createElement('canvas'); c.width = src.width; c.height = src.height;
   const g = c.getContext('2d'); g.translate(c.width, 0); g.scale(-1, 1); g.drawImage(src, 0, 0); return c;
 }
-let pendingDrawing = null;
+let pendingDrawing = null, pendingSrc = null, pendingFlip = false;
+const photoContrast = () => Math.pow(2, (+$('#photoContrast').value - 50) / 25);
+let recutReq = 0;
+function recut() {
+  // cut the photo out again with the chosen contrast (the photo stays in memory only)
+  if (!pendingSrc) return; cancelAnimationFrame(recutReq);
+  recutReq = requestAnimationFrame(() => {
+    if (!pendingSrc) return;
+    let cut = cutOutDrawing(pendingSrc, photoContrast());
+    if (!cut) { pendingDrawing = null; $('#photoPrev').hidden = true; $('#btnPhotoAdd').hidden = true; $('#btnPhotoFlip').hidden = true; $('#photoMsg').textContent = 'So ist kein Fisch zu erkennen. Schiebe den Kontrast-Regler etwas.'; return; }
+    if (pendingFlip) cut = mirrorCanvas(cut);
+    pendingDrawing = cut; showPending();
+  });
+}
 async function onPhoto(file) {
   if (!file) return;
   const ov = $('#photoOverlay'), msg = $('#photoMsg');
   ov.hidden = false; msg.textContent = 'Das Bild wird auf diesem Gerät ausgeschnitten …'; $('#photoPrev').hidden = true; $('#photoActions').hidden = true;
   try {
     const img = await loadPhoto(file);
-    const cut = cutOutDrawing(img);
-    if (img.close) img.close();
+    pendingSrc = img; pendingFlip = false; $('#photoContrast').value = 50;
+    const cut = cutOutDrawing(img, photoContrast());
+    $('#photoCtl').hidden = false; $('#photoCtlHint').hidden = false;
     if (!cut) { msg.textContent = 'Auf dem Foto war kein Fisch zu erkennen. Am besten den Fisch auf weißem Papier dicht und gerade von oben fotografieren.'; $('#photoActions').hidden = false; $('#btnPhotoAdd').hidden = true; $('#btnPhotoFlip').hidden = true; return; }
     pendingDrawing = cut; showPending();
   } catch (e) { msg.textContent = 'Das Foto konnte nicht gelesen werden. Bitte noch einmal versuchen.'; $('#photoActions').hidden = false; $('#btnPhotoAdd').hidden = true; $('#btnPhotoFlip').hidden = true; }
@@ -1538,7 +1590,7 @@ function showPending() {
   pv.hidden = false; $('#photoActions').hidden = false; $('#btnPhotoAdd').hidden = false; $('#btnPhotoFlip').hidden = false;
   $('#photoMsg').textContent = 'So sieht der Fisch aus. Er soll nach rechts schauen. Wenn nicht: „Umdrehen“.';
 }
-function closePhoto() { $('#photoOverlay').hidden = true; pendingDrawing = null; const pv = $('#photoPrev'); pv.getContext('2d').clearRect(0, 0, pv.width, pv.height); $('#photoInput').value = ''; }
+function closePhoto() { $('#photoOverlay').hidden = true; pendingDrawing = null; if (pendingSrc && pendingSrc.close) pendingSrc.close(); pendingSrc = null; $('#photoCtl').hidden = true; $('#photoCtlHint').hidden = true; const pv = $('#photoPrev'); pv.getContext('2d').clearRect(0, 0, pv.width, pv.height); $('#photoInput').value = ''; }
 function addDrawnFish(img) {
   const size = clamp(Math.min(W, H) * .16, 70, 190) * (0.9 + Math.random() * .2);
   const f = {
@@ -1577,7 +1629,7 @@ function drawTrail(g, f) {
 }
 /* ---------- Bubbles ---------- */
 function spawnBubble(x, y, burst, tiny) {
-  bubbles.push({ x: x ?? Math.random() * W, y: y ?? sandY, r: (tiny ? .8 + Math.random() * 1.6 : burst ? 2 + Math.random() * 5 : 2 + Math.random() * 4) * U, vy: 30 + Math.random() * 40, ph: Math.random() * 6 });
+  return bubbles[bubbles.push({ x: x ?? Math.random() * W, y: y ?? sandY, r: (tiny ? .8 + Math.random() * 1.6 : burst ? 2 + Math.random() * 5 : 2 + Math.random() * 4) * U, vy: 30 + Math.random() * 40, ph: Math.random() * 6 }) - 1];
 }
 
 /* ---------- Main loop ---------- */
@@ -1643,7 +1695,7 @@ function logic(dt) {
     }
     if (Math.random() < dt * .8) spawnBubble(undefined, sandY);
   }
-  for (const b of bubbles) { b.y -= b.vy * dt; b.ph += dt * 2; b.x += Math.sin(b.ph) * 12 * dt; }
+  for (const b of bubbles) { b.y -= b.vy * dt; b.ph += dt * 2; b.x += Math.sin(b.ph) * 12 * dt; if (b.vx) { b.x += b.vx * dt; b.vx *= 1 - Math.min(1, dt * 1.3); } }
   bubbles = bubbles.filter(b => b.y > -20);
   // calibration
   if (st.calib) {
@@ -1739,14 +1791,16 @@ function render() {
   for (const b of bubbles) { ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.stroke(); ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.arc(b.x - b.r * .35, b.y - b.r * .35, b.r * .25, 0, 7); ctx.fill(); }
   if (inks.length) drawInk(ctx);
   if (st.ev && st.ev.kind === 'kraken') drawKraken(ctx, st.ev);
+  // the water behind the propeller shimmers and wobbles
+  if (st.ev && st.ev.kind === 'sub' && st.ev.t > 0 && !reduceMotion) subWake(st.ev);
   // the submarine makes water and reef shake: stronger the closer it is
   const sk = shakeAmount();
   if (sk > 0.001) {
-    const A = (reduceMotion ? .45 : 2.1) * U * sk * DPR, pad = A * 2.2;
+    const A = (reduceMotion ? .22 : 1.05) * U * sk * DPR, pad = A * 2.2;
     const ox = (Math.sin(st.t * 31) + Math.sin(st.t * 17.3) * .6) * A * .6, oy = (Math.cos(st.t * 27) + Math.sin(st.t * 13.1) * .6) * A * .6;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.drawImage(cv, -pad + ox, -pad + oy, cv.width + pad * 2, cv.height + pad * 2);
-    ctx.fillStyle = 'rgba(5, 25, 45, ' + (.036 * sk).toFixed(3) + ')'; ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.fillStyle = 'rgba(5, 25, 45, ' + (.018 * sk).toFixed(3) + ')'; ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   }
 }
@@ -1899,7 +1953,8 @@ $('#btnStop').addEventListener('click', stopSession);
 const openCamera = () => { $('#photoInput').value = ''; $('#photoInput').click(); };
 $('#btnCam').addEventListener('click', openCamera);
 $('#photoInput').addEventListener('change', e => onPhoto(e.target.files && e.target.files[0]));
-$('#btnPhotoFlip').addEventListener('click', () => { if (pendingDrawing) { pendingDrawing = mirrorCanvas(pendingDrawing); showPending(); } });
+$('#btnPhotoFlip').addEventListener('click', () => { if (pendingDrawing) { pendingFlip = !pendingFlip; pendingDrawing = mirrorCanvas(pendingDrawing); showPending(); } });
+$('#photoContrast').addEventListener('input', recut);
 $('#btnPhotoAdd').addEventListener('click', () => { if (pendingDrawing) addDrawnFish(pendingDrawing); pendingDrawing = null; closePhoto(); });
 $('#btnPhotoCancel').addEventListener('click', closePhoto);
 $('#btnClearDrawn').addEventListener('click', () => { removeDrawnFish(); closeSheet(); });
