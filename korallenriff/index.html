@@ -657,7 +657,8 @@ function newFish(sp, opts = {}) {
 // fish cruise from one side of the picture to the other and back
 function pickTarget(f) {
   f.side = f.side === undefined ? (f.x < W / 2 ? 1 : -1) : -f.side;
-  f.tx = f.side > 0 ? W * (.68 + Math.random() * .27) : W * (.05 + Math.random() * .27);
+  // swim all the way across until the snout touches the edge of the screen, then turn
+  f.tx = f.side > 0 ? W - f.size * .44 : f.size * .44;
   // every fish keeps to its own depth and only drifts a little up or down
   f.ty = clamp((f.homeY || f.y) + (Math.random() - .5) * H * .06, H * .1, Math.min(H * .66, sandY - 30 * U));
 }
@@ -668,6 +669,9 @@ function nextSpecies() {
   const min = Math.min(...SP_KEYS.map(k => counts[k]));
   const opts = SP_KEYS.filter(k => counts[k] === min);
   return opts[Math.floor(Math.random() * opts.length)];
+}
+function addStartFish() {
+  for (const [x, dir] of [[.42, -1], [.58, 1]]) { const f = newFish(nextSpecies(), { x: W * x }); f.face = dir; f.side = -dir; pickTarget(f); fish.push(f); }
 }
 function residentFish() { return fish.filter(f => !f.leaving && !f.ambient && !f.drawn); }
 
@@ -938,7 +942,7 @@ function updateFish(f, dt) {
   } else if (f.flee) maxV = 460 * U;
   else if (f.leaving) maxV = 140;
   const dx = tx - f.x, dy = ty - f.y, d = Math.hypot(dx, dy);
-  if (!scared && !f.leaving && d < 30) pickTarget(f);
+  if (!scared && !f.leaving && (d < 12 || (f.side > 0 ? f.x >= f.tx - 2 : f.x <= f.tx + 2))) pickTarget(f);
   const acc = scared ? 320 : f.flee ? 700 : f.leaving ? 120 : 30;
   if (d > 1) { f.vx += dx / d * acc * dt; f.vy += dy / d * acc * dt * .8; }
   const v = Math.hypot(f.vx, f.vy);
@@ -969,20 +973,20 @@ function startEvent(kind) {
   const dir = 1; // visitors always come from the left and leave to the right
   if (kind === 'shark') {
     st.sharkCount++;
-    const L = clamp(Math.min(W * .42, H * .7), 220, 620), v = (W + 2 * L) / 9;
+    const L = clamp(Math.min(W * .42, H * .7), 220, 620), v = (W + 2 * L) / 16; // leisurely
     return { kind, t: 0, dir, L, v, dur: (W + 2 * L) / v, y0: H * (.28 + Math.random() * .2), gills: st.sharkCount, ph: 0 };
   }
   if (kind === 'bigshark') {
     st.sharkCount++;
-    const L = clamp(Math.min(W * .7, H * 1.1), 320, 980), v = (W + 2 * L) / 30;
+    const L = clamp(Math.min(W * .7, H * 1.1), 320, 980), v = (W + 2 * L) / 45;
     return { kind: 'shark', big: true, t: 0, dir, L, v, dur: (W + 2 * L) / v, y0: H * .36, gills: st.sharkCount, ph: 0 };
   }
   if (kind === 'whale') {
-    const L = Math.max(W * 1.05, 520), v = (W + 1.2 * L) / 17;
+    const L = Math.max(W * 1.05, 520), v = (W + 1.2 * L) / 28;
     return { kind, t: 0, dir, L, v, dur: (W + 1.2 * L) / v, y0: Math.min(H * .32, sandY * .45), ph: 0 };
   }
   if (kind === 'sub') {
-    const L = Math.max(W * 1.6, 700), v = (W + 1.15 * L) / 36, pre = 5; // slow and heavy, like the shark
+    const L = Math.max(W * 1.6, 700), v = (W + 1.15 * L) / 48, pre = 5; // slow and heavy, like the shark
     // starts out of view, rumbling for 5 s before, and keeps rumbling (fading) after it has left
     return { kind, t: -pre, dir, L, v, pre, dur: (W + 1.15 * L) / v + 5, y0: sandY * .56, ph: 0, bubT: 0 };
   }
@@ -991,7 +995,8 @@ function startEvent(kind) {
 function updateEvents(dt) {
   if (!st.ev && st.events.length) st.ev = startEvent(st.events.shift().kind);
   const e = st.ev; if (!e) return;
-  e.t += dt; e.ph += dt;
+  const slow = e.kind === 'kraken' ? .7 : 1; // the octopus takes its time
+  e.t += dt * slow; e.ph += dt * slow;
   if (e.kind === 'sub' && e.t > 0 && !reduceMotion) {
     e.bubT -= dt;
     const g = subGeom(e);
@@ -1291,9 +1296,9 @@ function updateOcto(dt) {
   } else {
     const dx = o.tx - o.x, dy = o.ty - o.y, d = Math.hypot(dx, dy) || 1, tilt = clamp(Math.atan2(dy, Math.abs(dx)), -.6, .6);
     if (dx >= 0) { trot = Math.PI / 2 + tilt; tyaw = -Math.PI / 2; } else { trot = -Math.PI / 2 - tilt; tyaw = Math.PI / 2; }
-    tsp = 0; o.jet += dt * (o.state === 'flee' ? 1.8 : 1);
+    tsp = 0; o.jet += dt * (o.state === 'flee' ? 1.8 : .6);
     const aligned = Math.abs(angTo(o.rot, trot)) < .5 || o.state === 'flee';
-    const sp = aligned ? (o.state === 'flee' ? 7 : 1.1) * u * (.45 + .9 * Math.max(0, Math.sin(o.jet * 4.2))) : 0;
+    const sp = aligned ? (o.state === 'flee' ? 7 : .5) * u * (.45 + .9 * Math.max(0, Math.sin(o.jet * 4.2))) : 0;
     o.x += dx / d * sp * dt; o.y += dy / d * sp * dt;
     if (o.state === 'flee') {
       if (o.inkT > 0) { o.inkT -= dt; if (Math.random() < dt * 30) inks.push({ x: o.x, y: o.y + u * .3, r: u * .25, vr: u * .7, vx: -Math.sign(dx) * u * .4, vy: (Math.random() - .5) * u * .3, a: .8 }); }
@@ -1854,7 +1859,7 @@ function beginSession(mode) {
   st.mode = mode;
   $('#startOverlay').hidden = true;
   fish = fish.filter(f => !f.ambient);
-  while (residentFish().length < 2) fish.push(newFish(nextSpecies(), { fromLeft: residentFish().length === 0 })); // start with two fish
+  if (!residentFish().length) addStartFish(); // two fish already in the middle of the reef
   $('#demoBar').hidden = mode !== 'demo';
   const pill = $('#micPill');
   pill.classList.toggle('on', mode === 'mic');
@@ -1962,7 +1967,7 @@ $('#btnCalib').addEventListener('click', () => {
 function resetRound() {
   fish.forEach(f => { if (!f.ambient && !f.leaving) { f.leaving = true; f.tx = f.x < W / 2 ? -200 : W + 200; } });
   st.progress = 0; st.celebrated = false; resetVisitors(); persist(); updateCounter();
-  if (st.mode !== 'idle') { fish.push(newFish(nextSpecies(), { fromLeft: true })); fish.push(newFish(nextSpecies(), { fromLeft: false })); }
+  if (st.mode !== 'idle') addStartFish();
 }
 function resetVisitors() { st.octo = null; inks = []; st.sharkT = 0; st.tick = 0; st.sharkCount = 0; st.events = []; st.ev = null; st.silentT = 0; st.done = { whale: false, sub: false, kraken: false }; }
 function readMults() {
