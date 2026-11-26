@@ -169,7 +169,6 @@
   .bar.loud .dot { background: #ffb347; box-shadow: 0 0 0 4px rgba(255, 179, 71, .3); animation: none; }
   .bar-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 4px; }
   .bar button {
-    white-space: nowrap;
     min-width: 44px; min-height: 44px; padding: 6px 16px;
     font: inherit; font-weight: 650; color: #fff;
     background: rgba(255, 255, 255, .14); border: 2px solid rgba(255, 255, 255, .4); border-radius: 999px;
@@ -301,7 +300,6 @@
   <span class="dot" aria-hidden="true"></span>
   <span class="bar-text" id="barText">Stillarbeit · Mikro an</span>
   <button type="button" id="barPhotoBtn">Fisch-Foto</button>
-  <button type="button" id="dropBtn" hidden>Einwerfen</button>
   <button type="button" id="fsBtn">Vollbild</button>
   <button type="button" id="stopBtn">Stopp</button>
 </div>
@@ -329,7 +327,6 @@
     <div class="modal-actions">
       <button type="button" class="linkbtn" id="pmCancel">Abbrechen</button>
       <button type="button" class="linkbtn" id="pmRetake">Neues Foto</button>
-      <button type="button" class="linkbtn" id="pmLater">Für später aufheben</button>
       <button type="button" class="start" id="pmOk">Ins Riff!</button>
     </div>
   </div>
@@ -1908,21 +1905,6 @@
   const pmRetake = $('pmRetake');
   const fishCount = $('fishCount');
   const clearFishBtn = $('clearFishBtn');
-  const dropBtn = $('dropBtn');
-  const pmLater = $('pmLater');
-  // Vorbereitete Fische warten unsichtbar, bis du sie einwirfst (z. B. wenn das iPad auf den Fernseher spiegelt)
-  const WAIT_KEY = 'fluesterriff-warten-v1';
-  const waiting = (() => {
-    try {
-      const raw = localStorage.getItem(WAIT_KEY);
-      const arr = raw ? JSON.parse(raw) : [];
-      return Array.isArray(arr) ? arr.filter((f) => f && typeof f.src === 'string' && f.src.indexOf('data:image/png;base64,') === 0).slice(-DRAWN_MAX) : [];
-    } catch (_) { return []; }
-  })();
-  function saveWaiting() {
-    try { localStorage.setItem(WAIT_KEY, JSON.stringify(waiting)); return true; }
-    catch (_) { return false; }
-  }
   const faceRadios = Array.from(document.querySelectorAll('input[name="pmFace"]'));
 
   const drawnFish = [];     // Fische im Bild
@@ -1949,11 +1931,7 @@
     fishCount.textContent = n === 0
       ? 'Belohnung für leise Kinder: Sie malen einen Fisch, du fotografierst ihn, und er fällt ins Riff.'
       : (n === 1 ? '1 gemalter Fisch' : n + ' gemalte Fische') + ' im Riff (höchstens ' + DRAWN_MAX + '). Ein neuer Fisch kommt jederzeit dazu.';
-    const w = waiting.length;
-    if (w) fishCount.textContent += ' ' + (w === 1 ? '1 vorbereiteter Fisch wartet' : w + ' vorbereitete Fische warten') + ' auf „Einwerfen“ unten in der Leiste.';
-    dropBtn.hidden = w === 0;
-    dropBtn.textContent = 'Einwerfen (' + w + ')';
-    clearFishBtn.hidden = n === 0 && w === 0;
+    clearFishBtn.hidden = n === 0;
     clearFishBtn.textContent = 'Alle gemalten Fische entfernen';
     clearArmed = false;
   }
@@ -2201,25 +2179,6 @@
     tryResume();
     addDrawn(src, face, true);
   });
-  pmLater.addEventListener('click', () => {
-    if (!cutResult) return;
-    const face = +(faceRadios.find((r) => r.checked) || faceRadios[1]).value || 1;
-    let src;
-    try { src = cutResult.canvas.toDataURL('image/png'); } catch (_) { src = null; }
-    if (!src) { photoFailed('Der Fisch konnte nicht übernommen werden. Versuche es noch einmal.'); return; }
-    waiting.push({ src, face });
-    while (waiting.length > DRAWN_MAX) waiting.shift();
-    if (!saveWaiting()) { infoMsg.textContent = 'Der Fisch wartet, konnte auf diesem Gerät aber nicht dauerhaft gespeichert werden.'; infoMsg.hidden = false; }
-    closeModal();
-    updateFishUI();
-  });
-  dropBtn.addEventListener('click', () => {
-    const f = waiting.shift();
-    saveWaiting();
-    if (f) { tryResume(); addDrawn(f.src, f.face, true); }
-    updateFishUI();
-    if (dropBtn.hidden) { try { stopBtn.focus({ preventScroll: true }); } catch (_) { /* egal */ } }
-  });
 
   let clearArmed = false, clearTimer = 0;
   clearFishBtn.addEventListener('click', () => {
@@ -2232,8 +2191,6 @@
     }
     drawnFish.forEach((f) => leaveDrawn(f));
     try { localStorage.removeItem(DRAWN_KEY); } catch (_) { /* egal */ }
-    waiting.length = 0;
-    try { localStorage.removeItem(WAIT_KEY); } catch (_) { /* egal */ }
     updateFishUI();
   });
 
