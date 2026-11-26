@@ -1,0 +1,15 @@
+{
+  "name": "Lärmampel Korallenriff",
+  "short_name": "Korallenriff",
+  "description": "Je länger es leise ist, desto mehr Fische schwimmen ins Riff.",
+  "lang": "de",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0a2f4d",
+  "theme_color": "#0a2f4d",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

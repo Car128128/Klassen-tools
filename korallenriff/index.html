@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="de" data-pwa="1">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: 'self'; manifest-src 'self'; worker-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Korallenriff">
+<style>*,*::before,*::after{box-sizing:border-box}body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Lärmampel Korallenriff</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#0b3a5c">
+<meta name="description" content="Lärmampel für Klassen und Kitas: Je länger es leise ist, desto mehr bunte Fische schwimmen ins Riff.">
+<style>
+/* Layout: one full-screen underwater canvas, HUD floats in the corners, teacher controls in a side sheet. Single deliberate underwater look. */
+:root {
+  --deep: #0a2f4d;
+  --water: #137aa8;
+  --ink: #0b2236;
+  --paper: #f7fbfc;
+  --paper-2: #e6f1f5;
+  --muted: #4d6b7e;
+  --coral: #ff7a59;
+  --go: #2fbf62;
+  --warn: #f5b301;
+  --stop: #e5484d;
+  --font-ui: ui-rounded, "SF Pro Rounded", "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-num: ui-rounded, "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--deep); color: var(--paper); font-family: var(--font-ui); overflow: hidden; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+#reef { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+button, select, input { font: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+
+/* HUD */
+.hud { position: fixed; inset: 0; pointer-events: none; padding-top: max(12px, env(safe-area-inset-top, 0px)); padding-bottom: max(12px, env(safe-area-inset-bottom, 0px)); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; grid-template-rows: auto 1fr auto; gap: 12px; }
+.hud > * { pointer-events: auto; }
+.top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.brand { display: flex; flex-direction: column; gap: 2px; text-shadow: 0 1px 6px rgba(0,0,0,.35); }
+.brand b { font-size: clamp(20px, 2.6vw, 30px); letter-spacing: .01em; }
+.brand span { font-size: 13px; opacity: .85; }
+.tools { display: flex; gap: 8px; align-items: flex-start; }
+.iconbtn { width: 48px; height: 48px; border-radius: 14px; border: 0; background: rgba(7, 34, 54, .55); color: var(--paper); display: grid; place-items: center; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.iconbtn:hover { background: rgba(7, 34, 54, .75); }
+.iconbtn svg { width: 24px; height: 24px; }
+
+.ampel { display: flex; gap: 10px; align-items: stretch; background: #1c2a33; padding: 10px; border-radius: 22px; box-shadow: 0 6px 20px rgba(0,0,0,.35), inset 0 0 0 3px #2c3d48; }
+.lamps { display: flex; flex-direction: column; gap: 8px; }
+.lamp { width: clamp(30px, 4.2vw, 46px); aspect-ratio: 1; border-radius: 50%; background: #3a4852; box-shadow: inset 0 -4px 8px rgba(0,0,0,.4); transition: background .25s, box-shadow .25s; }
+[data-status="loud"] .lamp.r { background: var(--stop); box-shadow: 0 0 22px var(--stop), inset 0 -4px 8px rgba(0,0,0,.25); }
+[data-status="warn"] .lamp.y { background: var(--warn); box-shadow: 0 0 22px var(--warn), inset 0 -4px 8px rgba(0,0,0,.25); }
+[data-status="quiet"] .lamp.g { background: var(--go); box-shadow: 0 0 22px var(--go), inset 0 -4px 8px rgba(0,0,0,.25); }
+.meter { width: 12px; border-radius: 6px; background: #0d171d; position: relative; overflow: hidden; }
+.meter i { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: linear-gradient(to top, var(--go) 0 55%, var(--warn) 75%, var(--stop)); }
+.meter u { position: absolute; left: -2px; right: -2px; height: 3px; background: #fff; text-decoration: none; }
+
+.middle { display: grid; place-items: start center; }
+.bubble-msg { margin-top: 2vh; padding: 12px 22px; border-radius: 999px; background: rgba(255,255,255,.92); color: var(--ink); font-size: clamp(18px, 2.6vw, 28px); font-weight: 700; box-shadow: 0 8px 24px rgba(0,0,0,.25); transition: opacity .4s, transform .4s; text-align: center; max-width: 90%; text-wrap: balance; }
+.bubble-msg.off { opacity: 0; transform: translateY(-10px); }
+
+.bottom { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.counter { display: flex; align-items: center; gap: 14px; background: rgba(7, 34, 54, .6); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); padding: 10px 18px 10px 10px; border-radius: 999px; }
+.ring { width: 64px; height: 64px; flex: none; }
+.ring circle { fill: none; stroke-width: 7; }
+.ring .bg { stroke: rgba(255,255,255,.18); }
+.ring .fg { stroke: #7ff0d9; stroke-linecap: round; transition: stroke-dashoffset .2s linear; transform: rotate(-90deg); transform-origin: 50% 50%; }
+.ring text { fill: #fff; font: 700 15px var(--font-num); text-anchor: middle; dominant-baseline: central; }
+.count b { display: block; font-size: clamp(22px, 2.8vw, 32px); font-variant-numeric: tabular-nums; line-height: 1.1; }
+.count span { font-size: 13px; opacity: .85; }
+.mic-pill { display: inline-flex; align-items: center; gap: 8px; background: rgba(7, 34, 54, .6); padding: 8px 14px; border-radius: 999px; font-size: 13px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.mic-pill .dot { width: 10px; height: 10px; border-radius: 50%; background: #9aa9b3; }
+.mic-pill.on .dot { background: #ff4d4d; animation: pulse 1.6s infinite; }
+@keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(255,77,77,.7) } 60% { box-shadow: 0 0 0 7px rgba(255,77,77,0) } }
+.right-stack { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+
+.demo { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: rgba(255,255,255,.92); color: var(--ink); padding: 10px 14px; border-radius: 16px; font-size: 14px; max-width: 100%; }
+.demo input[type=range] { width: min(220px, 50vw); accent-color: var(--coral); }
+.demo label { display: inline-flex; gap: 6px; align-items: center; }
+
+/* Overlays */
+.overlay { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(4, 22, 36, .55); padding-top: max(16px, env(safe-area-inset-top, 0px)); padding-bottom: max(16px, env(safe-area-inset-bottom, 0px)); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); overflow-y: auto; z-index: 20; }
+.card { background: var(--paper); color: var(--ink); border-radius: 26px; padding: clamp(20px, 4vw, 34px); width: min(560px, 100%); box-shadow: 0 24px 60px rgba(0,0,0,.4); display: flex; flex-direction: column; gap: 16px; user-select: text; -webkit-user-select: text; }
+.card h1 { margin: 0; font-size: clamp(26px, 4vw, 36px); line-height: 1.1; text-wrap: balance; }
+.card p { margin: 0; line-height: 1.5; color: #223b4d; }
+.privacy { background: var(--paper-2); border-radius: 16px; padding: 14px 16px; display: grid; gap: 6px; font-size: 14px; line-height: 1.45; }
+.privacy strong { font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.privacy ul { margin: 0; padding-left: 18px; display: grid; gap: 3px; }
+.btns { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn { border: 0; border-radius: 14px; padding: 14px 20px; font-weight: 700; font-size: 17px; background: var(--paper-2); color: var(--ink); }
+.btn.primary { background: var(--coral); color: #fff; box-shadow: 0 4px 0 #d85a3c; }
+.btn.primary:active { transform: translateY(2px); box-shadow: 0 2px 0 #d85a3c; }
+.btn:hover { filter: brightness(1.04); }
+.err { color: #b42318; font-weight: 600; }
+
+.linkbtn { background: none; border: 0; padding: 4px 0; color: #0c6b93; text-decoration: underline; font-weight: 600; font-size: 15px; text-align: left; }
+.card.info { width: min(720px, 100%); gap: 20px; }
+.info-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.iconbtn.light { background: var(--paper-2); color: var(--ink); flex: none; }
+.card.info section { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #d6e5ec; padding-top: 16px; }
+.card.info h2 { margin: 0; font-size: 20px; }
+.card.info h3 { margin: 6px 0 0; font-size: 15px; }
+.card.info p, .card.info li { font-size: 15px; line-height: 1.55; max-width: 65ch; }
+.card.info ul { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+.small { font-size: 13px !important; color: var(--muted) !important; }
+.overlay#infoOverlay { place-items: start center; z-index: 40; }
+/* Settings sheet */
+.sheet { position: fixed; top: 0; right: 0; bottom: 0; width: min(420px, 100%); background: var(--paper); color: var(--ink); z-index: 30; box-shadow: -10px 0 40px rgba(0,0,0,.35); display: flex; flex-direction: column; transform: translateX(105%); transition: transform .3s ease; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); padding-right: env(safe-area-inset-right, 0px); user-select: text; -webkit-user-select: text; }
+.sheet.open { transform: none; }
+.sheet header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid #d6e5ec; }
+.sheet header h2 { margin: 0; font-size: 22px; }
+.sheet header .iconbtn { background: var(--paper-2); color: var(--ink); width: 44px; height: 44px; }
+.sheet .body { overflow-y: auto; padding: 18px 20px 28px; display: flex; flex-direction: column; gap: 22px; }
+.field { display: flex; flex-direction: column; gap: 8px; }
+.field > label, .field > .lbl { font-weight: 700; font-size: 16px; }
+.field small { color: var(--muted); line-height: 1.4; font-size: 13px; }
+.field select { padding: 10px 12px; border-radius: 12px; border: 1px solid #c3d6df; background: #fff; color: var(--ink); font-size: 16px; }
+.field input[type=range] { width: 100%; accent-color: var(--coral); }
+.check { display: flex; gap: 10px; align-items: flex-start; font-weight: 600; }
+.check input { width: 22px; height: 22px; accent-color: var(--coral); margin-top: 1px; flex: none; }
+.live { position: relative; height: 18px; border-radius: 9px; background: #dbe8ee; overflow: hidden; }
+.live i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--go); transition: background .2s; }
+.live u { position: absolute; top: -2px; bottom: -2px; width: 3px; background: var(--ink); text-decoration: none; }
+.row { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.sheet .btn { font-size: 15px; padding: 11px 16px; }
+.note { font-size: 13px; line-height: 1.5; color: var(--muted); background: var(--paper-2); padding: 12px 14px; border-radius: 12px; }
+.paused-tag { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(7, 34, 54, .8); padding: 16px 26px; border-radius: 18px; font-size: 24px; font-weight: 700; z-index: 5; pointer-events: none; }
+@media (max-width: 560px) {
+  .brand span { display: none; }
+  .ring { width: 52px; height: 52px; }
+  .iconbtn { width: 42px; height: 42px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mic-pill.on .dot { animation: none; }
+  .sheet { transition: none; }
+}
+</style>
+
+<canvas id="reef" aria-label="Korallenriff mit Fischen"></canvas>
+
+<div class="hud" id="hud" data-status="quiet">
+  <div class="top">
+    <div class="brand"><b>Lärmampel</b><span id="subtitle">Je länger es leise ist, desto mehr Fische kommen ins Riff.</span></div>
+    <div class="tools">
+      <button class="iconbtn" id="btnPause" title="Pause" aria-label="Pause">
+        <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.5"/><rect x="14" y="5" width="4" height="14" rx="1.5"/></svg>
+      </button>
+      <button class="iconbtn" id="btnFull" title="Vollbild" aria-label="Vollbild">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+      </button>
+      <button class="iconbtn" id="btnSettings" title="Einstellungen" aria-label="Einstellungen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/></svg>
+      </button>
+      <div class="ampel" aria-live="polite" id="ampel" role="img" aria-label="Ampel: grün">
+        <div class="lamps"><div class="lamp r"></div><div class="lamp y"></div><div class="lamp g"></div></div>
+        <div class="meter"><i id="meterFill"></i><u id="meterMark"></u></div>
+      </div>
+    </div>
+  </div>
+  <div class="middle"></div>
+  <div class="bottom">
+    <div class="counter">
+      <svg class="ring" viewBox="0 0 64 64" aria-hidden="true">
+        <circle class="bg" cx="32" cy="32" r="27"/>
+        <circle class="fg" id="ringFg" cx="32" cy="32" r="27" stroke-dasharray="169.6" stroke-dashoffset="169.6"/>
+        <text x="32" y="33" id="ringTxt">30</text>
+      </svg>
+      <div class="count"><b id="countTxt">0 / 20</b><span id="countSub">Fische im Riff · nächster Fisch in 30 s</span></div>
+    </div>
+    <div class="right-stack">
+      <div class="demo" id="demoBar" hidden>
+        <b>Demo</b>
+        <label for="demoLevel">Lautstärke spielen</label>
+        <input type="range" id="demoLevel" min="0" max="100" value="30">
+        <label><input type="checkbox" id="demoFast" checked> Zeitraffer ×10</label>
+      </div>
+      <div class="mic-pill" id="micPill"><span class="dot"></span><span id="micTxt">Mikrofon aus</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="paused-tag" id="pausedTag" hidden>Pause</div>
+
+<div class="overlay" id="startOverlay">
+  <div class="card" role="dialog" aria-labelledby="startTitle">
+    <h1 id="startTitle">Lärmampel Korallenriff</h1>
+    <p>Solange die Klasse leise ist, schwimmt nach und nach ein bunter Fisch nach dem anderen ins Riff. Wird es zu laut, verstecken sich die Fische in den Korallen. Bleibt es lange laut, schwimmt auch mal einer davon.</p>
+    <div class="privacy">
+      <strong>Datenschutz</strong>
+      <ul>
+        <li>Das Mikrofon misst nur, <b>wie laut</b> es gerade ist.</li>
+        <li>Es wird nichts aufgenommen, gespeichert oder übertragen.</li>
+        <li>Die App läuft komplett auf diesem Gerät, ohne Internet, ohne Konten, ohne Tracking.</li>
+        <li>Solange gemessen wird, leuchtet unten ein roter Punkt „Mikrofon aktiv“.</li>
+      </ul>
+    </div>
+    <p class="err" id="micErr" hidden></p>
+    <div class="btns">
+      <button class="btn primary" id="btnStartMic">Mikrofon starten</button>
+      <button class="btn" id="btnStartDemo">Ohne Mikrofon ausprobieren</button>
+    </div>
+    <button class="linkbtn" id="btnInfo1">Datenschutzerklärung und Infos für Leitung und Eltern</button>
+  </div>
+</div>
+
+<div class="overlay" id="infoOverlay" hidden>
+  <div class="card info" role="dialog" aria-labelledby="infoTitle">
+    <div class="info-head"><h1 id="infoTitle">Datenschutz und Infos</h1>
+      <button class="iconbtn light" id="btnInfoClose" aria-label="Schließen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <section>
+      <h2>Datenschutzerklärung der Lärmampel</h2>
+      <h3>1. Was gemessen wird</h3>
+      <p>Die App misst über das Mikrofon nur den aktuellen Schallpegel, also eine einzige Zahl für „wie laut ist es gerade“. Dafür wird etwa 60-mal pro Sekunde die mittlere Lautstärke eines Bruchteils einer Sekunde berechnet und sofort wieder verworfen. Es findet keine Sprach-, Stimm- oder Frequenzanalyse statt. Die App kann nicht erkennen, wer spricht oder was gesagt wird.</p>
+      <h3>2. Keine Aufnahme, keine Speicherung von Ton</h3>
+      <p>Es wird zu keinem Zeitpunkt Ton aufgezeichnet, gespeichert oder abgespielt. Auch die gemessenen Lautstärkewerte werden nicht gespeichert und es gibt keinen Verlauf.</p>
+      <h3>3. Komplett lokal, keine Übertragung</h3>
+      <p>Die App läuft vollständig im Browser auf diesem Gerät. Sie sendet keine Daten an Server, nutzt keine Analyse- oder Tracking-Dienste, keine Cookies, keine Werbung und lädt keine externen Schriften oder Bibliotheken nach. Nach dem ersten Laden funktioniert sie auch ohne Internet.</p>
+      <h3>4. Keine Personendaten</h3>
+      <p>Es gibt keine Konten, keine Namen, keine Profile von Kindern und keine Zuordnung zu einzelnen Personen. Die Ampel bewertet immer nur die Lautstärke im ganzen Raum.</p>
+      <h3>5. Was auf dem Gerät bleibt</h3>
+      <p>Damit die Einstellungen nicht jedes Mal neu gemacht werden müssen, merkt sich der Browser auf diesem Gerät nur: Lautstärke-Grenze, Wartezeit, Ziel, Toleranz und die Zahl und Art der Fische im Riff. Das sind keine personenbezogenen Daten. Mit dem Knopf unten lässt sich das jederzeit löschen.</p>
+      <h3>6. Mikrofonzugriff</h3>
+      <p>Der Browser fragt vor dem Start um Erlaubnis. Solange gemessen wird, zeigt die App unten einen roten Punkt „Mikrofon aktiv“. Beim Schließen der Seite wird das Mikrofon sofort freigegeben. Die Erlaubnis kann in den Browser-Einstellungen jederzeit entzogen werden.</p>
+      <p class="small">Verantwortlich für den Einsatz ist die Einrichtung, die die App verwendet. Rechtsgrundlage ist in der Regel der Bildungs- und Erziehungsauftrag; da keine personenbezogenen Daten verarbeitet werden, ist keine Einwilligung einzelner Kinder nötig. Bitte im Zweifel mit der oder dem Datenschutzbeauftragten der Einrichtung abstimmen.</p>
+      <div class="btns"><button class="btn" id="btnWipe">Gespeicherte Einstellungen auf diesem Gerät löschen</button></div>
+      <p class="small" id="wipeTxt" hidden>Gelöscht. Die App startet beim nächsten Öffnen mit den Standardwerten und leerem Riff.</p>
+    </section>
+    <section>
+      <h2>Kurzinfo für Leitung und Eltern</h2>
+      <p>In unserer Gruppe nutzen wir eine digitale Lärmampel. Sie zeigt mit einem Korallenriff, wie leise es im Raum ist: Je länger es ruhig bleibt, desto mehr bunte Fische schwimmen ins Riff. Wird es zu laut, verstecken sich die Fische, und die Ampel wird rot. So lernen die Kinder spielerisch, auf die Lautstärke zu achten.</p>
+      <p>Die App misst nur die Gesamtlautstärke im Raum. Sie nimmt nichts auf, erkennt keine Stimmen oder Inhalte, speichert keinen Ton und sendet keine Daten. Sie läuft offline auf einem Gerät der Einrichtung, ohne Namen oder Profile der Kinder. Bei Fragen sprechen Sie uns gern an.</p>
+    </section>
+    <section>
+      <h2>Empfehlung zum Gerät</h2>
+      <ul>
+        <li>Ein Tablet oder Laptop der Einrichtung verwenden, kein privates Gerät.</li>
+        <li>Nur diese App mit Mikrofonzugriff im Browser erlauben, andere Mikrofon-Freigaben entfernen.</li>
+        <li>Ein festes Browser-Profil ohne private Konten nutzen und das Gerät mit Code sperren.</li>
+        <li>Am besten über „Zum Startbildschirm hinzufügen“ als App installieren und im Vollbild nutzen.</li>
+      </ul>
+    </section>
+  </div>
+</div>
+
+<div class="overlay" id="winOverlay" hidden>
+  <div class="card" role="dialog" aria-labelledby="winTitle" style="text-align:center; align-items:center">
+    <h1 id="winTitle">Geschafft! Das Riff ist voll.</h1>
+    <p id="winTxt">Ihr wart so leise, dass 20 Fische ins Riff geschwommen sind.</p>
+    <div class="btns" style="justify-content:center">
+      <button class="btn primary" id="btnWinNew">Neue Runde</button>
+      <button class="btn" id="btnWinKeep">Weiter beobachten</button>
+    </div>
+  </div>
+</div>
+
+<aside class="sheet" id="sheet" aria-labelledby="sheetTitle">
+  <header><h2 id="sheetTitle">Einstellungen</h2>
+    <button class="iconbtn" id="btnClose" aria-label="Schließen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </header>
+  <div class="body">
+    <div class="field">
+      <label for="thr">Lautstärke-Grenze</label>
+      <input type="range" id="thr" min="20" max="95" step="1" value="60">
+      <div class="live" aria-hidden="true"><i id="liveFill"></i><u id="liveMark"></u></div>
+      <div class="row"><span>leise</span><span id="thrTxt">Grenze 60 · jetzt 0</span><span>laut</span></div>
+      <small>Der Balken zeigt die aktuelle Lautstärke. Über der weißen Linie wird die Ampel rot. Die Skala ist relativ (kein geeichtes Dezibel), weil jedes Mikrofon anders misst.</small>
+      <div class="btns"><button class="btn" id="btnCalib">Ruhepegel messen (5 s)</button></div>
+      <small id="calibTxt">Tipp: Kurz still sein lassen und messen. Die Grenze wird dann etwas über dem ruhigen Klassenraum gesetzt.</small>
+    </div>
+    <div class="field">
+      <label for="fishSec">Zeit bis zum nächsten Fisch</label>
+      <select id="fishSec">
+        <option value="10">10 Sekunden</option><option value="20">20 Sekunden</option><option value="30">30 Sekunden</option>
+        <option value="45">45 Sekunden</option><option value="60">1 Minute</option><option value="90">1,5 Minuten</option>
+        <option value="120">2 Minuten</option><option value="180">3 Minuten</option><option value="300">5 Minuten</option>
+      </select>
+      <small>So lange muss es leise sein, dann kommt ein neuer Fisch. Wird es laut, beginnt die Wartezeit von vorn.</small>
+    </div>
+    <div class="field">
+      <label for="goal">Ziel: Fische bis zur Belohnung</label>
+      <select id="goal"><option value="5">5</option><option value="10">10</option><option value="15">15</option><option value="20">20</option><option value="30">30</option><option value="40">40</option></select>
+    </div>
+    <div class="field">
+      <label for="tol">Kurze Geräusche ignorieren</label>
+      <select id="tol"><option value="0.5">bis 0,5 Sekunden</option><option value="1">bis 1 Sekunde</option><option value="2">bis 2 Sekunden</option><option value="3">bis 3 Sekunden</option></select>
+      <small>Ein heruntergefallenes Mäppchen oder ein Huster macht die Ampel noch nicht rot.</small>
+    </div>
+    <div class="field">
+      <label class="check"><input type="checkbox" id="swimAway" checked> Bei langem Lärm schwimmt ein Fisch davon</label>
+      <small>Nach 10 Sekunden am Stück zu laut verlässt ein Fisch das Riff. Ausgeschaltet verstecken sich die Fische nur.</small>
+    </div>
+    <div class="field">
+      <span class="lbl">Runde</span>
+      <div class="btns">
+        <button class="btn" id="btnReset">Riff leeren und neu starten</button>
+      </div>
+      <div class="btns" id="resetConfirm" hidden>
+        <button class="btn primary" id="btnResetYes">Ja, alle Fische entfernen</button>
+        <button class="btn" id="btnResetNo">Abbrechen</button>
+      </div>
+      <div class="btns">
+        <button class="btn" id="btnMode">Zum Demo-Modus wechseln</button>
+      </div>
+    </div>
+    <div class="note"><b>Datenschutz:</b> Die Lautstärke wird nur live auf diesem Gerät berechnet. Es gibt keine Aufnahme, keine Speicherung von Ton, keine Übertragung und keine Schülerdaten. Gespeichert werden auf diesem Gerät nur die Einstellungen und die Zahl der Fische.</div>
+    <button class="linkbtn" id="btnInfo2">Datenschutzerklärung, Elterninfo und Geräte-Empfehlung</button>
+  </div>
+</aside>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- Settings & persistence (local only) ---------- */
+const KEY = 'laermampel-riff-v1';
+const S = { threshold: 60, fishSeconds: 30, tolerance: 1, swimAway: true, goal: 20 };
+let saved = { species: [] };
+try {
+  const raw = localStorage.getItem(KEY);
+  if (raw) { const d = JSON.parse(raw); Object.assign(S, d.settings || {}); saved.species = Array.isArray(d.species) ? d.species.slice(0, 60) : []; }
+} catch (e) {}
+let noStore = false;
+function persist() {
+  if (noStore) return;
+  try { localStorage.setItem(KEY, JSON.stringify({ settings: S, species: fish.filter(f => !f.leaving && !f.ambient).map(f => f.sp) })); } catch (e) {}
+}
+
+/* ---------- State ---------- */
+const st = {
+  mode: 'idle', paused: false, level: 0, status: 'quiet', overT: 0, underT: 99, loudT: 0,
+  progress: 0, celebrated: false, t: 0, msgUntil: 0, calib: null
+};
+
+/* ---------- Canvas & reef ---------- */
+const cv = $('#reef'), ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1, U = 1, sandY = 0;
+let bgLayer = null, fgLayer = null, hideSpots = [], weeds = [];
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+function mkLayer() { const c = document.createElement('canvas'); c.width = Math.round(W * DPR); c.height = Math.round(H * DPR); const g = c.getContext('2d'); g.setTransform(DPR, 0, 0, DPR, 0, 0); return [c, g]; }
+
+function sandCurve(x) { return sandY + Math.sin(x / W * 6.2) * 10 * U + Math.sin(x / W * 15 + 1) * 4 * U; }
+
+function shade(hex, amt) {
+  const n = parseInt(hex.slice(1), 16); let r = n >> 16, gg = n >> 8 & 255, b = n & 255;
+  const t = amt < 0 ? 0 : 255, p = Math.abs(amt);
+  r = Math.round((t - r) * p + r); gg = Math.round((t - gg) * p + gg); b = Math.round((t - b) * p + b);
+  return 'rgb(' + r + ',' + gg + ',' + b + ')';
+}
+function growBranch(r, segs, x, y, len, ang, w, depth) {
+  const x2 = x + Math.cos(ang) * len, y2 = y + Math.sin(ang) * len;
+  segs.push({ x, y, x2, y2, cx: x + Math.cos(ang + .25) * len * .5, cy: y + Math.sin(ang + .25) * len * .5, w, tip: depth === 0 });
+  if (depth > 0) {
+    const n = 2 + (r() < .35 ? 1 : 0);
+    for (let i = 0; i < n; i++) growBranch(r, segs, x2, y2, len * (0.62 + r() * 0.18), ang + (r() - .5) * 1.2, w * .74, depth - 1);
+  }
+}
+function branchCoral(g, r, x, y, len, ang, w, depth, col) {
+  const segs = []; growBranch(r, segs, x, y, len, ang, w, depth);
+  g.lineCap = 'round';
+  const pass = (c, wf, ox, oy) => { g.strokeStyle = c; for (const s of segs) { g.lineWidth = s.w * wf; g.beginPath(); g.moveTo(s.x + ox, s.y + oy); g.quadraticCurveTo(s.cx + ox, s.cy + oy, s.x2 + ox, s.y2 + oy); g.stroke(); } };
+  pass(shade(col, -.45), 1.15, 1.5 * U, 1.5 * U);
+  pass(col, 1, 0, 0);
+  pass(shade(col, .25), .45, -.18 * w, -.1 * w);
+  // polyps on the tips and along branches
+  g.fillStyle = shade(col, .55);
+  for (const s of segs) {
+    const k = s.tip ? 5 : 2;
+    for (let i = 0; i < k; i++) { const t = s.tip ? 1 - i * .12 : r(); const px = lerp(s.x, s.x2, t) + (r() - .5) * s.w * .6, py = lerp(s.y, s.y2, t) + (r() - .5) * s.w * .6; g.beginPath(); g.arc(px, py, Math.max(.8, s.w * .13), 0, 7); g.fill(); }
+  }
+}
+function fanCoral(g, r, x, y, rad, col) {
+  g.save(); g.lineCap = 'round';
+  const pts = [];
+  for (let i = 0; i <= 22; i++) {
+    const a = -Math.PI + .3 + (Math.PI - .6) * i / 22, rr = rad * (0.8 + r() * .25);
+    pts.push(a);
+    g.strokeStyle = i % 2 ? shade(col, -.15) : col; g.lineWidth = (1.2 + r()) * U;
+    g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + Math.cos(a) * rr * .45, y + Math.sin(a) * rr * .75, x + Math.cos(a) * rr, y + Math.sin(a) * rr); g.stroke();
+  }
+  g.globalAlpha = .45; g.strokeStyle = shade(col, .2); g.lineWidth = .8 * U;
+  for (let k = 1; k <= 9; k++) { g.beginPath(); g.arc(x, y, rad * k / 10, -Math.PI + .3, -.3); g.stroke(); }
+  g.globalAlpha = 1; g.strokeStyle = shade(col, -.35); g.lineWidth = 6 * U; g.beginPath(); g.moveTo(x, y + 4 * U); g.lineTo(x + (r() - .5) * 6 * U, y - rad * .2); g.stroke();
+  g.restore();
+}
+function brainCoral(g, r, x, y, rad, col) {
+  const rg = g.createRadialGradient(x - rad * .3, y - rad * .55, rad * .1, x, y - rad * .2, rad * 1.1);
+  rg.addColorStop(0, shade(col, .35)); rg.addColorStop(.6, col); rg.addColorStop(1, shade(col, -.45));
+  g.fillStyle = rg; g.beginPath(); g.ellipse(x, y, rad, rad * .75, 0, Math.PI, 0); g.closePath(); g.fill();
+  g.save(); g.clip();
+  g.strokeStyle = shade(col, -.4); g.lineWidth = 1.6 * U; g.globalAlpha = .7;
+  for (let k = 0; k < 9; k++) {
+    g.beginPath(); let px = x - rad, py = y - rad * .75 + k * rad * .1;
+    g.moveTo(px, py);
+    for (let i = 0; i <= 40; i++) { px = x - rad + 2 * rad * i / 40; const yy = py + Math.sin(i * 1.1 + k * 2 + r()) * 3 * U; g.lineTo(px, yy); }
+    g.stroke();
+  }
+  g.restore();
+}
+function tubes(g, r, x, y, h, col) {
+  const n = 3 + Math.floor(r() * 3);
+  for (let i = 0; i < n; i++) {
+    const tw = (10 + r() * 7) * U, th = h * (0.5 + r() * 0.5), tx = x + (i - n / 2) * tw * 1.0 + (r() - .5) * 4 * U, lean = (r() - .5) * 8 * U;
+    const lg = g.createLinearGradient(tx, 0, tx + tw, 0);
+    lg.addColorStop(0, shade(col, -.35)); lg.addColorStop(.4, shade(col, .2)); lg.addColorStop(1, shade(col, -.5));
+    g.fillStyle = lg;
+    g.beginPath(); g.moveTo(tx, y + 6 * U); g.lineTo(tx + lean, y - th); g.lineTo(tx + tw + lean, y - th); g.lineTo(tx + tw, y + 6 * U); g.closePath(); g.fill();
+    g.fillStyle = shade(col, -.7); g.beginPath(); g.ellipse(tx + tw / 2 + lean, y - th, tw * .5, 3.2 * U, 0, 0, 7); g.fill();
+    g.strokeStyle = shade(col, .3); g.lineWidth = 1.2 * U; g.beginPath(); g.ellipse(tx + tw / 2 + lean, y - th, tw * .5, 3.2 * U, 0, 0, 7); g.stroke();
+  }
+}
+function roundRect(g, x, y, w, h, rr) { g.beginPath(); g.moveTo(x + rr, y); g.arcTo(x + w, y, x + w, y + h, rr); g.arcTo(x + w, y + h, x, y + h, rr); g.arcTo(x, y + h, x, y, rr); g.arcTo(x, y, x + w, y, rr); g.closePath(); }
+function rock(g, r, x, y, w, h, col) {
+  g.save();
+  g.beginPath(); g.moveTo(x - w / 2, y);
+  const steps = 12;
+  for (let i = 0; i <= steps; i++) { const a = Math.PI + Math.PI * i / steps; g.lineTo(x + Math.cos(a) * w / 2 * (0.85 + r() * .2), y + Math.sin(a) * h * (0.8 + r() * .35)); }
+  g.closePath();
+  const lg = g.createLinearGradient(0, y - h, 0, y);
+  lg.addColorStop(0, shade(col, .25)); lg.addColorStop(1, shade(col, -.45));
+  g.fillStyle = lg; g.fill(); g.clip();
+  // texture and encrusting algae
+  for (let i = 0; i < 40; i++) { g.fillStyle = r() < .5 ? 'rgba(0,0,0,.12)' : 'rgba(255,255,255,.08)'; g.beginPath(); g.arc(x + (r() - .5) * w, y - r() * h, (1 + r() * 3) * U, 0, 7); g.fill(); }
+  const algae = ['#c75b8a', '#8bb84a', '#d98a4a', '#7e5fbf'];
+  for (let i = 0; i < 6; i++) { g.fillStyle = algae[i % 4]; g.globalAlpha = .55; g.beginPath(); g.ellipse(x + (r() - .5) * w * .8, y - h * (.3 + r() * .6), (6 + r() * 10) * U, (3 + r() * 5) * U, r() * 3, 0, 7); g.fill(); }
+  g.restore();
+}
+
+const CORAL_COLS = ['#e8577d', '#f08a3a', '#9b5de5', '#f2c14e', '#3fbfb0', '#e5484d', '#ff9fb2'];
+let causticPattern = null, sandPath = null, anemones = [], snow = [];
+
+function makeCaustics() {
+  const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
+  const r = rng(7);
+  g.strokeStyle = 'rgba(255,255,240,1)'; g.lineCap = 'round';
+  const pts = []; for (let i = 0; i < 26; i++) pts.push([r() * 256, r() * 256]);
+  for (const [px, py] of pts) {
+    for (const [qx, qy] of pts) {
+      const d = Math.hypot(px - qx, py - qy);
+      if (d > 0 && d < 70) { g.lineWidth = 1 + r() * 2.5; g.globalAlpha = .5 + r() * .5; g.beginPath(); g.moveTo(px, py); g.quadraticCurveTo((px + qx) / 2 + (r() - .5) * 30, (py + qy) / 2 + (r() - .5) * 30, qx, qy); g.stroke(); }
+    }
+  }
+  return ctx.createPattern(c, 'repeat');
+}
+
+function buildReef() {
+  const r = rng(20261126);
+  sandY = H * (W < H ? 0.7 : 0.8);
+  let g; [bgLayer, g] = mkLayer();
+  // water with depth
+  const grad = g.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#4cc3e0'); grad.addColorStop(.35, '#1a8fbf'); grad.addColorStop(.75, '#0d5e8c'); grad.addColorStop(1, '#0a4369');
+  g.fillStyle = grad; g.fillRect(0, 0, W, H);
+  // surface shimmer
+  g.globalAlpha = .25; g.fillStyle = '#d8f6ff';
+  for (let i = 0; i < 30; i++) { g.beginPath(); g.ellipse(r() * W, r() * H * .05, (20 + r() * 60) * U, 2 * U, 0, 0, 7); g.fill(); }
+  g.globalAlpha = 1;
+  const canBlur = 'filter' in g;
+  // far reef, blurred and hazy
+  if (canBlur) g.filter = 'blur(' + Math.round(5 * U) + 'px)';
+  g.fillStyle = '#16648f';
+  g.beginPath(); g.moveTo(0, H);
+  for (let x = 0; x <= W; x += 16) g.lineTo(x, sandY - 60 * U - Math.abs(Math.sin(x / W * 11)) * 70 * U - Math.sin(x / W * 3.3) * 35 * U - r() * 8 * U);
+  g.lineTo(W, H); g.fill();
+  if (canBlur) g.filter = 'blur(' + Math.round(2.5 * U) + 'px)';
+  for (let i = 0; i < 12; i++) {
+    const x = W * (i + .2 + r() * .6) / 12, y = sandCurve(x) - 6 * U, c = shade(CORAL_COLS[i % CORAL_COLS.length], -.25);
+    if (i % 3 === 0) branchCoral(g, r, x, y, 30 * U, -Math.PI / 2 + (r() - .5) * .4, 8 * U, 3, c);
+    else if (i % 3 === 1) fanCoral(g, r, x, y, 60 * U, c);
+    else tubes(g, r, x, y, 50 * U, c);
+  }
+  if (canBlur) g.filter = 'none';
+  // haze over the distance
+  const haze = g.createLinearGradient(0, sandY - 160 * U, 0, sandY + 20 * U);
+  haze.addColorStop(0, 'rgba(18, 110, 160, 0)'); haze.addColorStop(1, 'rgba(18, 110, 160, .55)');
+  g.fillStyle = haze; g.fillRect(0, sandY - 160 * U, W, 180 * U);
+  // sand
+  sandPath = new Path2D(); sandPath.moveTo(0, H);
+  for (let x = 0; x <= W; x += 10) sandPath.lineTo(x, sandCurve(x));
+  sandPath.lineTo(W, H); sandPath.closePath();
+  const sg = g.createLinearGradient(0, sandY - 20 * U, 0, H);
+  sg.addColorStop(0, '#b9c9b0'); sg.addColorStop(.25, '#e3d3a4'); sg.addColorStop(1, '#c4a56c');
+  g.fillStyle = sg; g.fill(sandPath);
+  g.save(); g.clip(sandPath);
+  for (let i = 0; i < 500; i++) { const x = r() * W, y = sandY - 10 * U + r() * (H - sandY + 10 * U); g.fillStyle = r() < .6 ? 'rgba(120, 90, 45, .22)' : 'rgba(255, 255, 240, .35)'; g.beginPath(); g.arc(x, y, (0.6 + r() * 1.4) * U, 0, 7); g.fill(); }
+  // ripples in the sand
+  g.strokeStyle = 'rgba(150, 115, 60, .25)'; g.lineWidth = 2 * U;
+  for (let i = 0; i < 18; i++) { const x = r() * W, y = sandY + 20 * U + r() * (H - sandY); g.beginPath(); g.ellipse(x, y, (40 + r() * 60) * U, 5 * U, 0, Math.PI * 1.1, Math.PI * 1.9); g.stroke(); }
+  g.restore();
+  causticPattern = makeCaustics();
+
+  // foreground: rocks + corals the fish hide behind
+  [fgLayer, g] = mkLayer();
+  hideSpots = []; weeds = []; anemones = [];
+  const n = Math.max(5, Math.round(W / (170 * U)));
+  for (let i = 0; i < n; i++) {
+    const x = W * (i + .5) / n + (r() - .5) * 40 * U, y = sandCurve(x) + 16 * U, c = CORAL_COLS[(i * 3 + 1) % CORAL_COLS.length];
+    rock(g, r, x, y + 6 * U, (120 + r() * 60) * U, (40 + r() * 22) * U, i % 2 ? '#6b6f6a' : '#7a6f66');
+    const kind = i % 4;
+    if (kind === 0) brainCoral(g, r, x, y - 12 * U, 64 * U, CORAL_COLS[3]);
+    else if (kind === 1) branchCoral(g, r, x, y - 12 * U, 50 * U, -Math.PI / 2 + (r() - .5) * .3, 15 * U, 3, c);
+    else if (kind === 2) fanCoral(g, r, x, y - 10 * U, 115 * U, c);
+    else tubes(g, r, x, y - 6 * U, 100 * U, CORAL_COLS[2]);
+    // a second, smaller coral on the rock
+    const x2 = x + (r() < .5 ? -1 : 1) * 38 * U;
+    if (r() < .75) branchCoral(g, r, x2, y - 4 * U, 26 * U, -Math.PI / 2 + (r() - .5) * .6, 8 * U, 2, CORAL_COLS[(i + 4) % CORAL_COLS.length]);
+    hideSpots.push({ x, y: y - 38 * U });
+    weeds.push({ x: x + (r() < .5 ? -1 : 1) * (55 + r() * 20) * U, y: sandCurve(x) + 24 * U, h: (80 + r() * 100) * U, col: r() < .5 ? '#2c8a4b' : '#4a9c3a', ph: r() * 6 });
+    if (i % 2 === 0) anemones.push({ x: x + (r() - .5) * 50 * U, y: y - 22 * U, r: (16 + r() * 8) * U, col: r() < .5 ? '#f3a6c8' : '#c9e88a', ph: r() * 6 });
+  }
+  for (let i = 0; i < 3; i++) { const x = W * (0.15 + r() * .7), y = sandCurve(x) + (34 + r() * 30) * U; star(g, x, y, 13 * U, i % 2 ? '#e2623b' : '#f0a030'); }
+  // soft vignette
+  const vg = g.createRadialGradient(W / 2, H * .45, Math.min(W, H) * .35, W / 2, H * .5, Math.max(W, H) * .8);
+  vg.addColorStop(0, 'rgba(4, 30, 55, 0)'); vg.addColorStop(1, 'rgba(4, 30, 55, .45)');
+  g.fillStyle = vg; g.fillRect(0, 0, W, H);
+  // marine snow
+  snow = []; for (let i = 0; i < 70; i++) snow.push({ x: Math.random() * W, y: Math.random() * H, r: (.6 + Math.random() * 1.4) * U, v: 3 + Math.random() * 6, ph: Math.random() * 6 });
+}
+function star(g, x, y, R, col) {
+  const rg = g.createRadialGradient(x, y - R * .2, 1, x, y, R);
+  rg.addColorStop(0, shade(col, .3)); rg.addColorStop(1, shade(col, -.25));
+  g.fillStyle = rg; g.beginPath();
+  for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5 + .2, rr = i % 2 ? R * .42 : R; g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr * .8); }
+  g.closePath(); g.fill();
+  g.fillStyle = 'rgba(255,255,255,.4)'; for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + i * Math.PI * 2 / 5 + .2; for (let k = 1; k < 4; k++) { g.beginPath(); g.arc(x + Math.cos(a) * R * k / 4.5, y + Math.sin(a) * R * k / 4.5 * .8, .9 * U, 0, 7); g.fill(); } }
+}
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  U = clamp(Math.min(W, H) / 800, .55, 1.6);
+  buildReef();
+  for (const f of fish) { f.size = fishSize(f.sp, f.k); pickTarget(f); }
+}
+
+/* ---------- Fish ---------- */
+let fish = [], bubbles = [];
+function fishSize(sp, k) { return clamp(Math.min(W, H) * .085, 40, 110) * SPECIES[sp].L * k; }
+function newFish(sp, opts = {}) {
+  const k = 0.8 + Math.random() * .45;
+  const fromLeft = opts.fromLeft ?? Math.random() < .5;
+  const f = {
+    sp, k, size: 0, x: opts.x ?? (fromLeft ? -80 : W + 80), y: opts.y ?? H * (0.2 + Math.random() * .45),
+    vx: 0, vy: 0, tx: 0, ty: 0, face: fromLeft ? 1 : -1, ph: Math.random() * 6, speed: 40 + Math.random() * 30,
+    hide: Math.floor(Math.random() * 1000), tuck: 0, leaving: false, ambient: !!opts.ambient, born: st.t
+  };
+  f.size = fishSize(sp, k); pickTarget(f);
+  return f;
+}
+function pickTarget(f) {
+  f.tx = W * (0.08 + Math.random() * .84);
+  f.ty = H * (0.18 + Math.random() * .5);
+}
+function nextSpecies() {
+  // cycle through all species so the reef gets colorful quickly
+  const counts = {}; SP_KEYS.forEach(k => counts[k] = 0);
+  fish.forEach(f => { if (!f.leaving) counts[f.sp]++; });
+  const min = Math.min(...SP_KEYS.map(k => counts[k]));
+  const opts = SP_KEYS.filter(k => counts[k] === min);
+  return opts[Math.floor(Math.random() * opts.length)];
+}
+function residentFish() { return fish.filter(f => !f.leaving && !f.ambient); }
+
+function addFish() {
+  const f = newFish(nextSpecies());
+  fish.push(f);
+  for (let i = 0; i < 10; i++) spawnBubble(f.x < 0 ? 20 : W - 20, f.y, true);
+  say('Ein ' + SPECIES[f.sp].nm + ' ist ins Riff geschwommen!', 3.5);
+  persist(); updateCounter();
+  if (!st.celebrated && residentFish().length >= S.goal) celebrate();
+}
+function removeFish() {
+  const res = residentFish(); if (!res.length) return;
+  const f = res[res.length - 1];
+  f.leaving = true; f.tx = f.x < W / 2 ? -200 : W + 200; f.ty = f.y - 40;
+  say('Oh, ein Fisch ist weggeschwommen …', 3.5);
+  persist(); updateCounter();
+}
+
+const SPECIES = {
+  clown:  { L: 1.0, H: .5, top: '#b8400a', mid: '#f2711c', low: '#ffb070', fin: '#f2711c', edge: '#151515', tail: 'round', nm: 'Clownfisch' },
+  tang:   { L: 1.15, H: .62, top: '#0b2a78', mid: '#2363e0', low: '#6fa0f5', fin: '#1a3f9e', edge: '#0a1530', tailCol: '#ffcf1a', tail: 'lunate', nm: 'Paletten-Doktorfisch' },
+  yellow: { L: 0.9, H: .88, top: '#d9a90c', mid: '#f8d633', low: '#fff3b0', fin: '#f5cf2a', edge: '#262626', tail: 'round', nm: 'Falterfisch' },
+  pink:   { L: 0.85, H: .46, top: '#d9476a', mid: '#ff7f95', low: '#ffc8b0', fin: '#c58cff', tail: 'lyre', nm: 'Fahnenbarsch' },
+  wrasse: { L: 1.25, H: .34, top: '#0f6e5b', mid: '#22b893', low: '#a8f2db', fin: '#1f8fd0', tail: 'round', nm: 'Lippfisch' },
+  puffer: { L: 0.8, H: .68, top: '#8a744a', mid: '#d3c093', low: '#fbf7ea', fin: '#cdb274', tail: 'round', nm: 'Kugelfisch' },
+  royal:  { L: 0.95, H: .48, top: '#5a1aa0', mid: '#9346dd', low: '#c08cf0', fin: '#f2b90f', tail: 'round', nm: 'Königs-Feenbarsch' }
+};
+
+const SP_KEYS = Object.keys(SPECIES);
+
+function bodyPath(g, L, Hh) {
+  g.beginPath();
+  g.moveTo(L * .5, Hh * .04);
+  g.bezierCurveTo(L * .47, -Hh * .42, L * .1, -Hh * .56, -L * .18, -Hh * .38);
+  g.bezierCurveTo(-L * .3, -Hh * .28, -L * .37, -Hh * .15, -L * .41, -Hh * .11);
+  g.lineTo(-L * .41, Hh * .11);
+  g.bezierCurveTo(-L * .37, Hh * .15, -L * .3, Hh * .28, -L * .18, Hh * .38);
+  g.bezierCurveTo(L * .1, Hh * .54, L * .45, Hh * .42, L * .5, Hh * .04);
+  g.closePath();
+}
+function finRays(g, x0, y0, pts, col) {
+  g.strokeStyle = col; g.lineWidth = .7; g.globalAlpha *= .5;
+  for (const [x, y] of pts) { g.beginPath(); g.moveTo(x0, y0); g.lineTo(x, y); g.stroke(); }
+  g.globalAlpha /= .5;
+}
+
+function drawFish(g, f) {
+  const s = SPECIES[f.sp], L = f.size, Hh = L * s.H;
+  const v = Math.hypot(f.vx, f.vy);
+  const wag = Math.sin(f.ph) * (0.1 + Math.min(v / 220, .22)) * Hh;
+  const bend = Math.sin(f.ph - .8) * .04;
+  g.save();
+  g.translate(f.x, f.y + Math.sin(f.ph * .3) * 2);
+  g.scale(f.face * (1 - f.tuck * .15), 1 - f.tuck * .15);
+  g.rotate(clamp(f.vy / 300, -.35, .35) * Math.sign(f.face || 1));
+  const baseA = (1 - f.tuck * .55) * (0.8 + Math.min(1, f.k) * .2);
+  g.globalAlpha = baseA;
+  const finA = .82;
+
+  // tail
+  g.save(); g.translate(-L * .4, 0); g.rotate(bend);
+  g.fillStyle = s.tailCol || s.fin; g.globalAlpha = baseA * finA;
+  g.beginPath();
+  if (s.tail === 'lunate') { g.moveTo(0, 0); g.lineTo(-L * .27, -Hh * .5 + wag); g.quadraticCurveTo(-L * .16, wag * .8, -L * .27, Hh * .5 + wag); }
+  else if (s.tail === 'lyre') { g.moveTo(0, 0); g.quadraticCurveTo(-L * .15, -Hh * .3 + wag, -L * .38, -Hh * .55 + wag); g.quadraticCurveTo(-L * .18, wag, -L * .38, Hh * .55 + wag); g.quadraticCurveTo(-L * .15, Hh * .3 + wag, 0, 0); }
+  else { g.moveTo(0, 0); g.quadraticCurveTo(-L * .1, -Hh * .45 + wag, -L * .22, -Hh * .38 + wag); g.quadraticCurveTo(-L * .27, wag, -L * .22, Hh * .38 + wag); g.quadraticCurveTo(-L * .1, Hh * .45 + wag, 0, 0); }
+  g.closePath(); g.fill();
+  if (s.edge && f.sp === 'clown') { g.strokeStyle = s.edge; g.lineWidth = L * .015; g.stroke(); }
+  finRays(g, 0, 0, [[-L * .24, -Hh * .35 + wag], [-L * .25, -Hh * .15 + wag], [-L * .25, wag], [-L * .25, Hh * .15 + wag], [-L * .24, Hh * .35 + wag]], shade(s.tailCol || s.fin, -.4));
+  g.restore();
+  g.globalAlpha = baseA * finA;
+
+  // dorsal fin
+  g.fillStyle = f.sp === 'royal' ? s.fin : s.fin;
+  const dh = f.sp === 'yellow' ? .62 : f.sp === 'tang' ? .55 : .5;
+  g.beginPath(); g.moveTo(L * .2, -Hh * .42);
+  g.quadraticCurveTo(L * .05, -Hh * (dh + .2) - wag * .1, -L * .3, -Hh * (dh - .05));
+  g.quadraticCurveTo(-L * .36, -Hh * .28, -L * .38, -Hh * .14);
+  g.lineTo(-L * .2, -Hh * .36); g.closePath(); g.fill();
+  if (s.edge) { g.strokeStyle = s.edge; g.lineWidth = L * .012; g.stroke(); }
+  finRays(g, 0, -Hh * .2, [[L * .12, -Hh * .6], [0, -Hh * .66], [-L * .12, -Hh * .66], [-L * .24, -Hh * .58]], shade(s.fin, -.4));
+  // anal fin
+  g.fillStyle = f.sp === 'royal' ? s.fin : s.fin;
+  g.beginPath(); g.moveTo(L * .02, Hh * .44);
+  g.quadraticCurveTo(-L * .12, Hh * (dh + .12), -L * .32, Hh * (dh - .12));
+  g.quadraticCurveTo(-L * .36, Hh * .25, -L * .38, Hh * .14); g.lineTo(-L * .2, Hh * .36); g.closePath(); g.fill();
+  if (s.edge) { g.strokeStyle = s.edge; g.lineWidth = L * .012; g.stroke(); }
+  // pelvic fin
+  g.beginPath(); g.moveTo(L * .2, Hh * .38); g.quadraticCurveTo(L * .1, Hh * .7, L * .03, Hh * .62); g.lineTo(L * .1, Hh * .4); g.closePath(); g.fill();
+  g.globalAlpha = baseA;
+
+  // body with countershading
+  bodyPath(g, L, Hh);
+  const bg = g.createLinearGradient(0, -Hh * .5, 0, Hh * .5);
+  bg.addColorStop(0, s.top); bg.addColorStop(.45, s.mid); bg.addColorStop(1, s.low);
+  g.fillStyle = bg; g.fill();
+  g.save(); g.clip();
+  // species markings
+  if (f.sp === 'clown') {
+    for (const [bx, bw] of [[L * .25, .06], [-L * .02, .07], [-L * .33, .045]]) {
+      g.fillStyle = '#fbfbf7'; g.strokeStyle = s.edge; g.lineWidth = L * .018;
+      g.beginPath(); g.ellipse(bx, 0, L * bw, Hh * .75, -.08, 0, 7); g.fill(); g.stroke();
+    }
+  } else if (f.sp === 'tang') {
+    g.strokeStyle = '#08122e'; g.lineCap = 'round'; g.lineWidth = Hh * .14;
+    g.beginPath(); g.moveTo(L * .28, -Hh * .12); g.quadraticCurveTo(L * .05, -Hh * .42, -L * .38, -Hh * .02); g.stroke();
+    g.lineWidth = Hh * .1; g.beginPath(); g.moveTo(-L * .02, -Hh * .3); g.quadraticCurveTo(-L * .05, Hh * .12, -L * .36, Hh * .06); g.stroke();
+  } else if (f.sp === 'yellow') {
+    g.fillStyle = '#1e1e1e'; g.beginPath(); g.ellipse(L * .33, -Hh * .05, L * .045, Hh * .7, .1, 0, 7); g.fill();
+    g.fillStyle = 'rgba(0,0,0,.75)'; g.beginPath(); g.arc(-L * .22, -Hh * .22, L * .05, 0, 7); g.fill();
+    g.strokeStyle = 'rgba(160, 110, 0, .35)'; g.lineWidth = 1;
+    for (let i = -3; i <= 3; i++) { g.beginPath(); g.moveTo(-L * .4, i * Hh * .12 - Hh * .2); g.lineTo(L * .25, i * Hh * .12 + Hh * .2); g.stroke(); }
+  } else if (f.sp === 'pink') {
+    g.strokeStyle = '#ffd23f'; g.lineWidth = Hh * .07; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(L * .38, -Hh * .02); g.quadraticCurveTo(L * .2, Hh * .12, L * .05, Hh * .18); g.stroke();
+  } else if (f.sp === 'wrasse') {
+    g.strokeStyle = 'rgba(255, 110, 180, .85)'; g.lineWidth = Hh * .06;
+    for (const ly of [-Hh * .22, -Hh * .02, Hh * .18]) { g.beginPath(); g.moveTo(-L * .45, ly); g.quadraticCurveTo(0, ly - Hh * .08, L * .5, ly - Hh * .02); g.stroke(); }
+  } else if (f.sp === 'puffer') {
+    g.fillStyle = 'rgba(80, 55, 25, .7)';
+    for (let i = 0; i < 26; i++) { const a = i * 2.39996, rr = Math.sqrt(i / 26); g.beginPath(); g.arc(Math.cos(a) * rr * L * .38 - L * .02, Math.sin(a) * rr * Hh * .3 - Hh * .12, L * .022, 0, 7); g.fill(); }
+  } else if (f.sp === 'royal') {
+    const rg = g.createLinearGradient(-L * .05, 0, L * .08, 0);
+    rg.addColorStop(0, '#f5bf12'); rg.addColorStop(1, 'rgba(245, 191, 18, 0)');
+    g.fillStyle = rg; g.fillRect(-L * .5, -Hh, L * .58, Hh * 2);
+    g.strokeStyle = 'rgba(30, 10, 60, .6)'; g.lineWidth = Hh * .04; g.beginPath(); g.moveTo(L * .48, -Hh * .05); g.lineTo(L * .2, -Hh * .2); g.stroke();
+  }
+  // scales
+  g.strokeStyle = 'rgba(0, 20, 40, .1)'; g.lineWidth = .8;
+  const sc = Math.max(4, L * .06);
+  for (let y = -Hh * .5; y < Hh * .5; y += sc * .7) for (let x = -L * .4 + ((y / sc) % 2 ? sc / 2 : 0); x < L * .2; x += sc) { g.beginPath(); g.arc(x, y, sc * .55, -1.2, 1.2); g.stroke(); }
+  // light from above + belly shadow
+  const hl = g.createRadialGradient(L * .1, -Hh * .3, 1, L * .05, -Hh * .2, L * .5);
+  hl.addColorStop(0, 'rgba(255,255,255,.35)'); hl.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = hl; g.fillRect(-L * .5, -Hh, L, Hh * 2);
+  const sh = g.createLinearGradient(0, Hh * .1, 0, Hh * .55);
+  sh.addColorStop(0, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0, 20, 40, .18)');
+  g.fillStyle = sh; g.fillRect(-L * .5, 0, L, Hh);
+  // lateral line and gill cover
+  g.strokeStyle = 'rgba(255,255,255,.22)'; g.lineWidth = 1; g.beginPath(); g.moveTo(L * .18, -Hh * .2); g.quadraticCurveTo(-L * .1, -Hh * .3, -L * .38, -Hh * .02); g.stroke();
+  g.strokeStyle = 'rgba(0, 10, 20, .3)'; g.lineWidth = Math.max(1, L * .012); g.beginPath(); g.arc(L * .44, 0, L * .2, Math.PI * .72, Math.PI * 1.28); g.stroke();
+  g.restore();
+  // pectoral fin, beating
+  g.globalAlpha = baseA * .55; g.fillStyle = f.sp === 'royal' ? '#c08cf0' : s.fin;
+  g.save(); g.translate(L * .18, Hh * .08); g.rotate(.5 + Math.sin(f.ph * 1.4) * .35);
+  g.beginPath(); g.ellipse(-L * .07, 0, L * .09, Hh * .1, 0, 0, 7); g.fill(); g.restore();
+  g.globalAlpha = baseA;
+  // eye
+  const er = Math.max(2.5, L * .055), ex = L * .33, ey = -Hh * .1;
+  const ig = g.createRadialGradient(ex, ey, er * .2, ex, ey, er);
+  ig.addColorStop(0, '#000'); ig.addColorStop(.55, '#111'); ig.addColorStop(.75, f.sp === 'tang' ? '#2a2a2a' : '#c9a23a'); ig.addColorStop(1, '#3a2a10');
+  g.fillStyle = ig; g.beginPath(); g.arc(ex, ey, er, 0, 7); g.fill();
+  g.fillStyle = 'rgba(255,255,255,.85)'; g.beginPath(); g.arc(ex + er * .3, ey - er * .35, er * .25, 0, 7); g.fill();
+  // mouth
+  g.strokeStyle = 'rgba(40, 10, 10, .55)'; g.lineWidth = Math.max(1, L * .012); g.lineCap = 'round';
+  g.beginPath(); g.moveTo(L * .49, Hh * .06); g.lineTo(L * .44, Hh * .08); g.stroke();
+  g.restore();
+}
+
+function updateFish(f, dt) {
+  const scared = st.status === 'loud' && !f.leaving && !f.ambient;
+  let tx = f.tx, ty = f.ty, maxV = f.speed;
+  if (scared && hideSpots.length) {
+    const h = hideSpots[f.hide % hideSpots.length];
+    tx = h.x + ((f.hide * 37) % 60 - 30) * U; ty = h.y + ((f.hide * 13) % 30) * U;
+    maxV = 300;
+  } else if (f.leaving) maxV = 140;
+  const dx = tx - f.x, dy = ty - f.y, d = Math.hypot(dx, dy);
+  if (!scared && !f.leaving && d < 30) pickTarget(f);
+  const acc = scared ? 320 : f.leaving ? 120 : 60;
+  if (d > 1) { f.vx += dx / d * acc * dt; f.vy += dy / d * acc * dt * .8; }
+  const v = Math.hypot(f.vx, f.vy);
+  const lim = scared && d < 25 ? 12 : maxV;
+  if (v > lim) { f.vx *= lim / v; f.vy *= lim / v; }
+  f.vx *= 1 - .6 * dt; f.vy *= 1 - 1.2 * dt;
+  f.x += f.vx * dt; f.y += f.vy * dt;
+  f.y = clamp(f.y, H * .08, sandY + 10 * U);
+  const targetFace = f.vx >= 0 ? 1 : -1;
+  if (Math.abs(f.vx) > 4) f.face = lerp(f.face, targetFace, clamp(dt * 6, 0, 1));
+  f.ph += dt * (6 + v / 12);
+  f.tuck = lerp(f.tuck, scared && d < 60 ? 1 : 0, clamp(dt * 3, 0, 1));
+}
+
+/* ---------- Bubbles ---------- */
+function spawnBubble(x, y, burst) {
+  bubbles.push({ x: x ?? Math.random() * W, y: y ?? sandY, r: (burst ? 2 + Math.random() * 5 : 2 + Math.random() * 4) * U, vy: 30 + Math.random() * 40, ph: Math.random() * 6 });
+}
+
+/* ---------- Main loop ---------- */
+let last = performance.now();
+function frame(now) {
+  let dt = Math.min(.1, (now - last) / 1000); last = now;
+  st.t += dt;
+  readLevel(dt);
+  logic(dt);
+  render(dt);
+  requestAnimationFrame(frame);
+}
+
+function logic(dt) {
+  const thr = S.threshold, lv = st.level;
+  if (lv >= thr) { st.overT += dt; st.underT = 0; } else { st.underT += dt; st.overT = Math.max(0, st.overT - dt * .5); }
+  let status = st.status;
+  if (st.mode === 'idle') status = 'quiet';
+  else if (status !== 'loud' && st.overT >= S.tolerance) { status = 'loud'; onLoud(); }
+  else if (status === 'loud' && st.underT >= 1.5) status = 'quiet';
+  if (status !== 'loud') status = (lv >= thr - 8 || st.overT > 0.05) ? 'warn' : 'quiet';
+  if (status !== st.status) setStatus(status);
+
+  if (st.mode !== 'idle' && !st.paused) {
+    const speed = st.mode === 'demo' && $('#demoFast').checked ? 10 : 1;
+    if (st.status !== 'loud') {
+      st.loudT = 0;
+      st.progress += dt * speed;
+      if (st.progress >= S.fishSeconds) { st.progress = 0; if (residentFish().length < 60) addFish(); }
+    } else {
+      st.progress = 0;
+      st.loudT += dt;
+      if (S.swimAway && st.loudT >= 10) { st.loudT = 0; removeFish(); }
+    }
+  }
+  // fish
+  for (const f of fish) updateFish(f, dt);
+  fish = fish.filter(f => !(f.leaving && (f.x < -150 || f.x > W + 150)));
+  // bubbles
+  if (!reduceMotion && Math.random() < dt * (st.status === 'loud' ? 6 : 2.5)) spawnBubble(hideSpots.length ? hideSpots[Math.floor(Math.random() * hideSpots.length)].x : undefined, sandY);
+  for (const b of bubbles) { b.y -= b.vy * dt; b.ph += dt * 2; b.x += Math.sin(b.ph) * 12 * dt; }
+  bubbles = bubbles.filter(b => b.y > -20);
+  // calibration
+  if (st.calib) {
+    st.calib.sum += st.level; st.calib.n++; st.calib.left -= dt;
+    $('#calibTxt').textContent = 'Messe Ruhepegel … noch ' + Math.ceil(st.calib.left) + ' s. Bitte leise sein.';
+    if (st.calib.left <= 0) {
+      const base = st.calib.sum / Math.max(1, st.calib.n);
+      S.threshold = Math.round(clamp(base + 14, 25, 92));
+      $('#thr').value = S.threshold;
+      $('#calibTxt').textContent = 'Ruhepegel ' + Math.round(base) + '. Die Grenze steht jetzt auf ' + S.threshold + '. Du kannst sie mit dem Regler feiner einstellen.';
+      st.calib = null; persist();
+    }
+  }
+  updateHud();
+}
+
+function render() {
+  if (!bgLayer) return;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.drawImage(bgLayer, 0, 0);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const t = reduceMotion ? 0 : st.t;
+  // light rays
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 5; i++) {
+    const x = W * (i / 4.5) + Math.sin(t * .15 + i) * 60 * U;
+    ctx.fillStyle = 'rgba(200, 245, 255, .05)';
+    ctx.beginPath(); ctx.moveTo(x - 30 * U, 0); ctx.lineTo(x + 50 * U, 0); ctx.lineTo(x + 200 * U, sandY); ctx.lineTo(x + 40 * U, sandY); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+  // caustic light on the sand
+  if (causticPattern && sandPath) {
+    ctx.save(); ctx.clip(sandPath); ctx.globalCompositeOperation = 'lighter';
+    for (let k = 0; k < 2; k++) {
+      ctx.globalAlpha = .045;
+      const ox = Math.sin(t * .23 + k * 2) * 60 + t * (k ? 6 : -4), oy = Math.cos(t * .19 + k) * 30;
+      ctx.translate(ox, oy); ctx.fillStyle = causticPattern; ctx.fillRect(-ox - 10, sandY - 40 - oy, W + 20, H - sandY + 60); ctx.translate(-ox, -oy);
+    }
+    ctx.restore();
+  }
+  // marine snow
+  ctx.fillStyle = 'rgba(230, 245, 255, .45)';
+  for (const p of snow) { if (!reduceMotion) { p.y += p.v * .016; p.x += Math.sin(t * .5 + p.ph) * .15; if (p.y > H) { p.y = -5; p.x = Math.random() * W; } } ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill(); }
+  // fish
+  const sorted = fish.slice().sort((a, b) => a.k - b.k);
+  for (const f of sorted) drawFish(ctx, f);
+  // foreground corals
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(fgLayer, 0, 0); ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  // seaweed
+  ctx.lineCap = 'round';
+  for (const w of weeds) {
+    for (let j = -1; j <= 1; j++) {
+      const sway = Math.sin(t * 1.1 + w.ph + j * .6) * 18 * U, bx = w.x + j * 11 * U, h = w.h * (1 - Math.abs(j) * .22), bw = 7 * U;
+      const tx = bx + j * 8 * U + sway, ty = w.y - h;
+      const lg = ctx.createLinearGradient(bx, w.y, tx, ty);
+      lg.addColorStop(0, shade(w.col, -.45)); lg.addColorStop(.6, w.col); lg.addColorStop(1, shade(w.col, .3));
+      ctx.fillStyle = lg; ctx.beginPath();
+      ctx.moveTo(bx - bw, w.y);
+      ctx.bezierCurveTo(bx - bw + sway * .3, w.y - h * .35, bx - bw * .6 - sway * .3, w.y - h * .7, tx, ty);
+      ctx.bezierCurveTo(bx + bw * .6 - sway * .3, w.y - h * .7, bx + bw + sway * .3, w.y - h * .35, bx + bw, w.y);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(bx, w.y); ctx.bezierCurveTo(bx + sway * .3, w.y - h * .35, bx - sway * .3, w.y - h * .7, tx, ty); ctx.stroke();
+    }
+  }
+  // sea anemones
+  for (const an of anemones) {
+    ctx.save(); ctx.translate(an.x, an.y);
+    for (let i = 0; i < 26; i++) {
+      const a = -Math.PI + .2 + (Math.PI - .4) * i / 25, sw = Math.sin(t * 1.3 + an.ph + i * .35) * .18;
+      const len = an.r * (1.3 + (i % 3) * .2);
+      const ex = Math.cos(a + sw) * len, ey = Math.sin(a + sw) * len;
+      ctx.strokeStyle = shade(an.col, -.2); ctx.lineWidth = 4 * U;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(ex * .4, ey * .7, ex, ey); ctx.stroke();
+      ctx.fillStyle = shade(an.col, .35); ctx.beginPath(); ctx.arc(ex, ey, 2.6 * U, 0, 7); ctx.fill();
+    }
+    ctx.fillStyle = shade(an.col, -.35); ctx.beginPath(); ctx.ellipse(0, 4 * U, an.r * .5, an.r * .3, 0, 0, 7); ctx.fill();
+    ctx.restore();
+  }
+  // bubbles
+  ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 1.5;
+  for (const b of bubbles) { ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.stroke(); ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.arc(b.x - b.r * .35, b.y - b.r * .35, b.r * .25, 0, 7); ctx.fill(); }
+}
+
+/* ---------- Status, HUD, messages ---------- */
+const hud = $('#hud');
+function setStatus(s) {
+  const prev = st.status; st.status = s; hud.dataset.status = s;
+  $('#ampel').setAttribute('aria-label', 'Ampel: ' + (s === 'loud' ? 'rot, zu laut' : s === 'warn' ? 'gelb, etwas leiser' : 'grün, schön leise'));
+  if (st.mode === 'idle') return;
+  if (s === 'loud') say('Psst … die Fische verstecken sich!', 999);
+  else if (prev === 'loud') say('Danke! Die Fische kommen wieder raus.', 3);
+}
+function onLoud() { st.progress = 0; }
+let msgTimer = 0;
+function say() { /* on-screen comments removed on request */ }
+function updateCounter() {
+  const n = residentFish().length;
+  $('#countTxt').textContent = n + ' / ' + S.goal;
+}
+let lastHud = 0;
+function updateHud() {
+  // meter
+  const lv = st.level;
+  $('#meterFill').style.height = lv + '%';
+  $('#meterMark').style.bottom = S.threshold + '%';
+  if (sheetOpen) {
+    $('#liveFill').style.width = lv + '%';
+    $('#liveFill').style.background = lv >= S.threshold ? 'var(--stop)' : lv >= S.threshold - 8 ? 'var(--warn)' : 'var(--go)';
+    $('#liveMark').style.left = S.threshold + '%';
+    $('#thrTxt').textContent = 'Grenze ' + S.threshold + ' · jetzt ' + Math.round(lv);
+  }
+  if (st.t - lastHud < .2) return; lastHud = st.t;
+  const remain = Math.max(0, S.fishSeconds - st.progress);
+  const frac = st.progress / S.fishSeconds;
+  $('#ringFg').style.strokeDashoffset = (169.6 * (1 - frac)).toFixed(1);
+  const speed = st.mode === 'demo' && $('#demoFast').checked ? 10 : 1;
+  const secs = Math.ceil(remain / speed);
+  $('#ringTxt').textContent = st.status === 'loud' ? '!' : fmtShort(secs);
+  updateCounter();
+  let sub = 'Fische im Riff · ';
+  if (st.mode === 'idle') sub += 'bereit';
+  else if (st.paused) sub += 'pausiert';
+  else if (st.status === 'loud') sub += 'zu laut, Wartezeit beginnt neu';
+  else sub += 'nächster Fisch in ' + fmtLong(secs);
+  $('#countSub').textContent = sub;
+}
+function fmtShort(s) { return s >= 60 ? Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') : String(s); }
+function fmtLong(s) { return s >= 60 ? Math.floor(s / 60) + ' min ' + (s % 60 ? (s % 60) + ' s' : '') : s + ' s'; }
+
+function celebrate() {
+  st.celebrated = true;
+  for (let i = 0; i < 80; i++) setTimeout(() => spawnBubble(Math.random() * W, sandY, true), i * 30);
+  $('#winTxt').textContent = 'Ihr wart so leise, dass ' + S.goal + ' Fische ins Riff geschwommen sind. Super!';
+  setTimeout(() => { $('#winOverlay').hidden = false; }, 1200);
+}
+
+/* ---------- Audio level (no recording, nothing stored) ---------- */
+let audioCtx = null, analyser = null, buf = null, stream = null;
+async function startMic() {
+  const err = $('#micErr'); err.hidden = true;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    err.textContent = 'Dieser Browser erlaubt hier kein Mikrofon. Öffne die App direkt im Browser (nicht in einer Vorschau) oder probiere den Demo-Modus.';
+    err.hidden = false; return false;
+  }
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }, video: false });
+  } catch (e) {
+    err.textContent = (e && e.name === 'NotAllowedError')
+      ? 'Der Zugriff auf das Mikrofon wurde nicht erlaubt. Erlaube ihn in den Browser-Einstellungen oder probiere den Demo-Modus.'
+      : 'Das Mikrofon konnte nicht gestartet werden. In dieser Vorschau ist es gesperrt: Öffne die Datei direkt im Browser oder probiere den Demo-Modus.';
+    err.hidden = false; return false;
+  }
+  const AC = window.AudioContext || window.webkitAudioContext;
+  audioCtx = new AC();
+  const src = audioCtx.createMediaStreamSource(stream);
+  analyser = audioCtx.createAnalyser(); analyser.fftSize = 2048; analyser.smoothingTimeConstant = 0;
+  src.connect(analyser); // not connected to speakers, nothing is recorded
+  buf = new Float32Array(analyser.fftSize);
+  if (audioCtx.state === 'suspended') try { await audioCtx.resume(); } catch (e) {}
+  return true;
+}
+function stopMic() {
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  if (audioCtx) audioCtx.close().catch(() => {});
+  stream = null; audioCtx = null; analyser = null;
+}
+function readLevel(dt) {
+  let target = 0;
+  if (st.mode === 'mic' && analyser) {
+    analyser.getFloatTimeDomainData(buf);
+    let sum = 0; for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+    const rms = Math.sqrt(sum / buf.length);
+    const db = 20 * Math.log10(rms + 1e-9); // dBFS, about -90 … 0
+    target = clamp((db + 75) / 70 * 100, 0, 100);
+  } else if (st.mode === 'demo') {
+    target = +$('#demoLevel').value + Math.sin(st.t * 3) * 2 + (Math.random() - .5) * 3;
+  } else {
+    target = 18 + Math.sin(st.t * .7) * 4;
+  }
+  const tau = target > st.level ? .12 : .6; // fast rise, slow fall
+  st.level += (target - st.level) * (1 - Math.exp(-dt / tau));
+  st.level = clamp(st.level, 0, 100);
+}
+
+/* ---------- Wake lock & fullscreen ---------- */
+let wakeLock = null;
+async function keepAwake() { try { if ('wakeLock' in navigator && document.visibilityState === 'visible') wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {} }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && st.mode !== 'idle') keepAwake(); });
+$('#btnFull').addEventListener('click', async () => {
+  try {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else await document.documentElement.requestFullscreen();
+  } catch (e) {}
+});
+
+/* ---------- Start / modes ---------- */
+function beginSession(mode) {
+  st.mode = mode;
+  $('#startOverlay').hidden = true;
+  fish = fish.filter(f => !f.ambient);
+  if (!fish.length && saved.species.length) {
+    saved.species.forEach(sp => { if (SPECIES[sp]) fish.push(newFish(sp, { x: Math.random() * W })); });
+  }
+  st.celebrated = residentFish().length >= S.goal;
+  $('#demoBar').hidden = mode !== 'demo';
+  const pill = $('#micPill');
+  pill.classList.toggle('on', mode === 'mic');
+  $('#micTxt').textContent = mode === 'mic' ? 'Mikrofon aktiv · misst nur die Lautstärke, nimmt nichts auf' : 'Demo-Modus · Mikrofon aus';
+  $('#btnMode').textContent = mode === 'mic' ? 'Zum Demo-Modus wechseln' : 'Mikrofon starten';
+  st.progress = 0; st.overT = 0; st.underT = 99;
+  updateCounter(); keepAwake();
+  say(mode === 'mic' ? 'Los geht’s! Seid leise, dann kommen die Fische.' : 'Demo: Schiebe den Regler, um laut oder leise zu spielen.', 4);
+}
+$('#btnStartMic').addEventListener('click', async () => { if (await startMic()) beginSession('mic'); });
+$('#btnStartDemo').addEventListener('click', () => beginSession('demo'));
+$('#btnMode').addEventListener('click', async () => {
+  if (st.mode === 'mic') { stopMic(); beginSession('demo'); }
+  else { if (await startMic()) beginSession('mic'); else { closeSheet(); $('#startOverlay').hidden = false; st.mode = 'idle'; } }
+});
+window.addEventListener('pagehide', stopMic);
+
+$('#btnPause').addEventListener('click', () => {
+  st.paused = !st.paused;
+  $('#pausedTag').hidden = !st.paused;
+  $('#btnPause').setAttribute('aria-label', st.paused ? 'Weiter' : 'Pause');
+  $('#btnPause').title = st.paused ? 'Weiter' : 'Pause';
+  $('#btnPause').innerHTML = st.paused
+    ? '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l12-7.5z"/></svg>'
+    : '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.5"/><rect x="14" y="5" width="4" height="14" rx="1.5"/></svg>';
+});
+
+/* ---------- Settings sheet ---------- */
+let sheetOpen = false;
+function openSheet() { sheetOpen = true; $('#sheet').classList.add('open'); }
+function closeSheet() { sheetOpen = false; $('#sheet').classList.remove('open'); $('#resetConfirm').hidden = true; }
+$('#btnSettings').addEventListener('click', () => sheetOpen ? closeSheet() : openSheet());
+$('#btnClose').addEventListener('click', closeSheet);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
+function syncInputs() {
+  $('#thr').value = S.threshold; $('#fishSec').value = String(S.fishSeconds); $('#goal').value = String(S.goal);
+  $('#tol').value = String(S.tolerance); $('#swimAway').checked = S.swimAway;
+}
+syncInputs();
+$('#thr').addEventListener('input', e => { S.threshold = +e.target.value; persist(); });
+$('#fishSec').addEventListener('change', e => { S.fishSeconds = +e.target.value; st.progress = Math.min(st.progress, S.fishSeconds - 1); persist(); });
+$('#goal').addEventListener('change', e => { S.goal = +e.target.value; st.celebrated = residentFish().length >= S.goal; updateCounter(); persist(); });
+$('#tol').addEventListener('change', e => { S.tolerance = +e.target.value; persist(); });
+$('#swimAway').addEventListener('change', e => { S.swimAway = e.target.checked; persist(); });
+$('#btnCalib').addEventListener('click', () => {
+  if (st.mode === 'idle') { $('#calibTxt').textContent = 'Starte zuerst das Mikrofon.'; return; }
+  st.calib = { sum: 0, n: 0, left: 5 };
+});
+function resetRound() {
+  fish.forEach(f => { if (!f.ambient && !f.leaving) { f.leaving = true; f.tx = f.x < W / 2 ? -200 : W + 200; } });
+  st.progress = 0; st.celebrated = false; persist(); updateCounter();
+}
+$('#btnReset').addEventListener('click', () => { $('#resetConfirm').hidden = false; });
+$('#btnResetNo').addEventListener('click', () => { $('#resetConfirm').hidden = true; });
+$('#btnResetYes').addEventListener('click', () => { resetRound(); $('#resetConfirm').hidden = true; closeSheet(); say('Neue Runde! Das Riff wartet auf Fische.', 3); });
+$('#btnWinNew').addEventListener('click', () => { $('#winOverlay').hidden = true; resetRound(); });
+$('#btnWinKeep').addEventListener('click', () => { $('#winOverlay').hidden = true; });
+
+/* ---------- Info & privacy ---------- */
+const infoOv = $('#infoOverlay');
+$('#btnInfo1').addEventListener('click', () => { infoOv.hidden = false; });
+$('#btnInfo2').addEventListener('click', () => { infoOv.hidden = false; });
+$('#btnInfoClose').addEventListener('click', () => { infoOv.hidden = true; });
+infoOv.addEventListener('click', e => { if (e.target === infoOv) infoOv.hidden = true; });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') infoOv.hidden = true; });
+$('#btnWipe').addEventListener('click', () => {
+  noStore = true;
+  try { localStorage.removeItem(KEY); } catch (e) {}
+  $('#wipeTxt').hidden = false;
+});
+
+/* ---------- Offline / install (only when opened as its own page) ---------- */
+try {
+  const standalonePage = window.self === window.top && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1');
+  if (standalonePage && 'serviceWorker' in navigator && document.documentElement.dataset.pwa === '1') {
+    navigator.serviceWorker.register('../sw.js', { scope: '../' }).catch(() => {});
+  }
+} catch (e) {}
+
+/* ---------- Boot ---------- */
+window.addEventListener('resize', resize);
+resize();
+// a few ambient fish behind the start screen so it never looks empty
+['clown', 'tang', 'yellow', 'pink', 'wrasse'].forEach((sp, i) => fish.push(newFish(sp, { x: W * (.15 + i * .17), y: H * (.25 + (i % 3) * .14), ambient: true })));
+for (let i = 0; i < 15; i++) spawnBubble(Math.random() * W, Math.random() * H);
+updateCounter(); updateHud();
+requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>
