@@ -250,7 +250,7 @@ button { cursor: pointer; }
     </div>
     <div class="shark-set">
       <label for="sharkSec">HaiZeit: alle</label>
-      <input type="number" id="sharkSec" min="5" max="3600" step="1" value="60" inputmode="numeric"> <span>Sekunden kommt ein Hai</span>
+      <input type="number" id="sharkSec" min="1" max="3600" step="1" value="60" inputmode="numeric"> <span>Sekunden kommt ein Hai</span>
       <small>5 bis 3600 Sekunden. Der Hai bekommt bei jedem Besuch eine Kieme mehr, so könnt ihr mitzählen.</small>
       <div class="mults">
         <span>Überraschung</span>
@@ -355,7 +355,7 @@ button { cursor: pointer; }
     </div>
     <div class="field">
       <label for="sharkSec2">Hai schwimmt durchs Bild alle … Sekunden</label>
-      <input type="number" id="sharkSec2" min="5" max="3600" step="1" value="60" inputmode="numeric" style="padding:10px 12px;border-radius:12px;border:1px solid #c3d6df;font-size:16px;background:#fff;color:var(--ink);width:8em">
+      <input type="number" id="sharkSec2" min="1" max="3600" step="1" value="60" inputmode="numeric" style="padding:10px 12px;border-radius:12px;border:1px solid #c3d6df;font-size:16px;background:#fff;color:var(--ink);width:8em">
       <small>5 bis 3600 Sekunden. Die Zeit läuft, solange die App nicht pausiert ist.</small>
     </div>
     <div class="field">
@@ -365,7 +365,7 @@ button { cursor: pointer; }
     </div>
     <div class="field">
       <label class="check"><input type="checkbox" id="swimAway" checked> Bei Lärm schwimmen die Fische davon</label>
-      <small>Ist es 2 Sekunden zu laut, schwimmt die Hälfte der Fische mit einer Wasserspur zum nächsten Rand davon, ab 3 Sekunden auch alle übrigen. Ausgeschaltet verstecken sie sich nur hinter den Steinen. Gemalte Fische verstecken sich immer nur.</small>
+      <small>Wird es zu laut, schwimmt die Hälfte der Fische mit einer Wasserspur zum nächsten Rand davon, bleibt es 2 Sekunden länger zu laut, auch alle übrigen. Ausgeschaltet verstecken sie sich nur hinter den Steinen. Gemalte Fische verstecken sich immer nur.</small>
     </div>
     <div class="field">
       <span class="lbl">Runde</span>
@@ -1003,7 +1003,7 @@ function startEvent(kind) {
     return { kind, t: -pre, dir, L, v, pre, dur: (W + 1.15 * L) / v + 5, y0: sandY * .56, ph: 0, bubT: 0 };
   }
   if (kind === 'inkpass') return { kind, t: 0, dir, dur: 16, ph: 0, splat: false };
-  if (kind === 'diver') return { kind, t: 0, dir, dur: 19, ph: 0, bubT: 2 };
+  if (kind === 'diver') return { kind, t: 0, dir, dur: 21, ph: 0, bubT: 2 };
   return { kind: 'kraken', t: 0, dir, dur: 16.6, ph: 0 };
 }
 function updateEvents(dt) {
@@ -1027,7 +1027,7 @@ function updateEvents(dt) {
     if (e.t >= 5 && e.t < 15) wipeVeil(e.t - 5);
     if (st.veil && e.t >= 15) { st.veil.a -= dt * 3; if (st.veil.a <= 0) st.veil = null; } // the last traces vanish
     e.bubT -= dt; // the diver breathes out
-    if (e.bubT <= 0 && e.d) { e.bubT = 2.4; const D = H * .32 * e.d.s; for (let k = 0; k < 6; k++) { const b = spawnBubble(e.d.x + (Math.random() - .3) * .1 * D, e.d.y - .48 * D, true); b.vx = (.5 - Math.random()) * 30 * U; } }
+    if (e.bubT <= 0 && e.d) { e.bubT = 2.4; const D = H * .32 * e.d.s, ca = Math.cos(e.d.tilt), sa = Math.sin(e.d.tilt); for (let k = 0; k < 6; k++) { const b = spawnBubble(e.d.x + (.27 * ca + .62 * sa) * D + (Math.random() - .5) * .05 * D, e.d.y + (.27 * sa - .62 * ca) * D, true); b.vx = (.5 - Math.random()) * 30 * U; } }
   }
   if (st.veil && st.veil.a < 1 && !(e.kind === 'diver' && e.t >= 15)) st.veil.a = Math.min(1, st.veil.a + dt * 2.5);
   if (e.t >= e.dur) st.ev = null;
@@ -1050,6 +1050,7 @@ function drawVisitorBehindReef(g) {
   if (e.kind === 'shark') drawShark(g, e);
   else if (e.kind === 'whale') drawWhale(g, e);
   else if (e.kind === 'sub' && e.t > 0) drawSub(g, e);
+  else if (e.kind === 'inkpass') drawOcto(g, inkPassPose(e.t), e.t);
 }
 
 /* body outline from two half-height profiles, bent by a travelling wave (s: 0 = snout … sEnd = tail stock) */
@@ -1356,8 +1357,7 @@ function inkPassPose(t) {
   }
   return { x, y, u: uC, rot, yaw, spread, look: 0, blink: 0, jet };
 }
-function drawInkPass(g, e) {
-  drawOcto(g, inkPassPose(e.t), e.t);
+function drawInkPass(g, e) { // the octopus itself swims with the other visitors, this is the ink cloud
   // the ink cloud rushes towards the glass
   const k = (e.t - 7.8) / .8;
   if (k > 0 && k < 1) {
@@ -1421,94 +1421,107 @@ function wipeVeil(t) {
   }
   v.prev = cur;
 }
-/* diver in a black wetsuit, seen from the front */
+/* helmet diver: appears from the left out of the deep, cleans the glass, then glides off to the right, lying flat and kicking */
 function diverState(e) {
-  const t = e.t, hold = { x: W * .5, y: H * .45 };
-  if (!e.body) e.body = { x: W * .62, y: H * .38 };
-  let s = 1, alpha = 1, sq = null, thumb = 0, kick = 1;
-  if (t < 5) {                       // from the background up to the glass
-    const k = sm(t / 5), s0 = squeegeeAt(0);
-    s = lerp(.12, 1, k * k); alpha = .35 + .65 * k;
-    e.body.x = lerp(W * .62, s0.x + H * .2, k); e.body.y = lerp(H * .36, Math.max(H * .3, s0.y + H * .12), k);
-    sq = { x: e.body.x - H * .2 * s, y: e.body.y - H * .14 * s, ang: Math.PI / 2, hb: H * .21 * s, dir: 1 };
+  const t = e.t;
+  if (!e.body) e.body = { x: W * .1, y: H * .3, vx: 0 };
+  let s = 1, alpha = 1, sq = null, tilt = 0, kick = .35;
+  const s0 = squeegeeAt(0), bodyFor = q => ({ x: clamp(q.x - q.dir * H * .12, W * .13, W * .87), y: clamp(q.y + H * .13, H * .3, H * .66) });
+  if (t < 5) {                       // out of the deep on the left, up to the glass
+    const k = sm(t / 5), b0 = bodyFor(s0), arc = Math.sin(k * Math.PI) * H * .06;
+    s = lerp(.12, 1, k * k); alpha = .35 + .65 * k; kick = .8;
+    e.body.x = lerp(W * .1, b0.x, k); e.body.y = lerp(H * .3, b0.y, k) - arc;
+    sq = { x: e.body.x + H * .1 * s, y: e.body.y - H * .14 * s, ang: Math.PI / 2, hb: H * .21 * s, dir: 1 };
   } else if (t < 15) {               // wiping
-    sq = squeegeeAt(t - 5); kick = .4;
-    const tx = sq.x - sq.dir * H * .2, ty = clamp(sq.y + H * .12, H * .3, H * .66), k = 1 - Math.exp(-(e.dt || .016) * 3.5);
-    e.body.x += (tx - e.body.x) * k; e.body.y += (ty - e.body.y) * k;
-  } else {                           // thumbs up, then back into the deep
-    const k1 = sm((t - 15) / 1.2), k2 = sm((t - 17.2) / 1.8);
-    if (!e.endFrom) e.endFrom = { x: e.body.x, y: e.body.y };
-    e.body.x = lerp(lerp(e.endFrom.x, hold.x, k1), W * .4, k2); e.body.y = lerp(lerp(e.endFrom.y, hold.y, k1), H * .34, k2);
-    s = lerp(1, .1, k2); alpha = 1 - k2 * .8; thumb = sm((t - 15.3) / .5) * (1 - sm((t - 17) / .4));
-    sq = { x: e.body.x + H * .2 * s, y: e.body.y + H * .02 * s, ang: Math.PI / 2 + .3, hb: H * .21 * s, dir: -1 };
+    sq = squeegeeAt(t - 5);
+    const b = bodyFor(sq), k = 1 - Math.exp(-(e.dt || .016) * 3.5);
+    e.body.x += (b.x - e.body.x) * k; e.body.y += (b.y - e.body.y) * k;
+  } else {                           // lies down flat and kicks away to the right
+    if (!e.endFrom) e.endFrom = { x: e.body.x, y: e.body.y, sq: squeegeeAt(10) };
+    const u = t - 15, k = sm(u / 1.6);
+    tilt = Math.PI / 2 * k; kick = .35 + .9 * k;
+    e.body.x = e.endFrom.x + H * (.05 * u * u + .1 * u); e.body.y = lerp(e.endFrom.y, H * .4, sm(u / 3));
+    // the squeegee comes along, held close to the body
+    const D = H * .32, lx = .42 * D, ly = .1 * D, hx = e.body.x + lx * Math.cos(tilt) - ly * Math.sin(tilt), hy = e.body.y + lx * Math.sin(tilt) + ly * Math.cos(tilt), q = sm(u / 1.4), f = e.endFrom.sq;
+    sq = { x: lerp(f.x, hx, q), y: lerp(f.y, hy, q), ang: lerp(f.ang, Math.PI / 2 + tilt, q), hb: lerp(f.hb, H * .12, q), dir: 1 };
   }
-  return { x: e.body.x, y: e.body.y, s, alpha, sq, thumb, kick };
+  return { x: e.body.x, y: e.body.y, s, alpha, sq, tilt, kick };
 }
 function drawDiver(g, e, d, aMul) {
   const D = H * .32 * d.s, t = e.t, x = d.x, y = d.y;
   if (aMul <= 0.01 || D < 2) return;
+  const cu = '#d9792e', cuD = '#a9521b', cuL = '#efa25a', brass = '#e9b450', brassD = '#b98420', teal = '#2c6f7c', tealD = '#1d4e57', line = '#8a3f12';
   g.save(); g.globalAlpha = d.alpha * aMul; g.lineCap = 'round'; g.lineJoin = 'round';
-  const suit = '#111419', suitHi = '#2c323b', glove = '#262a31';
-  // legs and fins, kicking (behind the body)
+  // air hose up to the surface (in screen space, behind the diver)
+  { const ca = Math.cos(d.tilt), sa = Math.sin(d.tilt), hx = x + sa * .82 * D, hy = y - ca * .82 * D, sw = Math.sin(t * .9) * 40 * U;
+    g.strokeStyle = line; g.lineWidth = .085 * D + 2; g.beginPath(); g.moveTo(hx, hy); g.bezierCurveTo(hx + sa * .4 * D, hy - ca * .4 * D - .2 * D, hx - 60 * U + sw, hy * .45, hx - 30 * U + sw * .5, -10); g.stroke();
+    g.strokeStyle = '#c2622a'; g.lineWidth = .06 * D; g.stroke(); }
+  g.translate(x, y); g.rotate(d.tilt);
+  const P = (px, py, pw, ph, r) => { g.beginPath(); rrect(g, px * D, py * D, pw * D, ph * D, r * D); };
+  const out = w => { g.strokeStyle = line; g.lineWidth = Math.max(1, w * D); g.stroke(); };
+  // legs with boots, kicking alternately
   for (const sd of [-1, 1]) {
-    const kk = Math.sin(t * 5 + (sd > 0 ? Math.PI : 0)) * d.kick, hx = x + sd * .11 * D, hy = y + .36 * D;
-    const kx = x + sd * .15 * D, ky = y + (.72 + kk * .04) * D, ax = x + sd * .14 * D, ay = y + (1.02 + kk * .06) * D;
-    g.strokeStyle = suit; g.lineWidth = .14 * D; g.beginPath(); g.moveTo(hx, hy); g.lineTo(kx, ky); g.lineTo(ax, ay); g.stroke();
-    g.fillStyle = '#25303c'; g.beginPath(); g.moveTo(ax - .07 * D, ay); g.lineTo(ax + .07 * D, ay);
-    g.lineTo(ax + sd * .02 * D + .12 * D, ay + (.34 + kk * .08) * D); g.lineTo(ax + sd * .02 * D - .12 * D, ay + (.34 - kk * .08) * D); g.closePath(); g.fill();
+    const kk = Math.sin(t * 6 + (sd > 0 ? Math.PI : 0)) * d.kick;
+    g.save(); g.translate(sd * .1 * D, .4 * D); g.rotate(kk * .35);
+    P(-.085, -.02, .17, .52, .06); g.fillStyle = cu; g.fill(); out(.012);
+    P(-.1, .46, .2, .14, .04); g.fillStyle = teal; g.fill(); g.strokeStyle = tealD; g.lineWidth = .012 * D; g.stroke();
+    g.restore();
   }
-  // air tank peeking over the shoulders
-  g.fillStyle = '#e3b232'; g.beginPath(); rrect(g, x - .1 * D, y - .72 * D, .2 * D, .4 * D, .08 * D); g.fill();
-  g.fillStyle = '#8a8f96'; g.fillRect(x - .03 * D, y - .8 * D, .06 * D, .1 * D);
-  // torso
-  const tg = g.createLinearGradient(x - .3 * D, 0, x + .3 * D, 0); tg.addColorStop(0, suitHi); tg.addColorStop(.35, suit); tg.addColorStop(1, '#07080a');
-  g.fillStyle = tg; g.beginPath();
-  g.moveTo(x - .26 * D, y - .36 * D); g.quadraticCurveTo(x, y - .44 * D, x + .26 * D, y - .36 * D);
-  g.quadraticCurveTo(x + .2 * D, y, x + .17 * D, y + .3 * D); g.quadraticCurveTo(x + .19 * D, y + .42 * D, x, y + .44 * D);
-  g.quadraticCurveTo(x - .19 * D, y + .42 * D, x - .17 * D, y + .3 * D); g.quadraticCurveTo(x - .2 * D, y, x - .26 * D, y - .36 * D); g.fill();
-  g.strokeStyle = 'rgba(120, 135, 150, .35)'; g.lineWidth = Math.max(1, .012 * D);       // seams and the vest straps
-  g.beginPath(); g.moveTo(x - .14 * D, y - .38 * D); g.lineTo(x - .1 * D, y + .2 * D); g.moveTo(x + .14 * D, y - .38 * D); g.lineTo(x + .1 * D, y + .2 * D); g.moveTo(x - .17 * D, y + .2 * D); g.lineTo(x + .17 * D, y + .2 * D); g.stroke();
-  // arms: the right hand holds the squeegee, the left one is flat on the glass or gives a thumbs-up
-  const arm = (sx, sy, hx, hy, bend) => {
+  // body
+  g.beginPath(); g.moveTo(-.26 * D, -.3 * D); g.quadraticCurveTo(-.3 * D, .1 * D, -.24 * D, .46 * D); g.lineTo(.24 * D, .46 * D); g.quadraticCurveTo(.3 * D, .1 * D, .26 * D, -.3 * D); g.closePath();
+  const bg = g.createLinearGradient(-.3 * D, 0, .3 * D, 0); bg.addColorStop(0, cuL); bg.addColorStop(.45, cu); bg.addColorStop(1, cuD);
+  g.fillStyle = bg; g.fill(); out(.012);
+  // belt with buckles
+  P(-.27, .2, .54, .09, .03); g.fillStyle = teal; g.fill(); g.strokeStyle = tealD; g.lineWidth = .01 * D; g.stroke();
+  for (const bx of [-.17, -.04, .09]) { P(bx, .19, .08, .11, .01); g.strokeStyle = cuD; g.lineWidth = .014 * D; g.stroke(); }
+  // arms (left resting, right with the squeegee)
+  const limb = (sx, sy, hx, hy, bend) => {
     const mx = (sx + hx) / 2 + bend * (hy - sy) * .25, my = (sy + hy) / 2 - bend * (hx - sx) * .25;
-    g.strokeStyle = suit; g.lineWidth = .12 * D; g.beginPath(); g.moveTo(sx, sy); g.quadraticCurveTo(mx, my, hx, hy); g.stroke();
-    g.fillStyle = glove; g.beginPath(); g.arc(hx, hy, .07 * D, 0, 7); g.fill();
+    g.strokeStyle = line; g.lineWidth = .14 * D; g.beginPath(); g.moveTo(sx, sy); g.quadraticCurveTo(mx, my, hx, hy); g.stroke();
+    g.strokeStyle = cu; g.lineWidth = .11 * D; g.stroke();
+    const ax = hx - (hx - mx) * .18, ay = hy - (hy - my) * .18;
+    g.strokeStyle = teal; g.lineWidth = .12 * D; g.lineCap = 'butt'; g.beginPath(); g.moveTo(ax, ay); g.lineTo(ax + (hx - mx) * .07, ay + (hy - my) * .07); g.stroke(); g.lineCap = 'round';
+    g.fillStyle = cu; g.beginPath(); g.arc(hx, hy, .065 * D, 0, 7); g.fill(); out(.01);
   };
-  const sq = d.sq;
-  let hand = null;
-  const shR = { x: x + .24 * D * (sq ? Math.sign(sq.x - x || 1) : 1), y: y - .3 * D }, shL = { x: x - (shR.x - x), y: y - .3 * D };
-  if (sq) { // the hand is on the handle, between the blade and the shoulder
-    const dx = shR.x - sq.x, dy = shR.y - sq.y, dl = Math.hypot(dx, dy) || 1, hl = Math.min(dl * .6, H * .11 * d.s);
-    hand = { x: sq.x + dx / dl * hl, y: sq.y + dy / dl * hl };
+  let sq = d.sq, loc = null;
+  if (sq) { // squeegee in the diver's own (rotated) frame
+    const ca = Math.cos(-d.tilt), sa = Math.sin(-d.tilt), lx = sq.x - x, ly = sq.y - y;
+    loc = { x: lx * ca - ly * sa, y: lx * sa + ly * ca, ang: sq.ang - d.tilt, hb: sq.hb };
   }
-  if (d.thumb > 0) {
-    const hx = shL.x + (shL.x - x) * .6, hy = shL.y - .25 * D * d.thumb;
-    arm(shL.x, shL.y, hx, hy, .4);
-    g.fillStyle = glove; g.beginPath(); rrect(g, hx - .025 * D, hy - .15 * D, .05 * D, .12 * D, .025 * D); g.fill();
-  } else arm(shL.x, shL.y, shL.x + (shL.x - x) * .5, shL.y + .28 * D, -.3);
-  // head: black hood, mask with a face behind the glass, regulator
-  g.fillStyle = suit; g.beginPath(); g.ellipse(x, y - .56 * D, .17 * D, .2 * D, 0, 0, 7); g.fill();
-  g.fillStyle = '#05060a'; g.fillRect(x - .2 * D, y - .62 * D, .4 * D, .04 * D);                      // mask strap
-  g.fillStyle = '#d9a982'; g.beginPath(); g.ellipse(x, y - .6 * D, .14 * D, .085 * D, 0, 0, 7); g.fill();
+  const side = loc ? Math.sign(loc.x || 1) : 1, shR = { x: .26 * D * side, y: -.24 * D }, shL = { x: -shR.x, y: -.24 * D };
+  const swing = d.tilt > .3 ? Math.sin(t * 3) * .1 * D : 0;
+  limb(shL.x, shL.y, shL.x * 1.25 + swing, shL.y + .36 * D, -.25 * side);
+  if (!loc) limb(shR.x, shR.y, shR.x * 1.25 - swing, shR.y + .36 * D, .25 * side);
+  // breastplate collar with rivets
+  g.beginPath(); g.ellipse(0, -.3 * D, .3 * D, .17 * D, 0, 0, Math.PI); g.lineTo(-.3 * D, -.36 * D); g.ellipse(0, -.36 * D, .3 * D, .06 * D, 0, Math.PI, 0); g.closePath();
+  g.fillStyle = brass; g.fill(); g.strokeStyle = brassD; g.lineWidth = .012 * D; g.stroke();
+  g.fillStyle = cuL; for (let i = 0; i < 7; i++) { const a = Math.PI * (i + .5) / 7; g.beginPath(); g.arc(Math.cos(a) * .25 * D, -.31 * D + Math.sin(a) * .12 * D, .016 * D, 0, 7); g.fill(); }
+  // helmet: copper sphere, front porthole with the face, side ports, bolts
+  const hy = -.6 * D, hr = .25 * D;
+  for (const sd of [-1, 1]) { P(sd > 0 ? .2 : -.27, -.71, .07, .2, .03); g.fillStyle = brassD; g.fill(); }
+  const hg = g.createRadialGradient(-.08 * D, hy - .08 * D, .02 * D, 0, hy, hr * 1.1); hg.addColorStop(0, cuL); hg.addColorStop(.6, cu); hg.addColorStop(1, cuD);
+  g.fillStyle = hg; g.beginPath(); g.arc(0, hy, hr, 0, 7); g.fill(); out(.012);
+  P(-.07, -.9, .14, .06, .02); g.fillStyle = brass; g.fill();                                // hose fitting on top
+  g.fillStyle = brass; g.beginPath(); g.arc(0, hy + .01 * D, .145 * D, 0, 7); g.fill();         // porthole frame
+  g.fillStyle = '#f1d6c4'; g.beginPath(); g.arc(0, hy + .01 * D, .115 * D, 0, 7); g.fill();     // face
   for (const sd of [-1, 1]) {
-    g.fillStyle = '#fff'; g.beginPath(); g.ellipse(x + sd * .055 * D, y - .6 * D, .03 * D, .022 * D, 0, 0, 7); g.fill();
-    g.fillStyle = '#1b2a3a'; g.beginPath(); g.arc(x + sd * .055 * D, y - .6 * D, .014 * D, 0, 7); g.fill();
+    g.fillStyle = '#fff'; g.beginPath(); g.ellipse(sd * .045 * D, hy - .01 * D, .03 * D, .034 * D, 0, 0, 7); g.fill();
+    g.fillStyle = '#1a1a1a'; g.beginPath(); g.arc(sd * .045 * D + .006 * D, hy - .005 * D, .013 * D, 0, 7); g.fill();
   }
-  const mg = g.createLinearGradient(x - .14 * D, y - .68 * D, x + .1 * D, y - .52 * D);
-  mg.addColorStop(0, 'rgba(200, 235, 255, .45)'); mg.addColorStop(.4, 'rgba(160, 210, 240, .1)'); mg.addColorStop(1, 'rgba(160, 210, 240, .25)');
-  g.fillStyle = mg; g.beginPath(); g.ellipse(x, y - .6 * D, .14 * D, .085 * D, 0, 0, 7); g.fill();
-  g.strokeStyle = '#9aa3ad'; g.lineWidth = .022 * D; g.beginPath(); g.ellipse(x, y - .6 * D, .15 * D, .095 * D, 0, 0, 7); g.stroke();
-  g.fillStyle = '#3d434b'; g.beginPath(); rrect(g, x - .05 * D, y - .5 * D, .1 * D, .07 * D, .03 * D); g.fill();
-  g.strokeStyle = '#2b3038'; g.lineWidth = .03 * D; g.beginPath(); g.moveTo(x + .05 * D, y - .47 * D); g.quadraticCurveTo(x + .2 * D, y - .45 * D, x + .2 * D, y - .34 * D); g.stroke();
-  // the squeegee
-  if (sq && hand) {
-    arm(shR.x, shR.y, hand.x, hand.y, .3 * -sq.dir);
-    const ca = Math.cos(sq.ang) * sq.hb, sa = Math.sin(sq.ang) * sq.hb;
-    g.strokeStyle = '#c9ced4'; g.lineWidth = .05 * D; g.beginPath(); g.moveTo(hand.x, hand.y); g.lineTo(sq.x, sq.y); g.stroke();              // handle
-    g.strokeStyle = '#aab2bb'; g.lineWidth = .06 * D; g.beginPath(); g.moveTo(sq.x + ca, sq.y + sa); g.lineTo(sq.x - ca, sq.y - sa); g.stroke(); // metal channel
-    g.strokeStyle = '#111'; g.lineWidth = .025 * D; const ox = Math.cos(sq.ang - Math.PI / 2) * .03 * D, oy = Math.sin(sq.ang - Math.PI / 2) * .03 * D;
-    g.beginPath(); g.moveTo(sq.x + ca + ox, sq.y + sa + oy); g.lineTo(sq.x - ca + ox, sq.y - sa + oy); g.stroke();                               // rubber blade
-    g.fillStyle = glove; g.beginPath(); g.arc(hand.x, hand.y, .075 * D, 0, 7); g.fill();
+  g.strokeStyle = '#a0705a'; g.lineWidth = .01 * D; g.beginPath(); g.arc(0, hy + .045 * D, .03 * D, .3, Math.PI - .3); g.stroke();
+  const gl = g.createLinearGradient(0, hy - .12 * D, 0, hy + .12 * D); gl.addColorStop(0, 'rgba(255,255,255,.35)'); gl.addColorStop(.5, 'rgba(170,220,245,.15)'); gl.addColorStop(1, 'rgba(120,190,230,.35)');
+  g.fillStyle = gl; g.beginPath(); g.arc(0, hy + .01 * D, .115 * D, 0, 7); g.fill();
+  g.strokeStyle = brassD; g.lineWidth = .014 * D; g.beginPath(); g.arc(0, hy + .01 * D, .145 * D, 0, 7); g.stroke();
+  g.fillStyle = brassD; for (const [bx, by] of [[-.15, -.75], [.15, -.75], [-.15, -.45], [.15, -.45]]) { g.beginPath(); g.arc(bx * D, by * D, .022 * D, 0, 7); g.fill(); }
+  // right arm with the squeegee
+  if (loc) {
+    const dx = shR.x - loc.x, dy = shR.y - loc.y, dl = Math.hypot(dx, dy) || 1, hl = Math.min(dl * .6, H * .11 * d.s), hand = { x: loc.x + dx / dl * hl, y: loc.y + dy / dl * hl };
+    limb(shR.x, shR.y, hand.x, hand.y, -.3 * side);
+    const ca = Math.cos(loc.ang) * loc.hb, sa = Math.sin(loc.ang) * loc.hb, ox = Math.cos(loc.ang - Math.PI / 2) * .03 * D, oy = Math.sin(loc.ang - Math.PI / 2) * .03 * D;
+    g.strokeStyle = '#c9ced4'; g.lineWidth = .05 * D; g.beginPath(); g.moveTo(hand.x, hand.y); g.lineTo(loc.x, loc.y); g.stroke();
+    g.strokeStyle = '#aab2bb'; g.lineWidth = .06 * D; g.beginPath(); g.moveTo(loc.x + ca, loc.y + sa); g.lineTo(loc.x - ca, loc.y - sa); g.stroke();
+    g.strokeStyle = '#111'; g.lineWidth = .025 * D; g.beginPath(); g.moveTo(loc.x + ca + ox, loc.y + sa + oy); g.lineTo(loc.x - ca + ox, loc.y - sa + oy); g.stroke();
+    g.fillStyle = cu; g.beginPath(); g.arc(hand.x, hand.y, .07 * D, 0, 7); g.fill(); out(.01);
   }
   g.restore();
 }
@@ -1979,9 +1992,13 @@ function render() {
   for (const p of snow) { if (!reduceMotion) { p.y += p.v * .016; p.x += Math.sin(t * .5 + p.ph) * .15; if (p.y > H) { p.y = -5; p.x = Math.random() * W; } } ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill(); }
   // fish
   const sorted = fish.slice().sort((a, b) => a.k - b.k);
-  for (const f of sorted) if (f.trail && f.trail.length > 1) drawTrail(ctx, f);
-  for (const f of sorted) drawFish(ctx, f);
+  // big visitors swim right through the school: about 30 % of the fish are in front of them, 70 % behind
+  for (const f of sorted) if (f.front === undefined) f.front = Math.random() < .3;
+  for (const f of sorted) if (!f.front && f.trail && f.trail.length > 1) drawTrail(ctx, f);
+  for (const f of sorted) if (!f.front) drawFish(ctx, f);
   drawVisitorBehindReef(ctx);
+  for (const f of sorted) if (f.front && f.trail && f.trail.length > 1) drawTrail(ctx, f);
+  for (const f of sorted) if (f.front) drawFish(ctx, f);
   // foreground corals
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(fgLayer, 0, 0); ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   // seaweed
@@ -2058,10 +2075,10 @@ function onLoud() {
   st.progress = 0; st.sharkT = 0; st.tick = 0; st.events = []; st.silentT = 0;
   st.fleeStage = 0; // the fish flee in two steps, see fleeOnNoise
 }
-/* too loud for 2 s: half of the fish swim away; for 3 s: the rest too */
+/* as soon as it counts as too loud, half of the fish swim away; 2 s more above the limit and the rest go too */
 function fleeOnNoise() {
   if (!S.swimAway || st.status !== 'loud') return;
-  const stage = st.overT >= Math.max(3, S.tolerance) ? 2 : st.overT >= Math.max(2, S.tolerance) ? 1 : 0;
+  const stage = st.overT >= S.tolerance + 2 ? 2 : 1;
   if (stage <= (st.fleeStage || 0)) return;
   const fs = fish.filter(f => !f.leaving && !f.ambient && !f.drawn && !f.dropping);
   const n = stage === 2 ? fs.length : Math.ceil(fs.length / 2);
@@ -2267,15 +2284,15 @@ $('#swimAway').addEventListener('change', e => { S.swimAway = e.target.checked; 
 function setShark(v, src) {
   const n = Math.round(+v);
   if (!Number.isFinite(n)) return;
-  S.sharkSeconds = clamp(n, 5, 3600); st.sharkT = Math.min(st.sharkT, S.sharkSeconds);
+  S.sharkSeconds = clamp(n, 1, 3600); st.sharkT = Math.min(st.sharkT, S.sharkSeconds);
   if (src !== 1) $('#sharkSec').value = S.sharkSeconds;
   if (src !== 2) $('#sharkSec2').value = S.sharkSeconds;
   persist();
 }
 $('#sharkSec').addEventListener('change', e => { setShark(e.target.value); e.target.value = S.sharkSeconds; });
 $('#sharkSec2').addEventListener('change', e => { setShark(e.target.value); e.target.value = S.sharkSeconds; });
-$('#sharkSec').addEventListener('input', e => { if (+e.target.value >= 5 && +e.target.value <= 3600) setShark(e.target.value, 1); });
-$('#sharkSec2').addEventListener('input', e => { if (+e.target.value >= 5 && +e.target.value <= 3600) setShark(e.target.value, 2); });
+$('#sharkSec').addEventListener('input', e => { if (+e.target.value >= 1 && +e.target.value <= 3600) setShark(e.target.value, 1); });
+$('#sharkSec2').addEventListener('input', e => { if (+e.target.value >= 1 && +e.target.value <= 3600) setShark(e.target.value, 2); });
 $('#btnCalib').addEventListener('click', () => {
   if (st.mode === 'idle') { $('#calibTxt').textContent = 'Starte zuerst das Mikrofon.'; return; }
   st.calib = { sum: 0, n: 0, left: 5 };
