@@ -879,6 +879,10 @@ function paintFishSprite(sp, L) {
   // gill cover
   g.strokeStyle = 'rgba(30,20,10,.28)'; g.lineWidth = Math.max(.8, L * .007);
   g.beginPath(); g.moveTo(G.X(.22), G.T(.22) * .8); g.quadraticCurveTo(G.X(.3), 0, G.X(.22), G.B(.22) * .8); g.stroke();
+  // a faint inner glow, clipped to the body so it never leaves the outline
+  { const gr = g.createRadialGradient(G.X(.45), 0, 0, G.X(.45), 0, L * .4);
+    gr.addColorStop(0, 'rgba(255, 245, 220, .14)'); gr.addColorStop(1, 'rgba(255, 245, 220, 0)');
+    g.save(); g.globalCompositeOperation = 'lighter'; g.fillStyle = gr; g.fillRect(-L, -L, L * 2, L * 2); g.restore(); }
   g.restore();
   // ink outline, soft like a pen line
   fishBodyPath(g, G, S); g.strokeStyle = 'rgba(25, 20, 30, .55)'; g.lineWidth = Math.max(.8, L * .007); g.stroke();
@@ -909,12 +913,6 @@ function drawFish(g, f) {
   g.globalAlpha = 1 - f.tuck * .35;
   // swim: the head swings a little, the tail end a lot, and the tail fin turns towards/away from us
   const N = 20, sw = sp.cw / N, scl = sp.c.width / sp.cw, qL = sp.cw * (1 / 1.7);
-  { // a soft glow around the fish
-    const gc = shade(S.low, .35).replace('rgb(', 'rgba(').replace(')', ', ');
-    const gr = g.createRadialGradient(0, 0, qL * .05, 0, 0, qL * .62);
-    gr.addColorStop(0, gc + '.32)'); gr.addColorStop(.5, gc + '.12)'); gr.addColorStop(1, gc + '0)');
-    g.save(); g.globalCompositeOperation = 'lighter'; g.fillStyle = gr; g.beginPath(); g.ellipse(0, 0, qL * .62, qL * (S.H * .5 + .22), 0, 0, 7); g.fill(); g.restore();
-  }
   const headX = sp.ox + qL * .5;
   let cur = sp.cw; // draw from the head (right) to the tail (left)
   for (let i = N - 1; i >= 0; i--) {
@@ -1034,27 +1032,6 @@ function shakeAmount() {
   return 1 - sm(dist / (5 * e.v));
 }
 
-function subWake(e) {
-  const p = subGeom(e), Hh = e.L * .18, px = p.x - e.dir * e.L * .5, len = e.L * .5;
-  const x0 = Math.max(0, Math.min(px, px - e.dir * len)), x1 = Math.min(W, Math.max(px, px - e.dir * len));
-  if (x1 - x0 < 4) return;
-  const y0 = Math.max(0, p.y - Hh * .45), y1 = Math.min(H, p.y + Hh * .45), sh = 4, segs = 6, sw = (x1 - x0) / segs;
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  for (let y = y0; y < y1; y += sh) {
-    const vy = 1 - Math.abs((y - p.y) / (Hh * .45));
-    for (let k = 0; k < segs; k++) {
-      const sx = x0 + k * sw, mid = sx + sw / 2, near = 1 - Math.min(1, Math.abs(mid - px) / len);
-      const a = Math.sin(Math.PI * (k + .5) / segs) * vy * (.4 + .6 * near), dx = Math.sin(st.t * 7 + y * .11 + k) * 3 * U * a;
-      if (Math.abs(dx) < .2) continue;
-      ctx.drawImage(cv, sx * DPR, y * DPR, sw * DPR, sh * DPR, (sx + dx) * DPR, y * DPR, sw * DPR, sh * DPR);
-    }
-  }
-  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  // faint glints in the churned water
-  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = 'rgba(220, 245, 255, .1)'; ctx.lineWidth = 2 * U;
-  for (let k = 0; k < 5; k++) { const yy = p.y + (k - 2) * Hh * .12; ctx.beginPath(); for (let i = 0; i <= 20; i++) { const xx = px - e.dir * len * i / 20; ctx.lineTo(xx, yy + Math.sin(st.t * 5 + i * .8 + k) * 4 * U); } ctx.stroke(); }
-  ctx.restore();
-}
 function drawVisitorBehindReef(g) {
   if (st.octo) drawOcto(g, octoPose(st.octo), st.t);
   const e = st.ev; if (!e) return;
@@ -1791,8 +1768,6 @@ function render() {
   for (const b of bubbles) { ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.stroke(); ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.arc(b.x - b.r * .35, b.y - b.r * .35, b.r * .25, 0, 7); ctx.fill(); }
   if (inks.length) drawInk(ctx);
   if (st.ev && st.ev.kind === 'kraken') drawKraken(ctx, st.ev);
-  // the water behind the propeller shimmers and wobbles
-  if (st.ev && st.ev.kind === 'sub' && st.ev.t > 0 && !reduceMotion) subWake(st.ev);
   // the submarine makes water and reef shake: stronger the closer it is
   const sk = shakeAmount();
   if (sk > 0.001) {
