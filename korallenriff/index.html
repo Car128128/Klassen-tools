@@ -117,6 +117,16 @@ button { cursor: pointer; }
 .shark-set label { font-weight: 700; }
 .shark-set input { width: 5.5em; padding: 8px 10px; border-radius: 10px; border: 1px solid #c3d6df; font-size: 17px; font-variant-numeric: tabular-nums; background: #fff; color: var(--ink); }
 .shark-set small { flex-basis: 100%; color: var(--muted); font-size: 13px; }
+.presets, .measure { flex-basis: 100%; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.chip { border: 2px solid #c3d6df; background: #fff; color: var(--ink); border-radius: 999px; padding: 8px 14px; font-weight: 700; font-size: 15px; }
+.chip.on { border-color: var(--coral); background: #fff1ec; }
+.measure .btn { font-size: 15px; padding: 10px 16px; background: #fff; }
+.meas-live { flex-basis: 100%; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.meas-bar { flex: 1 1 200px; height: 22px; border-radius: 11px; }
+.meas-num { font-variant-numeric: tabular-nums; min-width: 5.5em; }
+.meas-num b { font-size: 20px; }
+.meas-mic { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.meas-mic .dot { width: 10px; height: 10px; border-radius: 50%; background: #ff4d4d; animation: pulse 1.6s infinite; }
 .mults { flex-basis: 100%; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .mults input { width: 4.2em; }
 /* Settings sheet */
@@ -211,8 +221,21 @@ button { cursor: pointer; }
     </div>
     <div class="shark-set">
       <label for="thrStart">Schallschwelle</label>
-      <input type="range" id="thrStart" min="0" max="100" step="1" value="60" style="flex:1;min-width:140px;width:auto;padding:0;border:0;background:none;accent-color:var(--coral)">
-      <input type="number" id="thrStartNum" min="0" max="100" step="1" value="60" inputmode="numeric">
+      <input type="range" id="thrStart" min="0" max="100" step="1" value="32" style="flex:1;min-width:140px;width:auto;padding:0;border:0;background:none;accent-color:var(--coral)">
+      <input type="number" id="thrStartNum" min="0" max="100" step="1" value="32" inputmode="numeric">
+      <div class="presets">
+        <button type="button" class="chip" id="preStill" data-v="32">Stillarbeit · 32</button>
+        <button type="button" class="chip" id="preGroup" data-v="50">Gruppenarbeit · 50</button>
+      </div>
+      <div class="measure">
+        <button type="button" class="btn" id="btnMeasure">Aktuelle Lautstärke messen</button>
+        <div class="meas-live" id="measLive" hidden>
+          <div class="live meas-bar" aria-hidden="true"><i id="measFill"></i><u id="measMark"></u></div>
+          <span class="meas-num">jetzt <b id="measNum">0</b></span>
+          <span class="meas-mic"><span class="dot"></span>Mikrofon aktiv, misst nur die Lautstärke</span>
+          <button type="button" class="linkbtn" id="btnMeasureStop">Messen beenden</button>
+        </div>
+      </div>
       <small>0 bis 100. Wird die Schwelle überschritten, verstecken sich die Fische. Niedrig = empfindlich, hoch = erst bei großem Lärm.</small>
     </div>
     <div class="shark-set">
@@ -356,12 +379,12 @@ const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: r
 
 /* ---------- Settings & persistence (local only) ---------- */
 const KEY = 'laermampel-riff-v2';
-const S = { threshold: 60, fishSeconds: 3, tolerance: 1, swimAway: true, goal: 40, sharkSeconds: 60, mA: 5, mB: 10, mC: 15 };
+const S = { threshold: 32, fishSeconds: 3, tolerance: 1, swimAway: true, goal: 40, sharkSeconds: 60, mA: 5, mB: 10, mC: 15 };
 let saved = { species: [] };
 try {
   const raw = localStorage.getItem(KEY) || localStorage.getItem('laermampel-riff-v1');
   const isOld = !localStorage.getItem(KEY);
-  if (raw) { const d = JSON.parse(raw); Object.assign(S, d.settings || {}); if (isOld) { S.fishSeconds = 3; S.goal = Math.max(S.goal, 40); } saved.species = Array.isArray(d.species) ? d.species.slice(0, 60) : []; }
+  if (raw) { const d = JSON.parse(raw); Object.assign(S, d.settings || {}); if (isOld) { S.fishSeconds = 3; S.goal = Math.max(S.goal, 40); } if (!S.thrV2) { if (S.threshold === 60) S.threshold = 32; S.thrV2 = true; } saved.species = Array.isArray(d.species) ? d.species.slice(0, 60) : []; }
 } catch (e) {}
 let noStore = false;
 function persist() {
@@ -1290,6 +1313,7 @@ function updateCounter() {
 }
 let lastHud = 0;
 function updateHud() {
+  updateMeasure();
   // meter
   const lv = st.level;
   $('#meterFill').style.height = lv + '%';
@@ -1329,6 +1353,7 @@ function celebrate() {
 let audioCtx = null, analyser = null, buf = null, stream = null;
 async function startMic() {
   const err = $('#micErr'); err.hidden = true;
+  if (analyser) return true;
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     err.textContent = 'Dieser Browser erlaubt hier kein Mikrofon. Öffne die App direkt im Browser (nicht in einer Vorschau) oder probiere den Demo-Modus.';
     err.hidden = false; return false;
@@ -1357,7 +1382,7 @@ function stopMic() {
 }
 function readLevel(dt) {
   let target = 0;
-  if (st.mode === 'mic' && analyser) {
+  if (analyser && (st.mode === 'mic' || st.measuring)) {
     analyser.getFloatTimeDomainData(buf);
     let sum = 0; for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
     const rms = Math.sqrt(sum / buf.length);
@@ -1386,6 +1411,8 @@ $('#btnFull').addEventListener('click', async () => {
 
 /* ---------- Start / modes ---------- */
 function beginSession(mode) {
+  st.measuring = false; $('#measLive').hidden = true;
+  if (mode === 'demo') stopMic();
   setShark($('#sharkSec').value); readMults(); resetVisitors();
   st.mode = mode;
   $('#startOverlay').hidden = true;
@@ -1405,6 +1432,21 @@ function beginSession(mode) {
 }
 $('#btnStartMic').addEventListener('click', async () => { if (await startMic()) beginSession('mic'); });
 $('#btnStartDemo').addEventListener('click', () => beginSession('demo'));
+function markPreset() { $('#preStill').classList.toggle('on', S.threshold === 32); $('#preGroup').classList.toggle('on', S.threshold === 50); }
+for (const id of ['preStill', 'preGroup']) $('#' + id).addEventListener('click', e => { setThr(+e.currentTarget.dataset.v); });
+$('#btnMeasure').addEventListener('click', async () => {
+  if (await startMic()) { st.measuring = true; $('#measLive').hidden = false; $('#btnMeasure').hidden = true; }
+});
+$('#btnMeasureStop').addEventListener('click', () => {
+  st.measuring = false; stopMic(); $('#measLive').hidden = true; $('#btnMeasure').hidden = false;
+});
+function updateMeasure() {
+  if (!st.measuring) return;
+  $('#measFill').style.width = st.level + '%';
+  $('#measFill').style.background = st.level >= S.threshold ? 'var(--stop)' : st.level >= S.threshold - 8 ? 'var(--warn)' : 'var(--go)';
+  $('#measMark').style.left = S.threshold + '%';
+  $('#measNum').textContent = Math.round(st.level);
+}
 $('#btnMode').addEventListener('click', async () => {
   if (st.mode === 'mic') { stopMic(); beginSession('demo'); }
   else { if (await startMic()) beginSession('mic'); else { closeSheet(); $('#startOverlay').hidden = false; st.mode = 'idle'; } }
@@ -1429,7 +1471,7 @@ $('#btnSettings').addEventListener('click', () => sheetOpen ? closeSheet() : ope
 $('#btnClose').addEventListener('click', closeSheet);
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
 function syncInputs() {
-  $('#thr').value = S.threshold; $('#thrStart').value = S.threshold; $('#thrStartNum').value = S.threshold; $('#fishSec').value = String(S.fishSeconds); $('#goal').value = String(S.goal);
+  $('#thr').value = S.threshold; $('#thrStart').value = S.threshold; $('#thrStartNum').value = S.threshold; markPreset(); $('#fishSec').value = String(S.fishSeconds); $('#goal').value = String(S.goal);
   $('#tol').value = String(S.tolerance); $('#swimAway').checked = S.swimAway;
   $('#sharkSec').value = S.sharkSeconds; $('#sharkSec2').value = S.sharkSeconds;
   $('#mA').value = S.mA; $('#mB').value = S.mB; $('#mC').value = S.mC;
@@ -1437,7 +1479,7 @@ function syncInputs() {
 syncInputs();
 function setThr(v) {
   const n = Math.round(+v); if (!Number.isFinite(n)) return;
-  S.threshold = clamp(n, 0, 100);
+  S.threshold = clamp(n, 0, 100); markPreset();
   for (const id of ['thr', 'thrStart', 'thrStartNum']) { const el = $('#' + id); if (document.activeElement !== el || id !== 'thrStartNum') el.value = S.threshold; }
   persist();
 }
