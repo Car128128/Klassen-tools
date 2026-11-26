@@ -365,7 +365,7 @@ button { cursor: pointer; }
     </div>
     <div class="field">
       <label class="check"><input type="checkbox" id="swimAway" checked> Bei Lärm schwimmen die Fische davon</label>
-      <small>Wird es zu laut, drehen die Fische zum nächsten Rand und flitzen mit einer Wasserspur davon. Ausgeschaltet verstecken sie sich nur hinter den Steinen. Gemalte Fische verstecken sich immer nur.</small>
+      <small>Ist es 2 Sekunden zu laut, schwimmt die Hälfte der Fische mit einer Wasserspur zum nächsten Rand davon, ab 3 Sekunden auch alle übrigen. Ausgeschaltet verstecken sie sich nur hinter den Steinen. Gemalte Fische verstecken sich immer nur.</small>
     </div>
     <div class="field">
       <span class="lbl">Runde</span>
@@ -1193,19 +1193,21 @@ function subFigure(e, Hh) {
 function subPerson(g, x, y, pr, waveT, fig) {
   g.fillStyle = g.strokeStyle = '#76512a'; g.lineCap = 'round'; // opaque, so overlapping parts don't show darker
   if (fig && fig.walking) { // side view, walking towards the stern (to the left here): nose and chin show in profile
-    const hx = x, lean = -pr * .05, sw = Math.sin(fig.step) * .5;
-    g.beginPath(); g.arc(hx + lean, y - pr * .3, pr * .24, 0, 7); g.fill();                                       // head
-    g.beginPath(); g.moveTo(hx + lean - pr * .2, y - pr * .36); g.lineTo(hx + lean - pr * .36, y - pr * .25);      // nose
-    g.lineTo(hx + lean - pr * .21, y - pr * .2); g.closePath(); g.fill();
-    g.fillRect(hx + lean * .5 - pr * .08, y - pr * .1, pr * .16, pr * .26);                                       // neck
+    const hx = x, lean = -pr * .05, sw = Math.sin(fig.step) * .75;
+    const arm = a => { g.beginPath(); g.moveTo(hx, y + pr * .3); g.lineTo(hx + Math.sin(a) * pr * .52, y + pr * .3 + Math.cos(a) * pr * .52); g.stroke(); };
+    g.lineWidth = pr * .15;
+    arm(-sw);                                                                                                      // far arm swings opposite
+    g.beginPath(); g.arc(hx + lean, y - pr * .2, pr * .24, 0, 7); g.fill();                                       // head
+    g.beginPath(); g.moveTo(hx + lean - pr * .2, y - pr * .26); g.lineTo(hx + lean - pr * .36, y - pr * .15);      // nose
+    g.lineTo(hx + lean - pr * .21, y - pr * .1); g.closePath(); g.fill();
+    g.fillRect(hx + lean * .5 - pr * .08, y - pr * .02, pr * .16, pr * .18);                                      // short neck
     g.beginPath(); g.ellipse(hx, y + pr * .72, pr * .33, pr * .58, 0, 0, 7); g.fill();                         // body, narrower from the side
-    g.lineWidth = pr * .15; g.beginPath(); g.moveTo(hx, y + pr * .3);                                              // swinging arm
-    g.lineTo(hx + Math.sin(sw) * pr * .5, y + pr * .3 + Math.cos(sw) * pr * .5); g.stroke();
+    arm(sw);                                                                                                       // near arm
     return;
   }
   const hx = x - pr * .1;
-  g.beginPath(); g.arc(hx, y - pr * .3, pr * .24, 0, 7); g.fill();                                   // head
-  g.fillRect(hx - pr * .09, y - pr * .1, pr * .18, pr * .26);                                       // neck
+  g.beginPath(); g.arc(hx, y - pr * .2, pr * .24, 0, 7); g.fill();                                   // head
+  g.fillRect(hx - pr * .09, y - pr * .02, pr * .18, pr * .18);                                      // short neck
   g.beginPath(); g.ellipse(hx, y + pr * .72, pr * .5, pr * .58, 0, 0, 7); g.fill();               // shoulders and body
   if (waveT !== null) {
     const a = -2.1 + Math.sin(waveT * 5) * .45, sx = hx + pr * .36, sy = y + pr * .38, ax = sx + Math.cos(a) * pr * .62, ay = sy + Math.sin(a) * pr * .62;
@@ -1218,7 +1220,9 @@ function drawSub(g, e) {
   g.save(); g.translate(p.x, p.y); g.scale(e.dir, 1); g.rotate(Math.sin(e.t * .3) * .01);
   // propeller
   g.save(); g.translate(-L * .5, 0);
-  g.fillStyle = '#3a3324'; g.fillRect(-L * .012, -Hh * .06, L * .02, Hh * .12);
+  g.fillStyle = '#3a3324'; g.fillRect(-L * .012, -Hh * .035, L * .045, Hh * .07);                    // shaft into the hull
+  g.beginPath(); g.moveTo(-L * .003, -Hh * .08); g.lineTo(L * .006, -Hh * .045); g.lineTo(L * .006, Hh * .045); g.lineTo(-L * .003, Hh * .08); g.closePath(); g.fill();
+  g.fillStyle = '#4a4130'; g.beginPath(); g.ellipse(-L * .014, 0, L * .007, Hh * .08, 0, 0, 7); g.fill(); // hub
   for (let i = 0; i < 4; i++) { const a = e.t * 9 + i * Math.PI / 2, s = Math.cos(a); g.fillStyle = s > 0 ? '#b89a4a' : '#8c7535'; g.beginPath(); g.ellipse(-L * .015, Math.sin(a) * Hh * .22, L * .006, Hh * .2 * Math.abs(s) + 1, 0, 0, 7); g.fill(); }
   g.restore();
   // rudder and stern planes
@@ -1686,6 +1690,7 @@ function logic(dt) {
   else if (status === 'loud' && st.underT >= 1.5) { status = 'quiet'; st.overT = 0; } // quiet again: forget the noise that came before
   if (status !== 'loud') status = (lv >= thr - 8 || st.overT > 0.05) ? 'warn' : 'quiet';
   if (status !== st.status) setStatus(status);
+  fleeOnNoise();
 
   if (st.mode !== 'idle' && !st.paused) {
     if (st.status === 'loud') st.sharkT = 0; else st.sharkT += dt; // timers stay at zero while it is too loud
@@ -1853,7 +1858,17 @@ function onLoud() {
   // too loud: the fish timer and all visitor timers start again from zero
   for (const q of st.events) if (st.done[q.kind] !== undefined) st.done[q.kind] = false; // not seen yet, so it can still come
   st.progress = 0; st.sharkT = 0; st.tick = 0; st.events = []; st.silentT = 0;
-  if (S.swimAway) { for (const f of fish) if (!f.leaving && !f.ambient && !f.drawn && !f.dropping) flee(f); st.refill = true; }
+  st.fleeStage = 0; // the fish flee in two steps, see fleeOnNoise
+}
+/* too loud for 2 s: half of the fish swim away; for 3 s: the rest too */
+function fleeOnNoise() {
+  if (!S.swimAway || st.status !== 'loud') return;
+  const stage = st.overT >= Math.max(3, S.tolerance) ? 2 : st.overT >= Math.max(2, S.tolerance) ? 1 : 0;
+  if (stage <= (st.fleeStage || 0)) return;
+  const fs = fish.filter(f => !f.leaving && !f.ambient && !f.drawn && !f.dropping);
+  const n = stage === 2 ? fs.length : Math.ceil(fs.length / 2);
+  fs.sort(() => Math.random() - .5).slice(0, n).forEach(flee);
+  st.fleeStage = stage; st.refill = true;
 }
 let msgTimer = 0;
 function say() { /* on-screen comments removed on request */ }
