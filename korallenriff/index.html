@@ -49,6 +49,13 @@ button { cursor: pointer; }
 .brand { display: flex; flex-direction: column; gap: 2px; text-shadow: 0 1px 6px rgba(0,0,0,.35); }
 .brand b { font-size: clamp(20px, 2.6vw, 30px); letter-spacing: .01em; }
 .brand span { font-size: 13px; opacity: .85; }
+/* small loudness scale: green to red, red = the limit, evenly divided */
+.vu { width: 180px; margin-top: 6px; }
+.vu-bar { position: relative; height: 12px; border-radius: 6px; overflow: hidden; background: linear-gradient(90deg, #2ecc71 0%, #a8d84a 30%, #f1c40f 55%, #e67e22 78%, #e53935 100%); box-shadow: 0 1px 4px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.35); transition: box-shadow .2s; }
+.vu-bar::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 calc(25% - 1px), rgba(255,255,255,.75) calc(25% - 1px) 25%); }
+.vu-bar i { position: absolute; top: 0; bottom: 0; right: 0; left: 0; background: rgba(8, 25, 38, .72); transition: left .08s linear; }
+.vu.over .vu-bar { box-shadow: 0 0 10px 2px rgba(229, 57, 53, .85), inset 0 0 0 1px rgba(255,255,255,.5); }
+.vu-ticks { display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; opacity: .9; margin-top: 2px; }
 .tools { display: flex; gap: 8px; align-items: flex-start; }
 .iconbtn { width: 48px; height: 48px; border-radius: 14px; border: 0; background: rgba(7, 34, 54, .55); color: var(--paper); display: grid; place-items: center; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
 .iconbtn:hover { background: rgba(7, 34, 54, .75); }
@@ -168,7 +175,7 @@ button { cursor: pointer; }
 
 <div class="hud" id="hud" data-status="quiet">
   <div class="top">
-    <div class="brand"><b>Lärmampel</b></div>
+    <div class="brand"><b>Lärmampel</b><div class="vu" id="vu" title="Lautstärke: ganz rechts (rot) ist die eingestellte Grenze"><div class="vu-bar"><i id="vuCover"></i></div><div class="vu-ticks" id="vuTicks"></div></div></div>
     <div class="tools">
       <button class="iconbtn" id="btnCam" title="Gemalten Fisch fotografieren" aria-label="Gemalten Fisch fotografieren">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 8h3l1.6-2.4h6.8L17 8h3v11H4z"/><circle cx="12" cy="13.2" r="3.4"/></svg>
@@ -319,8 +326,8 @@ button { cursor: pointer; }
     <h1 id="photoTitle">Gemalter Fisch</h1>
     <p id="photoMsg"></p>
     <canvas id="photoPrev" class="photo-prev" width="360" height="220" hidden></canvas>
-    <label class="photo-ctl" id="photoCtl" hidden>Kontrast <input type="range" id="photoContrast" min="0" max="100" value="50" aria-label="Kontrast zum Ausschneiden"></label>
-    <small id="photoCtlHint" hidden>Mehr Kontrast lässt Papier und Schatten verschwinden, weniger behält zarte Farben.</small>
+    <label class="photo-ctl" id="photoCtl" hidden>Ausschneiden <input type="range" id="photoContrast" min="0" max="100" value="50" aria-label="Wie streng der Fisch ausgeschnitten wird"></label>
+    <small id="photoCtlHint" hidden>Nach rechts: Papier, Schatten und Flecken verschwinden. Nach links: zarte, helle Farben bleiben erhalten.</small>
     <div class="btns" id="photoActions" hidden>
       <button class="btn primary" id="btnPhotoAdd">Ins Riff setzen</button>
       <button class="btn" id="btnPhotoFlip">Umdrehen</button>
@@ -643,7 +650,7 @@ function resize() {
 }
 
 /* ---------- Fish ---------- */
-let fish = [], bubbles = [];
+let fish = [], bubbles = [], splashes = [];
 function fishSize(sp, k) { return clamp(Math.min(W, H) * .085, 40, 110) * SPECIES[sp].L * k; }
 function newFish(sp, opts = {}) {
   const k = 0.8 + Math.random() * .45;
@@ -939,9 +946,16 @@ function drawFish(g, f) {
 }
 
 function updateFish(f, dt) {
-  if (f.dropping) {
-    f.ph += dt * 3; f.y += 55 * U * dt; f.x += Math.sin(f.ph * .7) * 10 * dt;
-    if (f.y >= f.dropY) { f.dropping = false; f.ty = f.y; pickTarget(f); }
+  if (f.dropping) { // plop! falls in from above, splashes, is braked by the water and wobbles down
+    f.ph += dt * 3;
+    if (!f.splashed) {
+      f.vy += 1400 * U * dt; f.y += f.vy * dt; f.rot = (f.rot || 0) + f.spin * dt;
+      if (f.y > -f.size * .1) { f.splashed = true; f.vy *= .45; plopSplash(f); }
+    } else {
+      f.vy = Math.max(35 * U, f.vy * Math.exp(-dt * 2.6)); f.y += f.vy * dt; f.x += Math.sin(f.ph * .7) * 10 * dt;
+      f.rot = (f.rot || 0) * Math.exp(-dt * 2.2);
+      if (f.y >= f.dropY && f.vy < 60 * U) { f.dropping = false; f.rot = 0; f.ty = f.y; pickTarget(f); }
+    }
     return;
   }
   const scared = st.status === 'loud' && !f.leaving && !f.ambient && !f.dropping && (f.drawn || !S.swimAway);
@@ -1753,40 +1767,81 @@ async function loadPhoto(file) {
   });
 }
 // Removes the paper around the drawing: flood fill from the border over light, low-colour pixels.
-function cutOutDrawing(img, contrast = 1) {
-  const maxSide = 700, sc = Math.min(1, maxSide / Math.max(img.width, img.height));
-  const w = Math.max(1, Math.round(img.width * sc)), h = Math.max(1, Math.round(img.height * sc));
+function cutOutDrawing(img, strict = .5) {
+  // if the chosen setting finds no fish (e.g. the paper itself counts as drawing), try a little stricter
+  for (let s = strict; s <= 1.001; s += .12) { const out = cutOutCore(img, Math.min(1, s)); if (out) return out; }
+  return null;
+}
+function cutOutCore(img, strict) {
+  // everything stays in this browser tab: the photo is only cut out here, nothing is stored or sent
+  const maxSide = 640, sc = Math.min(1, maxSide / Math.max(img.width, img.height));
+  const w = Math.max(1, Math.round(img.width * sc)), h = Math.max(1, Math.round(img.height * sc)), N = w * h;
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   const g = c.getContext('2d'); g.drawImage(img, 0, 0, w, h);
   const id = g.getImageData(0, 0, w, h), d = id.data;
-  if (contrast !== 1) for (let i = 0; i < d.length; i += 4) for (let k = 0; k < 3; k++) d[i + k] = clamp((d[i + k] - 128) * contrast + 128 + 12 * (contrast - 1), 0, 255);
-  // paper colour = median-ish of the border
-  let rs = 0, gs = 0, bs = 0, n = 0;
-  for (let x = 0; x < w; x += 4) for (const y of [2, h - 3]) { const i = (y * w + x) * 4; rs += d[i]; gs += d[i + 1]; bs += d[i + 2]; n++; }
-  for (let y = 0; y < h; y += 4) for (const x of [2, w - 3]) { const i = (y * w + x) * 4; rs += d[i]; gs += d[i + 1]; bs += d[i + 2]; n++; }
-  const pr = rs / n, pg = gs / n, pb = bs / n;
-  const isPaper = i => { const dr = d[i] - pr, dg = d[i + 1] - pg, db = d[i + 2] - pb; return dr * dr + dg * dg + db * db < 70 * 70 && Math.max(d[i], d[i + 1], d[i + 2]) - Math.min(d[i], d[i + 1], d[i + 2]) < 60; };
-  const seen = new Uint8Array(w * h), stack = [];
-  for (let x = 0; x < w; x++) { stack.push(x, (h - 1) * w + x); }
-  for (let y = 0; y < h; y++) { stack.push(y * w, y * w + w - 1); }
-  while (stack.length) {
-    const p = stack.pop(); if (seen[p]) continue; seen[p] = 1;
-    if (!isPaper(p * 4)) continue;
-    d[p * 4 + 3] = 0;
-    const x = p % w;
-    if (x > 0) stack.push(p - 1); if (x < w - 1) stack.push(p + 1);
-    if (p >= w) stack.push(p - w); if (p < w * (h - 1)) stack.push(p + w);
+  // 1) brightness of the paper, estimated locally (so shadows and uneven light do not count as drawing)
+  const L = new Float32Array(N), S = new Float32Array(N);
+  for (let p = 0, i = 0; p < N; p++, i += 4) { const mx = Math.max(d[i], d[i + 1], d[i + 2]), mn = Math.min(d[i], d[i + 1], d[i + 2]); L[p] = .3 * d[i] + .59 * d[i + 1] + .11 * d[i + 2]; S[p] = mx > 25 ? (mx - mn) / mx : 0; }
+  const cs = Math.max(8, Math.round(Math.max(w, h) / 14)), gw = Math.ceil(w / cs), gh = Math.ceil(h / cs), cell = new Float32Array(gw * gh);
+  for (let cy = 0; cy < gh; cy++) for (let cx = 0; cx < gw; cx++) {
+    const vals = [];
+    for (let y = cy * cs; y < Math.min(h, cy * cs + cs); y += 2) for (let x = cx * cs; x < Math.min(w, cx * cs + cs); x += 2) vals.push(L[y * w + x]);
+    vals.sort((a, b) => a - b); cell[cy * gw + cx] = vals[Math.floor(vals.length * .9)] || 255;
   }
-  // soften the edge a little and find the bounding box
+  const bgc = new Float32Array(gw * gh); // median of the neighbours: a cell that is all drawing takes the paper from next door, a shadow stays a shadow
+  for (let cy = 0; cy < gh; cy++) for (let cx = 0; cx < gw; cx++) { const v = []; for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) { const x = cx + i, y = cy + j; if (x >= 0 && y >= 0 && x < gw && y < gh) v.push(cell[y * gw + x]); } v.sort((a, b) => a - b); bgc[cy * gw + cx] = Math.max(cell[cy * gw + cx], v[Math.floor(v.length / 2)]); }
+  const bgAt = (x, y) => { const fx = clamp(x / cs - .5, 0, gw - 1), fy = clamp(y / cs - .5, 0, gh - 1), x0 = Math.floor(fx), y0 = Math.floor(fy), x1 = Math.min(gw - 1, x0 + 1), y1 = Math.min(gh - 1, y0 + 1), ax = fx - x0, ay = fy - y0;
+    return lerp(lerp(bgc[y0 * gw + x0], bgc[y0 * gw + x1], ax), lerp(bgc[y1 * gw + x0], bgc[y1 * gw + x1], ax), ay); };
+  // 2) what is drawing: clearly darker than the paper around it, or colourful. The slider sets how strict this is.
+  const td = lerp(.05, .32, strict), ts = lerp(.12, .4, strict);
+  let m = new Uint8Array(N);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const p = y * w + x, dark = 1 - L[p] / Math.max(30, bgAt(x, y)); m[p] = dark > td || (S[p] > ts && dark > -.05) ? 1 : 0; }
+  // 3) close small gaps in the outline (grow, then shrink)
+  const box = (src, r, keepIfAny) => { // separable square filter on a 0/1 mask
+    const tmp = new Uint8Array(N), out = new Uint8Array(N), k = 2 * r + 1;
+    for (let y = 0; y < h; y++) { let s = 0; const o = y * w; for (let x = -r; x < w + r; x++) { if (x + r < w && x + r >= 0) s += src[o + x + r]; if (x - r - 1 >= 0 && x - r - 1 < w) s -= src[o + x - r - 1]; if (x >= 0 && x < w) tmp[o + x] = keepIfAny ? (s > 0 ? 1 : 0) : (s >= Math.min(k, Math.min(x + r, w - 1) - Math.max(0, x - r) + 1) ? 1 : 0); } }
+    for (let x = 0; x < w; x++) { let s = 0; for (let y = -r; y < h + r; y++) { if (y + r < h && y + r >= 0) s += tmp[(y + r) * w + x]; if (y - r - 1 >= 0 && y - r - 1 < h) s -= tmp[(y - r - 1) * w + x]; if (y >= 0 && y < h) out[y * w + x] = keepIfAny ? (s > 0 ? 1 : 0) : (s >= Math.min(k, Math.min(y + r, h - 1) - Math.max(0, y - r) + 1) ? 1 : 0); } }
+    return out;
+  };
+  const r = Math.max(1, Math.round(Math.max(w, h) / 220));
+  m = box(box(m, r, true), r, false);
+  // anything dark that runs into the photo edge is the table or the edge of the paper, not the fish
+  { const seen = new Uint8Array(N), st3 = [];
+    for (let x = 0; x < w; x++) st3.push(x, (h - 1) * w + x);
+    for (let y = 0; y < h; y++) st3.push(y * w, y * w + w - 1);
+    while (st3.length) { const p = st3.pop(); if (seen[p] || !m[p]) continue; seen[p] = 1; m[p] = 0; const x = p % w; if (x > 0) st3.push(p - 1); if (x < w - 1) st3.push(p + 1); if (p >= w) st3.push(p - w); if (p < N - w) st3.push(p + w); } }
+  // 4) fill the inside of the outline: whatever the paper around it cannot reach belongs to the fish
+  const outside = new Uint8Array(N), st2 = [];
+  for (let x = 0; x < w; x++) st2.push(x, (h - 1) * w + x);
+  for (let y = 0; y < h; y++) st2.push(y * w, y * w + w - 1);
+  while (st2.length) { const p = st2.pop(); if (outside[p] || m[p]) continue; outside[p] = 1; const x = p % w; if (x > 0) st2.push(p - 1); if (x < w - 1) st2.push(p + 1); if (p >= w) st2.push(p - w); if (p < N - w) st2.push(p + w); }
+  // 5) keep the fish: the biggest blob that does not run into the photo edge (table, paper edge), plus parts close to it
+  const lab = new Int32Array(N), comps = [];
+  for (let p0 = 0; p0 < N; p0++) {
+    if (outside[p0] || lab[p0]) continue;
+    const c2 = { n: 0, edge: 0, x0: w, y0: h, x1: 0, y1: 0, id: comps.length + 1 }; comps.push(c2); st2.push(p0); lab[p0] = c2.id;
+    while (st2.length) { const p = st2.pop(), x = p % w, y = (p - x) / w; c2.n++; if (x === 0 || y === 0 || x === w - 1 || y === h - 1) c2.edge++;
+      if (x < c2.x0) c2.x0 = x; if (x > c2.x1) c2.x1 = x; if (y < c2.y0) c2.y0 = y; if (y > c2.y1) c2.y1 = y;
+      for (const q of [x > 0 ? p - 1 : -1, x < w - 1 ? p + 1 : -1, p >= w ? p - w : -1, p < N - w ? p + w : -1]) if (q >= 0 && !outside[q] && !lab[q]) { lab[q] = c2.id; st2.push(q); } }
+  }
+  const inner = comps.filter(c3 => c3.edge < 4 && c3.n > N * .004).sort((a, b) => b.n - a.n), main = inner[0] || comps.slice().sort((a, b) => b.n - a.n)[0];
+  if (!main || main.n < N * .002) return null;
+  const mx = (main.x1 - main.x0) * .15, my = (main.y1 - main.y0) * .15, keep = new Set([main.id]);
+  for (const c3 of comps) if (c3 !== main && c3.edge < 4 && c3.n > main.n * .02 && c3.x1 > main.x0 - mx && c3.x0 < main.x1 + mx && c3.y1 > main.y0 - my && c3.y0 < main.y1 + my) keep.add(c3.id);
   let x0 = w, y0 = h, x1 = -1, y1 = -1;
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = (y * w + x) * 4; if (d[i + 3] > 0) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; } }
+  for (let p = 0, i = 0; p < N; p++, i += 4) {
+    const on = lab[p] && keep.has(lab[p]);
+    d[i + 3] = on ? 255 : 0;
+    if (on) { const x = p % w, y = (p - x) / w; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  }
+  // soft edge: pixels on the border of the fish are half transparent
+  for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) { const p = y * w + x; if (d[p * 4 + 3] && (!d[(p - 1) * 4 + 3] || !d[(p + 1) * 4 + 3] || !d[(p - w) * 4 + 3] || !d[(p + w) * 4 + 3])) d[p * 4 + 3] = 150; }
   if (x1 < 0 || (x1 - x0) < 12 || (y1 - y0) < 8) return null;
   g.putImageData(id, 0, 0);
   const cw = x1 - x0 + 1, ch = y1 - y0 + 1, s2 = Math.min(1, 320 / Math.max(cw, ch));
   const out = document.createElement('canvas'); out.width = Math.round(cw * s2); out.height = Math.round(ch * s2);
   out.getContext('2d').drawImage(c, x0, y0, cw, ch, 0, 0, out.width, out.height);
-  // wipe the working canvas
-  g.clearRect(0, 0, w, h); c.width = c.height = 1;
+  g.clearRect(0, 0, w, h); c.width = c.height = 1; // wipe the working canvas
   return out;
 }
 function mirrorCanvas(src) {
@@ -1794,7 +1849,7 @@ function mirrorCanvas(src) {
   const g = c.getContext('2d'); g.translate(c.width, 0); g.scale(-1, 1); g.drawImage(src, 0, 0); return c;
 }
 let pendingDrawing = null, pendingSrc = null, pendingFlip = false;
-const photoContrast = () => Math.pow(2, (+$('#photoContrast').value - 50) / 25);
+const photoContrast = () => +$('#photoContrast').value / 100; // how strict the cut-out is
 let recutReq = 0;
 function recut() {
   // cut the photo out again with the chosen contrast (the photo stays in memory only)
@@ -1802,7 +1857,7 @@ function recut() {
   recutReq = requestAnimationFrame(() => {
     if (!pendingSrc) return;
     let cut = cutOutDrawing(pendingSrc, photoContrast());
-    if (!cut) { pendingDrawing = null; $('#photoPrev').hidden = true; $('#btnPhotoAdd').hidden = true; $('#btnPhotoFlip').hidden = true; $('#photoMsg').textContent = 'So ist kein Fisch zu erkennen. Schiebe den Kontrast-Regler etwas.'; return; }
+    if (!cut) { pendingDrawing = null; $('#photoPrev').hidden = true; $('#btnPhotoAdd').hidden = true; $('#btnPhotoFlip').hidden = true; $('#photoMsg').textContent = 'So ist kein Fisch zu erkennen. Schiebe den Regler „Ausschneiden“ etwas.'; return; }
     if (pendingFlip) cut = mirrorCanvas(cut);
     pendingDrawing = cut; showPending();
   });
@@ -1822,21 +1877,26 @@ async function onPhoto(file) {
 }
 function showPending() {
   const pv = $('#photoPrev'), g = pv.getContext('2d');
-  pv.width = 360; pv.height = 220; g.clearRect(0, 0, pv.width, pv.height);
+  pv.width = 360; pv.height = 220;
+  // show the cut-out fish on water, so you can see what was cut away
+  const wg = g.createLinearGradient(0, 0, 0, pv.height); wg.addColorStop(0, '#3fa9d6'); wg.addColorStop(1, '#0f5c8a'); g.fillStyle = wg; g.fillRect(0, 0, pv.width, pv.height);
   const s = Math.min(pv.width / pendingDrawing.width, pv.height / pendingDrawing.height) * .9;
   g.drawImage(pendingDrawing, (pv.width - pendingDrawing.width * s) / 2, (pv.height - pendingDrawing.height * s) / 2, pendingDrawing.width * s, pendingDrawing.height * s);
   pv.hidden = false; $('#photoActions').hidden = false; $('#btnPhotoAdd').hidden = false; $('#btnPhotoFlip').hidden = false;
   $('#photoMsg').textContent = 'So sieht der Fisch aus. Er soll nach rechts schauen. Wenn nicht: „Umdrehen“.';
 }
 function closePhoto() { $('#photoOverlay').hidden = true; pendingDrawing = null; if (pendingSrc && pendingSrc.close) pendingSrc.close(); pendingSrc = null; $('#photoCtl').hidden = true; $('#photoCtlHint').hidden = true; const pv = $('#photoPrev'); pv.getContext('2d').clearRect(0, 0, pv.width, pv.height); $('#photoInput').value = ''; }
+function plopSplash(f) {
+  for (let i = 0; i < 34; i++) { const b = spawnBubble(f.x + (Math.random() - .5) * f.size * .9, 4 + Math.random() * f.size * .5, i % 3 === 0, i % 3 === 2); b.vx = (Math.random() - .5) * 90 * U; }
+  splashes.push({ x: f.x, w: f.size, born: st.t });
+}
 function addDrawnFish(img) {
   const size = clamp(Math.min(W, H) * .16, 70, 190) * (0.9 + Math.random() * .2);
   const f = {
-    sp: 'drawn', drawn: true, img, k: 1.05, size, x: W * (.2 + Math.random() * .6), y: -size, vx: 0, vy: 40, tx: 0, ty: 0,
+    sp: 'drawn', drawn: true, img, k: 1.05, size, x: W * (.25 + Math.random() * .5), y: -size * 1.6, vx: 0, vy: 260 * U, tx: 0, ty: 0, splashed: false, spin: (Math.random() - .5) * 5,
     face: 1, ph: Math.random() * 6, speed: (16 + Math.random() * 10) * U, hide: Math.floor(Math.random() * 1000), tuck: 0,
     leaving: false, ambient: false, dropping: true, dropY: H * (.25 + Math.random() * .3), side: Math.random() < .5 ? 1 : -1
   };
-  for (let i = 0; i < 14; i++) spawnBubble(f.x + (Math.random() - .5) * size, 6, true);
   fish.push(f);
 }
 function drawDrawnFish(g, f) {
@@ -1844,7 +1904,7 @@ function drawDrawnFish(g, f) {
   const v = Math.hypot(f.vx, f.vy), amp = Hh * (.03 + Math.min(v / 400, .05));
   g.save(); g.translate(f.x, f.y + Math.sin(f.ph * .3) * 2);
   g.scale(f.face * (1 - f.tuck * .1), 1 - f.tuck * .1);
-  g.rotate(f.dropping ? Math.sin(f.ph * .8) * .25 : clamp(f.vy / 300, -.3, .3) * Math.sign(f.face || 1));
+  g.rotate(f.dropping ? (f.rot || 0) + Math.sin(f.ph * .8) * .2 : clamp(f.vy / 300, -.3, .3) * Math.sign(f.face || 1));
   g.globalAlpha = 1 - f.tuck * .35;
   // the picture bends like a swimming fish: the tail end (left) moves most
   for (let i = 0; i < N; i++) {
@@ -2040,6 +2100,15 @@ function render() {
   // bubbles
   ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 1.5;
   for (const b of bubbles) { ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.stroke(); ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.arc(b.x - b.r * .35, b.y - b.r * .35, b.r * .25, 0, 7); ctx.fill(); }
+  // splash where a drawn fish plopped into the water: foam ring and a bright flash at the surface
+  splashes = splashes.filter(sp => st.t - sp.born < 1.1);
+  for (const sp of splashes) {
+    const k = (st.t - sp.born) / 1.1, a = 1 - k, R = sp.w * (.35 + 1.1 * Math.sqrt(k));
+    const fg2 = ctx.createRadialGradient(sp.x, 0, 0, sp.x, 0, R * 1.2); fg2.addColorStop(0, 'rgba(255,255,255,' + (.55 * a).toFixed(3) + ')'); fg2.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = fg2; ctx.fillRect(sp.x - R * 1.2, 0, R * 2.4, R * 1.2);
+    ctx.strokeStyle = 'rgba(255,255,255,' + (.8 * a).toFixed(3) + ')'; ctx.lineWidth = 3 * U * a + 1;
+    for (const rr of [R, R * .65]) { ctx.beginPath(); ctx.ellipse(sp.x, 4 * U, rr, rr * .28, 0, 0, Math.PI); ctx.stroke(); }
+  }
   if (inks.length) drawInk(ctx);
   if (st.ev && st.ev.kind === 'kraken') drawKraken(ctx, st.ev);
   if (st.ev && st.ev.kind === 'inkpass') drawInkPass(ctx, st.ev);
@@ -2091,13 +2160,17 @@ function updateCounter() {
   const n = residentFish().length;
   $('#countTxt').textContent = String(n);
 }
-let lastHud = 0;
+let lastHud = 0, vuThr = -1;
 function updateHud() {
   updateMeasure();
   // meter
   const lv = st.level;
   $('#meterFill').style.height = lv + '%';
   $('#meterMark').style.bottom = S.threshold + '%';
+  // loudness scale top left: from 0 up to the limit (red end)
+  $('#vuCover').style.left = (clamp(lv / Math.max(1, S.threshold), 0, 1) * 100).toFixed(1) + '%';
+  $('#vu').classList.toggle('over', lv >= S.threshold);
+  if (vuThr !== S.threshold) { vuThr = S.threshold; $('#vuTicks').innerHTML = [0, .25, .5, .75, 1].map(k => '<span>' + Math.round(k * S.threshold) + '</span>').join(''); }
   if (sheetOpen) {
     $('#liveFill').style.width = lv + '%';
     $('#liveFill').style.background = lv >= S.threshold ? 'var(--stop)' : lv >= S.threshold - 8 ? 'var(--warn)' : 'var(--go)';
