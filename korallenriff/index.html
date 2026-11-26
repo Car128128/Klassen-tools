@@ -258,7 +258,6 @@ button { cursor: pointer; }
     <p class="err" id="micErr" hidden></p>
     <div class="btns">
       <button class="btn primary" id="btnStartMic">Mikrofon starten</button>
-      <button class="btn" id="btnCam2">Gemalten Fisch fotografieren</button>
       <button class="btn" id="btnStartDemo">Ohne Mikrofon ausprobieren</button>
     </div>
     <button class="linkbtn" id="btnInfo1">Datenschutzerklärung und Infos für Leitung und Eltern</button>
@@ -1594,7 +1593,6 @@ $('#btnStartMic').addEventListener('click', async () => { if (await startMic()) 
 $('#btnStartDemo').addEventListener('click', () => beginSession('demo'));
 const openCamera = () => { $('#photoInput').value = ''; $('#photoInput').click(); };
 $('#btnCam').addEventListener('click', openCamera);
-$('#btnCam2').addEventListener('click', openCamera);
 $('#photoInput').addEventListener('change', e => onPhoto(e.target.files && e.target.files[0]));
 $('#btnPhotoFlip').addEventListener('click', () => { if (pendingDrawing) { pendingDrawing = mirrorCanvas(pendingDrawing); showPending(); } });
 $('#btnPhotoAdd').addEventListener('click', () => { if (pendingDrawing) addDrawnFish(pendingDrawing); pendingDrawing = null; closePhoto(); });
