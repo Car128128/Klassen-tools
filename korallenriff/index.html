@@ -113,6 +113,10 @@ button { cursor: pointer; }
 .card.info ul { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
 .small { font-size: 13px !important; color: var(--muted) !important; }
 .overlay#infoOverlay { place-items: start center; z-index: 40; }
+.shark-set { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--paper-2); border-radius: 14px; padding: 12px 14px; }
+.shark-set label { font-weight: 700; }
+.shark-set input { width: 5.5em; padding: 8px 10px; border-radius: 10px; border: 1px solid #c3d6df; font-size: 17px; font-variant-numeric: tabular-nums; background: #fff; color: var(--ink); }
+.shark-set small { flex-basis: 100%; color: var(--muted); font-size: 13px; }
 /* Settings sheet */
 .sheet { position: fixed; top: 0; right: 0; bottom: 0; width: min(420px, 100%); background: var(--paper); color: var(--ink); z-index: 30; box-shadow: -10px 0 40px rgba(0,0,0,.35); display: flex; flex-direction: column; transform: translateX(105%); transition: transform .3s ease; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); padding-right: env(safe-area-inset-right, 0px); user-select: text; -webkit-user-select: text; }
 .sheet.open { transform: none; }
@@ -203,6 +207,11 @@ button { cursor: pointer; }
         <li>Solange gemessen wird, leuchtet unten ein roter Punkt „Mikrofon aktiv“.</li>
       </ul>
     </div>
+    <div class="shark-set">
+      <label for="sharkSec">Hai schwimmt durchs Bild alle</label>
+      <input type="number" id="sharkSec" min="5" max="3600" step="1" value="60" inputmode="numeric"> <span>Sekunden</span>
+      <small>Erlaubt sind 5 bis 3600 Sekunden. Die Fische verstecken sich kurz und kommen danach wieder.</small>
+    </div>
     <p class="err" id="micErr" hidden></p>
     <div class="btns">
       <button class="btn primary" id="btnStartMic">Mikrofon starten</button>
@@ -287,6 +296,11 @@ button { cursor: pointer; }
       <small>So lange muss es leise sein, dann kommt ein neuer Fisch. Wird es laut, beginnt die Wartezeit von vorn.</small>
     </div>
     <div class="field">
+      <label for="sharkSec2">Hai schwimmt durchs Bild alle … Sekunden</label>
+      <input type="number" id="sharkSec2" min="5" max="3600" step="1" value="60" inputmode="numeric" style="padding:10px 12px;border-radius:12px;border:1px solid #c3d6df;font-size:16px;background:#fff;color:var(--ink);width:8em">
+      <small>5 bis 3600 Sekunden. Die Zeit läuft, solange die App nicht pausiert ist.</small>
+    </div>
+    <div class="field">
       <label for="goal">Ziel: Fische bis zur Belohnung</label>
       <select id="goal"><option value="5">5</option><option value="10">10</option><option value="15">15</option><option value="20">20</option><option value="30">30</option><option value="40">40</option><option value="50">50</option><option value="60">60</option></select>
     </div>
@@ -327,7 +341,7 @@ const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: r
 
 /* ---------- Settings & persistence (local only) ---------- */
 const KEY = 'laermampel-riff-v2';
-const S = { threshold: 60, fishSeconds: 3, tolerance: 1, swimAway: true, goal: 40 };
+const S = { threshold: 60, fishSeconds: 3, tolerance: 1, swimAway: true, goal: 40, sharkSeconds: 60 };
 let saved = { species: [] };
 try {
   const raw = localStorage.getItem(KEY) || localStorage.getItem('laermampel-riff-v1');
@@ -343,7 +357,7 @@ function persist() {
 /* ---------- State ---------- */
 const st = {
   mode: 'idle', paused: false, level: 0, status: 'quiet', overT: 0, underT: 99, loudT: 0,
-  progress: 0, celebrated: false, t: 0, msgUntil: 0, calib: null
+  progress: 0, sharkT: 0, shark: null, celebrated: false, t: 0, msgUntil: 0, calib: null
 };
 
 /* ---------- Canvas & reef ---------- */
@@ -735,7 +749,7 @@ function drawFish(g, f) {
 }
 
 function updateFish(f, dt) {
-  const scared = st.status === 'loud' && !f.leaving && !f.ambient;
+  const scared = (st.status === 'loud' || !!st.shark) && !f.leaving && !f.ambient;
   let tx = f.tx, ty = f.ty, maxV = f.speed;
   if (scared && hideSpots.length) {
     const h = hideSpots[f.hide % hideSpots.length];
@@ -756,6 +770,57 @@ function updateFish(f, dt) {
   if (Math.abs(f.vx) > 4) f.face = lerp(f.face, targetFace, clamp(dt * 6, 0, 1));
   f.ph += dt * (6 + v / 12);
   f.tuck = lerp(f.tuck, scared && d < 60 ? 1 : 0, clamp(dt * 3, 0, 1));
+}
+
+/* ---------- Shark ---------- */
+function spawnShark() {
+  const dir = Math.random() < .5 ? 1 : -1, L = clamp(Math.min(W * .42, H * .7), 220, 620);
+  st.shark = { dir, L, x: dir > 0 ? -L : W + L, y0: H * (.28 + Math.random() * .2), y: 0, v: (W + 2 * L) / 9, ph: 0 };
+}
+function drawShark(g, sh) {
+  const L = sh.L, Hh = L * .24, wag = Math.sin(sh.ph) * Hh * .28;
+  g.save(); g.translate(sh.x, sh.y); g.scale(sh.dir, 1);
+  // tail
+  g.save(); g.translate(-L * .42, 0); g.rotate(Math.sin(sh.ph - .6) * .12);
+  g.fillStyle = '#5d6b78';
+  g.beginPath(); g.moveTo(0, -Hh * .08); g.quadraticCurveTo(-L * .1, -Hh * .5, -L * .2, -Hh * 1.1 + wag * .3); g.quadraticCurveTo(-L * .12, -Hh * .2, -L * .1, 0); g.quadraticCurveTo(-L * .13, Hh * .25, -L * .15, Hh * .65 + wag * .3); g.quadraticCurveTo(-L * .06, Hh * .3, 0, Hh * .08); g.closePath(); g.fill();
+  g.restore();
+  // dorsal fin
+  g.fillStyle = '#56636f';
+  g.beginPath(); g.moveTo(L * .05, -Hh * .42); g.quadraticCurveTo(-L * .02, -Hh * .9, -L * .1, -Hh * 1.15); g.quadraticCurveTo(-L * .08, -Hh * .7, -L * .14, -Hh * .36); g.closePath(); g.fill();
+  // second small dorsal and anal fin
+  g.beginPath(); g.moveTo(-L * .3, -Hh * .2); g.lineTo(-L * .35, -Hh * .42); g.lineTo(-L * .36, -Hh * .16); g.closePath(); g.fill();
+  g.beginPath(); g.moveTo(-L * .28, Hh * .22); g.lineTo(-L * .33, Hh * .4); g.lineTo(-L * .34, Hh * .15); g.closePath(); g.fill();
+  // body
+  g.beginPath();
+  g.moveTo(L * .5, Hh * .02);
+  g.bezierCurveTo(L * .46, -Hh * .38, L * .2, -Hh * .5, -L * .05, -Hh * .44);
+  g.bezierCurveTo(-L * .25, -Hh * .36, -L * .38, -Hh * .14, -L * .44, -Hh * .06);
+  g.lineTo(-L * .44, Hh * .06);
+  g.bezierCurveTo(-L * .36, Hh * .16, -L * .2, Hh * .38, L * .02, Hh * .4);
+  g.bezierCurveTo(L * .25, Hh * .42, L * .42, Hh * .3, L * .5, Hh * .02);
+  g.closePath();
+  const bg = g.createLinearGradient(0, -Hh * .5, 0, Hh * .45);
+  bg.addColorStop(0, '#4c5966'); bg.addColorStop(.48, '#7d8b97'); bg.addColorStop(.58, '#dfe5ea'); bg.addColorStop(1, '#f4f6f8');
+  g.fillStyle = bg; g.fill();
+  g.save(); g.clip();
+  const hl = g.createRadialGradient(L * .1, -Hh * .35, 2, L * .05, -Hh * .2, L * .45);
+  hl.addColorStop(0, 'rgba(255,255,255,.22)'); hl.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = hl; g.fillRect(-L * .5, -Hh, L, Hh * 2);
+  g.restore();
+  // gill slits
+  g.strokeStyle = 'rgba(40, 50, 60, .45)'; g.lineWidth = Math.max(1, L * .004); g.lineCap = 'round';
+  for (let i = 0; i < 5; i++) { const gx = L * (.27 - i * .025); g.beginPath(); g.moveTo(gx, -Hh * .12); g.quadraticCurveTo(gx - L * .01, Hh * .02, gx, Hh * .14); g.stroke(); }
+  // pectoral fin
+  g.fillStyle = '#5f6d79';
+  g.save(); g.translate(L * .18, Hh * .22); g.rotate(.35 + Math.sin(sh.ph * .5) * .05);
+  g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(-L * .05, Hh * .45, -L * .14, Hh * .7); g.quadraticCurveTo(-L * .07, Hh * .3, -L * .08, 0); g.closePath(); g.fill(); g.restore();
+  // eye and mouth line
+  g.fillStyle = '#111'; g.beginPath(); g.arc(L * .39, -Hh * .1, Math.max(2, L * .011), 0, 7); g.fill();
+  g.fillStyle = 'rgba(255,255,255,.7)'; g.beginPath(); g.arc(L * .393, -Hh * .115, Math.max(.8, L * .0035), 0, 7); g.fill();
+  g.strokeStyle = 'rgba(60, 60, 70, .55)'; g.lineWidth = Math.max(1, L * .004);
+  g.beginPath(); g.moveTo(L * .44, Hh * .15); g.quadraticCurveTo(L * .38, Hh * .22, L * .33, Hh * .16); g.stroke();
+  g.restore();
 }
 
 /* ---------- Bubbles ---------- */
@@ -785,6 +850,7 @@ function logic(dt) {
   if (status !== st.status) setStatus(status);
 
   if (st.mode !== 'idle' && !st.paused) {
+    if (!st.shark) { st.sharkT += dt; if (st.sharkT >= S.sharkSeconds) { st.sharkT = 0; spawnShark(); } }
     const speed = st.mode === 'demo' && $('#demoFast').checked ? 10 : 1;
     if (st.status !== 'loud') {
       st.loudT = 0;
@@ -796,6 +862,7 @@ function logic(dt) {
       if (S.swimAway && st.loudT >= 10) { st.loudT = 0; removeFish(); }
     }
   }
+  if (st.shark) { const sh = st.shark; sh.x += sh.dir * sh.v * dt; sh.ph += dt * 4; sh.y = sh.y0 + Math.sin(sh.ph * .25) * 12 * U; if ((sh.dir > 0 && sh.x > W + sh.L) || (sh.dir < 0 && sh.x < -sh.L)) st.shark = null; }
   // fish
   for (const f of fish) updateFish(f, dt);
   fish = fish.filter(f => !(f.leaving && (f.x < -150 || f.x > W + 150)));
@@ -848,6 +915,7 @@ function render() {
   // fish
   const sorted = fish.slice().sort((a, b) => a.k - b.k);
   for (const f of sorted) drawFish(ctx, f);
+  if (st.shark) drawShark(ctx, st.shark);
   // foreground corals
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(fgLayer, 0, 0); ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   // seaweed
@@ -999,6 +1067,7 @@ $('#btnFull').addEventListener('click', async () => {
 
 /* ---------- Start / modes ---------- */
 function beginSession(mode) {
+  setShark($('#sharkSec').value); st.sharkT = 0; st.shark = null;
   st.mode = mode;
   $('#startOverlay').hidden = true;
   fish = fish.filter(f => !f.ambient);
@@ -1043,6 +1112,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet()
 function syncInputs() {
   $('#thr').value = S.threshold; $('#fishSec').value = String(S.fishSeconds); $('#goal').value = String(S.goal);
   $('#tol').value = String(S.tolerance); $('#swimAway').checked = S.swimAway;
+  $('#sharkSec').value = S.sharkSeconds; $('#sharkSec2').value = S.sharkSeconds;
 }
 syncInputs();
 $('#thr').addEventListener('input', e => { S.threshold = +e.target.value; persist(); });
@@ -1050,6 +1120,18 @@ $('#fishSec').addEventListener('change', e => { S.fishSeconds = +e.target.value;
 $('#goal').addEventListener('change', e => { S.goal = +e.target.value; st.celebrated = residentFish().length >= S.goal; updateCounter(); persist(); });
 $('#tol').addEventListener('change', e => { S.tolerance = +e.target.value; persist(); });
 $('#swimAway').addEventListener('change', e => { S.swimAway = e.target.checked; persist(); });
+function setShark(v, src) {
+  const n = Math.round(+v);
+  if (!Number.isFinite(n)) return;
+  S.sharkSeconds = clamp(n, 5, 3600); st.sharkT = Math.min(st.sharkT, S.sharkSeconds);
+  if (src !== 1) $('#sharkSec').value = S.sharkSeconds;
+  if (src !== 2) $('#sharkSec2').value = S.sharkSeconds;
+  persist();
+}
+$('#sharkSec').addEventListener('change', e => { setShark(e.target.value); e.target.value = S.sharkSeconds; });
+$('#sharkSec2').addEventListener('change', e => { setShark(e.target.value); e.target.value = S.sharkSeconds; });
+$('#sharkSec').addEventListener('input', e => { if (+e.target.value >= 5 && +e.target.value <= 3600) setShark(e.target.value, 1); });
+$('#sharkSec2').addEventListener('input', e => { if (+e.target.value >= 5 && +e.target.value <= 3600) setShark(e.target.value, 2); });
 $('#btnCalib').addEventListener('click', () => {
   if (st.mode === 'idle') { $('#calibTxt').textContent = 'Starte zuerst das Mikrofon.'; return; }
   st.calib = { sum: 0, n: 0, left: 5 };
