@@ -585,7 +585,7 @@ function rock(g, r, x, y, w, h, col) {
 }
 
 const CORAL_COLS = ['#f2b630', '#f07a2a', '#8a4fd0', '#d9558a', '#ef5a3c', '#b48ae6', '#f6d35c'];
-let clockAn = null;
+let clockAn = null, snails = [];
 let causticPattern = null, sandPath = null, anemones = [], snow = [], vents = [], inks = [];
 
 function makeCaustics() {
@@ -671,6 +671,26 @@ function buildReef() {
     if (i % 2 === 0) anemones.push({ x: x + (r() - .5) * 50 * U, y: y - 22 * U, r: (16 + r() * 8) * U, col: r() < .5 ? '#f3a6c8' : '#c9e88a', ph: r() * 6 });
   }
   { const x = W * .09, y = sandCurve(x) + 46 * U; clockAn = { x, y, r: 24 * U, ph: r() * 6 }; } // the anemone that counts the HaiZeiten
+  // the sand in front is covered too: small rocks with corals, sea grass and snails
+  snails = [];
+  const sandH = H - sandY, rows = [[.3, 70, .8], [.62, 62, .72], [.98, 58, .78]];
+  for (const [depth, step, sc] of rows) {
+    for (let x = (r() * .6) * step * U; x < W + 40 * U; x += (step + r() * 40) * U) {
+      if (Math.abs(x - clockAn.x) < 55 * U) continue; // keep the counting anemone free
+      const y = sandCurve(x) + sandH * depth + (r() - .5) * 10 * U, k = Math.floor(r() * 7), c = CORAL_COLS[Math.floor(r() * CORAL_COLS.length)];
+      if (r() < .55) rock(g, r, x, y + 6 * U, (70 + r() * 50) * U * sc * 1.4, (22 + r() * 14) * U * sc * 1.4, r() < .5 ? '#6b6f6a' : '#7a6f66');
+      if (k === 0) brainCoral(g, r, x, y, 40 * U * sc, r() < .5 ? '#e9b443' : '#c98a3a');
+      else if (k === 1) branchCoral(g, r, x, y, 34 * U * sc, -Math.PI / 2 + (r() - .5) * .4, 10 * U * sc, 2, c);
+      else if (k === 2) softCoral(g, r, x, y, (40 + r() * 16) * U * sc, r() < .5 ? '#b48ae6' : '#f2a65a');
+      else if (k === 3) tubes(g, r, x, y, 70 * U * sc, c);
+      else if (k === 4) fanCoral(g, r, x, y, 70 * U * sc, c);
+      else if (k === 5) anemones.push({ x, y: y - 6 * U, r: (13 + r() * 6) * U, col: r() < .5 ? '#f3a6c8' : '#ffd27a', ph: r() * 6 });
+      else star(g, x, y, 12 * U, r() < .5 ? '#e2623b' : '#f0a030');
+      if (r() < .7) weeds.push({ x: x + (r() - .5) * 50 * U, y: y + 10 * U, h: (45 + r() * 60) * U * (depth > .6 ? .8 : 1), col: r() < .5 ? '#2c8a4b' : '#4a9c3a', ph: r() * 6 });
+      if (r() < .16 && depth < .9) snails.push({ x: x + (r() - .5) * 40 * U, y: y + 4 * U, s: (14 + r() * 6) * U, dir: r() < .5 ? 1 : -1, v: (1.2 + r() * 1.6) * U, col: ['#c9773a', '#e0b27a', '#9a5a3a', '#f0c8a0'][Math.floor(r() * 4)], ph: r() * 6 });
+    }
+  }
+  while (snails.length < 4) { const x = W * (.2 + r() * .7); snails.push({ x, y: sandCurve(x) + sandH * (.4 + r() * .45), s: 15 * U, dir: r() < .5 ? 1 : -1, v: 2 * U, col: '#c9773a', ph: r() * 6 }); }
   if (vents.length > 3) { const a = Math.floor(vents.length * .25), b = Math.floor(vents.length * .75); vents = vents.filter((v, i) => i !== a && i !== b); } // two fewer bubble sources
   for (let i = 0; i < 3; i++) { const x = W * (0.15 + r() * .7), y = sandCurve(x) + (34 + r() * 30) * U; star(g, x, y, 13 * U, i % 2 ? '#e2623b' : '#f0a030'); }
   // soft vignette
@@ -794,9 +814,40 @@ const SPECIES = {
             dorsal: [[.22, .86, .08, .2, 0]], anal: [[.6, .86, .08, .5, 0]] },
   gramma: { nm: 'Königs-Feenbarsch', L: .7, H: .38, a: .95, b: .6, ped: .32, tl: .2, th: .28, tf: 1, bf: .95, tail: 'round', spd: 1, y: [.4, .62],
             top: '#6a1ab0', mid: '#9244de', low: '#c58cf5', fin: '#f2b90f', finEdge: '#d98e00', tailCol: '#f6c120',
-            dorsal: [[.24, .88, .08, .4, 0]], anal: [[.6, .88, .07, .4, 0]] }
+            dorsal: [[.24, .88, .08, .4, 0]], anal: [[.6, .88, .07, .4, 0]] },
+  mandarin:{ nm: 'Mandarinfisch', L: .8, H: .4, a: .9, b: .55, ped: .34, tl: .2, th: .28, tf: 1, bf: 1, tail: 'round', spd: .6, y: [.5, .66],
+            top: '#1f5fb8', mid: '#2f8fd8', low: '#5cc6c8', fin: '#2a7fd0', finEdge: '#ff8a2a', tailCol: '#ff9a3a',
+            dorsal: [[.2, .45, .14, .5, 0], [.5, .88, .12, .5, 0]], anal: [[.5, .88, .1, .5, 0]] },
+  koran:  { nm: 'Koran-Kaiserfisch', L: 1.1, H: .64, a: .85, b: .62, ped: .3, tl: .18, th: .3, tf: 1, bf: 1, tail: 'round', spd: .7, y: [.25, .6],
+            top: '#0d1f5c', mid: '#18337f', low: '#1f4296', fin: '#132a6c', finEdge: '#7fd0ff', tailCol: '#1a3a8a',
+            dorsal: [[.24, .92, .1, .78, .05]], anal: [[.48, .92, .1, .78, .05]] },
+  scalar: { nm: 'Segelflosser', L: .9, H: .7, a: .75, b: .7, ped: .2, tl: .16, th: .22, tf: 1, bf: 1, tail: 'truncate', spd: .6, y: [.2, .5],
+            top: '#d9d4c0', mid: '#f1ecdc', low: '#fbf8ee', fin: '#e6e0cc', finEdge: '#3a3a3a', tailCol: '#ece6d4',
+            dorsal: [[.2, .6, .42, .55, .14]], anal: [[.28, .66, .42, .5, .12]] },
+  flame:  { nm: 'Flammen-Zwergkaiserfisch', L: .75, H: .56, a: .85, b: .62, ped: .3, tl: .18, th: .28, tf: 1, bf: 1, tail: 'round', spd: .9, y: [.4, .64],
+            top: '#d6260f', mid: '#f2421a', low: '#ff8a3a', fin: '#e53a17', finEdge: '#4a4ad8', tailCol: '#ee3c18',
+            dorsal: [[.24, .9, .1, .7, .03]], anal: [[.5, .9, .1, .7, .03]] },
+  humbug: { nm: 'Preußenfisch', L: .65, H: .62, a: .8, b: .65, ped: .26, tl: .18, th: .26, tf: 1, bf: 1, tail: 'truncate', spd: .9, y: [.45, .65],
+            top: '#e9ece8', mid: '#f7f8f4', low: '#ffffff', fin: '#f1f2ee', finEdge: '#202020', tailCol: '#f3f4f0',
+            dorsal: [[.24, .9, .12, .5, 0]], anal: [[.5, .9, .1, .5, 0]] },
+  jewel:  { nm: 'Juwelen-Zackenbarsch', L: 1.25, H: .38, a: 1, b: .6, ped: .32, tl: .17, th: .26, tf: 1, bf: .95, tail: 'round', spd: .55, y: [.45, .66],
+            top: '#a5131e', mid: '#d7262c', low: '#f26a55', fin: '#c81d26', finEdge: '#2a6fe0', tailCol: '#cc2228',
+            dorsal: [[.24, .88, .07, .5, 0]], anal: [[.6, .88, .07, .5, 0]] },
+  wrasse: { nm: 'Grüner Lippfisch', L: 1.05, H: .34, a: 1, b: .6, ped: .34, tl: .18, th: .24, tf: 1, bf: .95, tail: 'truncate', spd: 1.15, y: [.2, .55],
+            top: '#1f7a3a', mid: '#3fae58', low: '#b6eb8a', fin: '#2e9a4c', finEdge: '#ff6fb0', tailCol: '#33a050',
+            dorsal: [[.22, .88, .05, .5, 0]], anal: [[.55, .88, .05, .5, 0]] },
+  raccoon:{ nm: 'Waschbär-Falterfisch', L: .85, H: .68, a: .85, b: .7, ped: .2, tl: .15, th: .24, tf: 1, bf: 1, tail: 'truncate', spd: .7, y: [.3, .6],
+            top: '#e9a400', mid: '#ffc21a', low: '#ffe27a', fin: '#ffc828', finEdge: '#2a2a2a', tailCol: '#ffcd33',
+            dorsal: [[.28, .9, .12, .7, 0]], anal: [[.5, .9, .11, .7, 0]] },
+  powder: { nm: 'Weißkehl-Doktorfisch', L: 1, H: .56, a: .85, b: .62, ped: .26, tl: .2, th: .34, tf: 1, bf: .95, tail: 'lunate', spd: 1.1, y: [.15, .45],
+            top: '#3d86c8', mid: '#62aee6', low: '#a9d9f8', fin: '#ffd21a', finEdge: '#ffffff', tailCol: '#5aa2dc',
+            dorsal: [[.22, .9, .08, .5, 0]], anal: [[.48, .9, .07, .5, 0]] },
+  picasso:{ nm: 'Picasso-Drückerfisch', L: 1, H: .5, a: .7, b: .62, ped: .26, tl: .15, th: .26, tf: 1, bf: 1, tail: 'truncate', spd: .7, y: [.38, .64],
+            top: '#a7987a', mid: '#e8dfc8', low: '#fbf6ea', fin: '#e6dcc2', finEdge: '#8a7a5a', tailCol: '#e4dac0',
+            dorsal: [[.22, .3, .14, .5, 0], [.6, .88, .1, .5, 0]], anal: [[.6, .88, .1, .5, 0]] }
 };
 const SP_KEYS = Object.keys(SPECIES);
+const MAX_FISH = 30;
 const spriteCache = new Map();
 function fishGeom(S, L) {
   const Lb = L * (1 - S.tl), Hh = L * S.H;
@@ -882,6 +933,42 @@ function fishPattern(g, G, S, sp, r) {
     g.fillStyle = '#ef7bb0'; g.beginPath(); g.moveTo(G.X(0), 0); g.lineTo(G.X(.1), -L * .02); g.lineTo(G.X(.1), L * .03); g.closePath(); g.fill();
   }
   else if (sp === 'anthias') { g.strokeStyle = '#c86cf0'; g.lineWidth = L * .012; g.beginPath(); g.moveTo(G.X(.05), L * .01); g.quadraticCurveTo(G.X(.15), L * .05, G.X(.3), L * .04); g.stroke(); g.strokeStyle = '#ffd04a'; g.beginPath(); g.moveTo(G.X(.06), L * .03); g.quadraticCurveTo(G.X(.16), L * .07, G.X(.28), L * .065); g.stroke(); }
+  else if (sp === 'mandarin') {
+    g.lineWidth = L * .022; g.strokeStyle = '#ff8a2a';
+    for (let k = 0; k < 9; k++) { g.beginPath(); const y0 = (k - 4) * L * .045; for (let i = 0; i <= 30; i++) { const s = .1 + .85 * i / 30, x = G.X(s), y = y0 + Math.sin(s * 22 + k * 1.7) * L * .018; i ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke(); }
+    g.fillStyle = 'rgba(30, 200, 150, .35)'; for (let i = 0; i < 30; i++) { g.beginPath(); g.arc(G.X(r()), (r() - .5) * Hh, L * .018, 0, 7); g.fill(); }
+  }
+  else if (sp === 'koran') {
+    g.lineWidth = L * .016;
+    for (let k = 0; k < 9; k++) { const cx = G.X(1.15), rr = L * (.25 + k * .085); g.strokeStyle = k % 2 ? '#e8f4ff' : '#4fa6ff'; g.beginPath(); g.arc(cx, 0, rr, -1.2, 1.2); g.stroke(); }
+  }
+  else if (sp === 'scalar') { band(.14, .05, '#262626', null, 0, .02); band(.36, .07, '#262626', null, 0, -.02); band(.62, .06, '#262626', null, 0, .02); band(.86, .04, '#3a3a3a', null, 0, 0); }
+  else if (sp === 'flame') { for (const s of [.3, .42, .54, .66, .78]) band(s, .022, '#2a0a08', null, 0, .01); g.fillStyle = 'rgba(255, 190, 60, .35)'; g.fillRect(-L, -Hh * .1, L * 2, Hh * .25); }
+  else if (sp === 'humbug') { band(.12, .12, '#161616', null, 0, .02); band(.45, .14, '#161616', null, 0, -.03); band(.82, .12, '#161616', null, 0, .02); }
+  else if (sp === 'jewel') { for (let i = 0; i < 70; i++) { const x = G.X(.08 + r() * .9), y = (r() - .5) * Hh; g.fillStyle = r() < .5 ? '#3d7ff0' : '#7fb8ff'; g.beginPath(); g.arc(x, y, L * (.008 + r() * .008), 0, 7); g.fill(); g.strokeStyle = 'rgba(10,20,60,.6)'; g.lineWidth = L * .003; g.stroke(); } }
+  else if (sp === 'wrasse') {
+    g.strokeStyle = '#ff6fb0'; g.lineWidth = L * .012;
+    for (let k = -2; k <= 2; k++) { g.beginPath(); for (let i = 0; i <= 20; i++) { const s = .05 + .9 * i / 20, x = G.X(s), y = k * L * .045 + Math.sin(s * 9 + k) * L * .01; i ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke(); }
+    g.fillStyle = '#3a6fd8'; g.beginPath(); g.ellipse(G.X(.08), 0, L * .06, L * .05, 0, 0, 7); g.fill();
+  }
+  else if (sp === 'raccoon') {
+    g.fillStyle = '#1b1b1b'; bandPath(g, G, .12, .09, .02); g.fill();
+    g.fillStyle = '#fffbe8'; bandPath(g, G, .2, .045, .02); g.fill();
+    g.strokeStyle = 'rgba(160, 90, 0, .5)'; g.lineWidth = L * .012; for (let k = 0; k < 8; k++) { g.beginPath(); g.moveTo(G.X(.3 + k * .07), G.T(.3) - L); g.lineTo(G.X(.3 + k * .07) - L * .25, G.B(.5) + L); g.stroke(); }
+    g.fillStyle = '#1b1b1b'; g.beginPath(); g.ellipse(G.X(.8), G.T(.8) * .55, L * .07, L * .05, 0, 0, 7); g.fill();
+  }
+  else if (sp === 'powder') {
+    g.fillStyle = '#121a2c'; g.beginPath(); g.moveTo(G.X(0) + L * .02, -L); g.lineTo(G.X(.2), -L); g.quadraticCurveTo(G.X(.26), 0, G.X(.2), L); g.lineTo(G.X(0) + L * .02, L); g.closePath(); g.fill();
+    g.fillStyle = '#ffffff'; g.beginPath(); g.ellipse(G.X(.12), G.B(.12) * .7, L * .06, L * .03, -.3, 0, 7); g.fill();
+    g.fillStyle = '#ffd21a'; g.beginPath(); g.ellipse(G.X(.85), 0, L * .04, L * .016, 0, 0, 7); g.fill();
+  }
+  else if (sp === 'picasso') {
+    g.fillStyle = '#2a2a2a'; g.beginPath(); g.moveTo(G.X(.45), G.B(.45) * .05); g.lineTo(G.X(.95), G.T(.95) * .5); g.lineTo(G.X(.95), G.B(.95)); g.lineTo(G.X(.6), G.B(.6)); g.closePath(); g.fill();
+    g.lineWidth = L * .016; for (const [s, c] of [[.32, '#3a7fe0'], [.36, '#2a2a2a'], [.4, '#3a7fe0']]) { g.strokeStyle = c; g.beginPath(); g.moveTo(G.X(s), G.B(s)); g.lineTo(G.X(s + .2), G.T(s + .2) * .2); g.stroke(); }
+    g.strokeStyle = '#3a7fe0'; g.lineWidth = L * .012; g.beginPath(); g.moveTo(G.X(.05), -L * .02); g.lineTo(G.X(.2), G.T(.2) * .5); g.stroke();
+    g.fillStyle = '#ffd21a'; g.beginPath(); g.moveTo(G.X(.02), L * .01); g.lineTo(G.X(.25), G.B(.25) * .6); g.lineTo(G.X(.25), G.B(.25) * .4); g.closePath(); g.fill();
+    g.fillStyle = '#e94a1a'; g.beginPath(); g.ellipse(G.X(.3), G.B(.3) * .75, L * .05, L * .018, 0, 0, 7); g.fill();
+  }
   else if (sp === 'gramma') { const lg = g.createLinearGradient(G.X(.4), 0, G.X(.6), 0); lg.addColorStop(0, 'rgba(250,200,30,0)'); lg.addColorStop(1, 'rgba(250,200,30,1)'); g.fillStyle = lg; g.fillRect(-L, -L, G.X(.4) + L, L * 2); }
 }
 function paintFishSprite(sp, L) {
@@ -1677,7 +1764,7 @@ function drawOctoBody(g, p, t) {
     const ang = s * KEYE.phi + p.yaw, c = Math.cos(ang); if (c < -.05) continue;
     const ex = Math.sin(ang) * KEYE.ring * u, ey = KEYE.y * u;
     g.save(); g.translate(ex, ey); g.scale(.3 + .7 * Math.max(0, c), 1);
-    drawKrakenEye(g, u, 0, 0, KEYE.r * u, p.blink, s < 0 ? p.look : 0, p.look);
+    drawKrakenEye(g, u, 0, 0, KEYE.r * u, p.blink, s < 0 ? p.look : 0, s < 0 ? p.look : 0); // only the eye that stares at us is narrowed
     g.restore();
   }
   // siphon, visible from the side
@@ -1988,6 +2075,24 @@ function drawTrail(g, f) {
   g.restore();
 }
 /* ---------- Bubbles ---------- */
+/* a sea snail: spiral shell on a soft foot with two feelers */
+function drawSnail(g, sn, t) {
+  const s = sn.s, wob = Math.sin(t * 2 + sn.ph) * .06;
+  g.save(); g.translate(sn.x, sn.y); g.scale(sn.dir, 1);
+  // foot
+  g.fillStyle = '#d9c2a2'; g.beginPath(); g.moveTo(-s * 1.1, 0); g.quadraticCurveTo(-s * .2, -s * .35, s * 1.25 * (1 + wob), -s * .1); g.quadraticCurveTo(s * 1.3, s * .15, s * .9, s * .2); g.lineTo(-s * 1.1, s * .2); g.closePath(); g.fill();
+  // feelers
+  g.strokeStyle = '#c9ae8a'; g.lineWidth = Math.max(1, s * .1); g.lineCap = 'round';
+  for (const [a, l] of [[-.9, .7], [-.6, .55]]) { const ex = s * 1.05 + Math.cos(a + wob) * s * l, ey = -s * .15 + Math.sin(a + wob) * s * l; g.beginPath(); g.moveTo(s * 1.05, -s * .15); g.lineTo(ex, ey); g.stroke(); g.fillStyle = '#3a2a1a'; g.beginPath(); g.arc(ex, ey, s * .07, 0, 7); g.fill(); }
+  // shell
+  const cx = -s * .1, cy = -s * .55;
+  const rg = g.createRadialGradient(cx - s * .25, cy - s * .3, s * .1, cx, cy, s * .85);
+  rg.addColorStop(0, shade(sn.col, .4)); rg.addColorStop(.7, sn.col); rg.addColorStop(1, shade(sn.col, -.4));
+  g.fillStyle = rg; g.beginPath(); g.arc(cx, cy, s * .78, 0, 7); g.fill();
+  g.strokeStyle = shade(sn.col, -.5); g.lineWidth = Math.max(1, s * .09); g.beginPath();
+  for (let i = 0; i <= 50; i++) { const a = i / 50 * Math.PI * 4.2, rr = s * .7 * (1 - i / 56); g.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); } g.stroke();
+  g.restore();
+}
 /* the counting anemone: violet, with light tips; it squeezes together when it puffs out its bubbles */
 function drawClockAnemone(g, an, t) {
   const puff = st.clockPuff || 0, squeeze = 1 - .25 * Math.sin(puff * Math.PI);
@@ -2066,7 +2171,7 @@ function logic(dt) {
     if (st.status !== 'loud' && !(st.calmWait > 0)) {
       st.loudT = 0;
       st.progress += dt * speed;
-      if (st.progress >= S.fishSeconds) { st.progress = 0; if (residentFish().length < 20) addFish(); } // at most 20 fish in the reef
+      if (st.progress >= S.fishSeconds) { st.progress = 0; if (residentFish().length < MAX_FISH) addFish(); } // at most 30 fish in the reef
     } else {
       st.progress = 0;
       st.loudT += dt;
@@ -2092,6 +2197,8 @@ function logic(dt) {
   }
   for (const b of bubbles) { b.y -= b.vy * dt; b.ph += dt * 2; b.x += Math.sin(b.ph) * 12 * dt; if (b.vx) { b.x += b.vx * dt; b.vx *= 1 - Math.min(1, dt * 1.3); } }
   bubbles = bubbles.filter(b => b.y > -20);
+  // snails creep slowly over the sand and turn around at the edges
+  for (const sn of snails) { sn.x += sn.dir * sn.v * dt; if (sn.x < 10 * U || sn.x > W - 10 * U) sn.dir *= -1; }
   // the counting anemone: every few seconds a column of bubbles, one per HaiZeit still to go until the next new visitor
   if (clockAn && st.mode !== 'idle' && !st.paused) {
     st.clockT = (st.clockT || 0) - dt; st.clockPuff = Math.max(0, (st.clockPuff || 0) - dt * 2);
@@ -2194,6 +2301,7 @@ function render() {
     ctx.fillStyle = shade(an.col, -.35); ctx.beginPath(); ctx.ellipse(0, 4 * U, an.r * .5, an.r * .3, 0, 0, 7); ctx.fill();
     ctx.restore();
   }
+  for (const sn of snails) drawSnail(ctx, sn, t);
   if (clockAn) drawClockAnemone(ctx, clockAn, t);
   // bubbles
   for (const b of bubbles) {
