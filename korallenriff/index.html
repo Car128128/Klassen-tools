@@ -126,6 +126,14 @@ button { cursor: pointer; }
 .seq-grid input { width: 5em; padding: 8px 10px; border-radius: 10px; border: 1px solid #c3d6df; font-size: 17px; font-variant-numeric: tabular-nums; background: #fff; color: var(--ink); }
 .seq-grid output { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 5.5em; text-align: right; white-space: nowrap; }
 .seq-total { font-weight: 700; font-size: 16px; }
+.seq-test { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid #d6e5ec; padding-top: 16px; }
+.seq-test h2 { margin: 0; font-size: 20px; }
+.seq-test .btns { align-items: center; }
+.seq-test select { padding: 9px 10px; border-radius: 10px; border: 1px solid #c3d6df; font-size: 16px; background: #fff; color: var(--ink); margin-left: 6px; }
+#pvBox { width: 50vw; height: 50vh; max-width: 100%; border-radius: 14px; overflow: hidden; background: #0b3954; box-shadow: 0 6px 20px rgba(0,0,0,.25); }
+#pvBox iframe { width: 100%; height: 100%; border: 0; display: block; }
+body.preview .hud, body.preview .overlay, body.preview .paused-tag, body.preview .sheet { display: none !important; }
+#pvLabel { position: fixed; left: 8px; top: 8px; right: 8px; color: #fff; font: 600 12px/1.4 system-ui, sans-serif; text-shadow: 0 1px 3px rgba(0,0,0,.7); pointer-events: none; z-index: 5; }
 @media (max-width: 520px) { .seq-grid { grid-template-columns: 1fr auto; } .seq-grid output { grid-column: 1 / -1; text-align: left; margin-top: -6px; } }
 .seq-plan { font-size: 14px; line-height: 1.6; color: #223b4d; background: var(--paper-2); border-radius: 14px; padding: 12px 14px; }
 .seq-plan b { font-variant-numeric: tabular-nums; }
@@ -266,6 +274,7 @@ button { cursor: pointer; }
       <label for="sharkSec">HaiZeit: alle</label>
       <input type="number" id="sharkSec" min="1" max="3600" step="1" value="60" inputmode="numeric"> <span>Sekunden kommt ein Hai</span>
       <small>1 bis 3600 Sekunden. Jede ruhige HaiZeit bringt einen Besucher: erst Haie, dann weiße Haie, Wale, das U-Boot, Kraken und am Ende den Taucher. Flüchten alle Fische, beginnt es von vorn.</small>
+      <small>Die lila Anemone im Riff zeigt mit Luftblasen, wie viele HaiZeiten es noch bis zum nächsten neuen Besucher sind: 4 Blasen übereinander = noch 4 HaiZeiten.</small>
       <button type="button" class="btn" id="btnSeq">Einstellungen: Wann kommt welcher Besucher?</button>
     </div>
     <p class="err" id="micErr" hidden></p>
@@ -338,6 +347,15 @@ button { cursor: pointer; }
     </div>
     <p class="seq-total" id="seqTotal"></p>
     <div class="seq-plan" id="seqPlan"></div>
+    <section class="seq-test">
+      <h2>Testlauf ohne Mikrofon</h2>
+      <p>Spielt den eingestellten Ablauf im Zeitraffer in einem kleinen Vorschaufenster ab. Die Klasse ist dabei immer leise.</p>
+      <div class="btns">
+        <label for="pvSpeed">Tempo<select id="pvSpeed"><option value="10">10-fach</option><option value="30">30-fach</option><option value="60" selected>60-fach</option><option value="120">120-fach</option><option value="300">300-fach</option></select></label>
+        <button class="btn primary" id="btnPv">Testlauf starten</button>
+      </div>
+      <div id="pvBox" hidden></div>
+    </section>
     <div class="btns">
       <button class="btn primary" id="btnSeqOk">Fertig</button>
       <button class="btn" id="btnSeqDefault">Standard wiederherstellen</button>
@@ -423,6 +441,8 @@ button { cursor: pointer; }
 <script>
 (() => {
 'use strict';
+const PRISTINE = '<!doctype html>\n' + document.documentElement.outerHTML; // for the test-run preview
+const PREVIEW = window.__PREVIEW || null; // set when this page runs as the small test-run preview
 const $ = s => document.querySelector(s);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -439,6 +459,7 @@ try {
   if (raw) { const d = JSON.parse(raw); Object.assign(S, d.settings || {}); if (isOld) { S.fishSeconds = 3; S.goal = Math.max(S.goal, 40); } if (!S.thrV2) { if (S.threshold === 60) S.threshold = 32; S.thrV2 = true; } saved.species = Array.isArray(d.species) ? d.species.slice(0, 60) : []; }
 } catch (e) {}
 let noStore = false;
+if (PREVIEW) { noStore = true; Object.assign(S, PREVIEW.S || {}); }
 function persist() {
   if (noStore) return;
   try { localStorage.setItem(KEY, JSON.stringify({ settings: S })); } catch (e) {}
@@ -564,6 +585,7 @@ function rock(g, r, x, y, w, h, col) {
 }
 
 const CORAL_COLS = ['#f2b630', '#f07a2a', '#8a4fd0', '#d9558a', '#ef5a3c', '#b48ae6', '#f6d35c'];
+let clockAn = null;
 let causticPattern = null, sandPath = null, anemones = [], snow = [], vents = [], inks = [];
 
 function makeCaustics() {
@@ -648,6 +670,7 @@ function buildReef() {
     weeds.push({ x: x + (r() < .5 ? -1 : 1) * (55 + r() * 20) * U, y: sandCurve(x) + 24 * U, h: (80 + r() * 100) * U, col: r() < .5 ? '#2c8a4b' : '#4a9c3a', ph: r() * 6 });
     if (i % 2 === 0) anemones.push({ x: x + (r() - .5) * 50 * U, y: y - 22 * U, r: (16 + r() * 8) * U, col: r() < .5 ? '#f3a6c8' : '#c9e88a', ph: r() * 6 });
   }
+  { const x = W * .09, y = sandCurve(x) + 46 * U; clockAn = { x, y, r: 24 * U, ph: r() * 6 }; } // the anemone that counts the HaiZeiten
   if (vents.length > 3) { const a = Math.floor(vents.length * .25), b = Math.floor(vents.length * .75); vents = vents.filter((v, i) => i !== a && i !== b); } // two fewer bubble sources
   for (let i = 0; i < 3; i++) { const x = W * (0.15 + r() * .7), y = sandCurve(x) + (34 + r() * 30) * U; star(g, x, y, 13 * U, i % 2 ? '#e2623b' : '#f0a030'); }
   // soft vignette
@@ -1964,6 +1987,26 @@ function drawTrail(g, f) {
   g.restore();
 }
 /* ---------- Bubbles ---------- */
+/* the counting anemone: violet, with light tips; it squeezes together when it puffs out its bubbles */
+function drawClockAnemone(g, an, t) {
+  const puff = st.clockPuff || 0, squeeze = 1 - .25 * Math.sin(puff * Math.PI);
+  g.save(); g.translate(an.x, an.y);
+  // stalk
+  const sg = g.createLinearGradient(0, an.r * .6, 0, -an.r * .3);
+  sg.addColorStop(0, '#5b3f8f'); sg.addColorStop(1, '#8e6ad8');
+  g.fillStyle = sg; g.beginPath(); g.moveTo(-an.r * .55, an.r * .6); g.quadraticCurveTo(-an.r * .4, 0, -an.r * .62, -an.r * .3); g.lineTo(an.r * .62, -an.r * .3); g.quadraticCurveTo(an.r * .4, 0, an.r * .55, an.r * .6); g.closePath(); g.fill();
+  g.translate(0, -an.r * .3);
+  for (let i = 0; i < 30; i++) {
+    const a = -Math.PI + .15 + (Math.PI - .3) * i / 29, sw = Math.sin(t * 1.1 + an.ph + i * .4) * .16;
+    const len = an.r * (1.35 + (i % 3) * .22) * squeeze;
+    const ex = Math.cos(a + sw) * len, ey = Math.sin(a + sw) * len;
+    g.strokeStyle = i % 2 ? '#a27cf0' : '#8a62e0'; g.lineWidth = 4.5 * U; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(ex * .35, ey * .75, ex, ey); g.stroke();
+    g.fillStyle = '#f6ecff'; g.beginPath(); g.arc(ex, ey, 2.9 * U, 0, 7); g.fill();
+  }
+  g.fillStyle = '#4a2f7a'; g.beginPath(); g.ellipse(0, 2 * U, an.r * .42, an.r * .22, 0, 0, 7); g.fill(); // mouth
+  g.restore();
+}
 function spawnBubble(x, y, burst, tiny) {
   return bubbles[bubbles.push({ x: x ?? Math.random() * W, y: y ?? sandY, r: (tiny ? .8 + Math.random() * 1.6 : burst ? 2 + Math.random() * 5 : 2 + Math.random() * 4) * U, vy: 30 + Math.random() * 40, ph: Math.random() * 6 }) - 1];
 }
@@ -1972,11 +2015,28 @@ function spawnBubble(x, y, burst, tiny) {
 let last = performance.now();
 function frame(now) {
   let dt = Math.min(.1, (now - last) / 1000); last = now;
-  st.t += dt;
-  readLevel(dt);
-  logic(dt);
+  if (PREVIEW) { // test run: everything moves faster, the HaiZeit even more so (see pvTimer)
+    let left = dt * pvAnim();
+    while (left > 1e-6) { const d = Math.min(.05, left); left -= d; st.t += d; readLevel(d); logic(d); }
+    pvLabelUpdate(dt);
+  } else {
+    st.t += dt;
+    readLevel(dt);
+    logic(dt);
+  }
   render(dt);
   requestAnimationFrame(frame);
+}
+function pvAnim() { return PREVIEW ? clamp(PREVIEW.speed / 15, 1, 10) : 1; } // how much faster the animals swim
+function pvTimer() { return PREVIEW ? PREVIEW.speed / pvAnim() : 1; } // on top of that for the HaiZeit
+let pvLabT = 0;
+function pvLabelUpdate(dt) {
+  if ((pvLabT -= dt) > 0) return; pvLabT = .25;
+  const q = seq(), n = st.tick ? ((st.tick - 1) % q.dv) + 1 : 0, ev = st.ev ? (st.ev.big ? 'bigshark' : st.ev.kind) : null;
+  const NAME = { shark: 'Hai', bigshark: 'weißer Hai', whale: 'Wal', sub: 'U-Boot', kraken: 'Kraken', inkpass: 'grüner Kraken spritzt Tinte', diver: 'Taucher' };
+  const lab = $('#pvLabel'); if (!lab) return;
+  lab.textContent = (n ? 'HaiZeit ' + n + ' von ' + q.dv + ' · Unterrichtszeit ca. ' + fmtDur(seqTimes().at[n] + Math.min(st.sharkT, S.sharkSeconds)) : 'Start · erste HaiZeit läuft') +
+    (ev ? ' · jetzt: ' + NAME[ev] : st.octo && st.octo.green ? ' · grüner Kraken schwimmt hin und her' : '') + ' · nächster neuer Besucher in ' + nextNewIn() + ' HaiZeit' + (nextNewIn() === 1 ? '' : 'en') + ' · ' + PREVIEW.speed + '-fach';
 }
 
 function logic(dt) {
@@ -1991,7 +2051,7 @@ function logic(dt) {
   fleeOnNoise(dt);
 
   if (st.mode !== 'idle' && !st.paused) {
-    if (st.calmWait > 0) st.sharkT = 0; else if (st.status !== 'loud') st.sharkT += dt; // the HaiZeit pauses while it is too loud
+    if (st.calmWait > 0) st.sharkT = 0; else if (st.status !== 'loud') st.sharkT += dt * pvTimer(); // the HaiZeit pauses while it is too loud
     if (lv < 5) st.silentT += dt; else st.silentT = 0;
     // a HaiZeit only counts once the previous visitor has left the screen, so no visitor is skipped
     // and the green octopus cannot come early when the HaiZeit is shorter than a visit
@@ -2031,6 +2091,15 @@ function logic(dt) {
   }
   for (const b of bubbles) { b.y -= b.vy * dt; b.ph += dt * 2; b.x += Math.sin(b.ph) * 12 * dt; if (b.vx) { b.x += b.vx * dt; b.vx *= 1 - Math.min(1, dt * 1.3); } }
   bubbles = bubbles.filter(b => b.y > -20);
+  // the counting anemone: every few seconds a column of bubbles, one per HaiZeit still to go until the next new visitor
+  if (clockAn && st.mode !== 'idle' && !st.paused) {
+    st.clockT = (st.clockT || 0) - dt; st.clockPuff = Math.max(0, (st.clockPuff || 0) - dt * 2);
+    if (st.clockT <= 0 && st.status !== 'loud' && !(st.calmWait > 0)) {
+      st.clockT = 5; st.clockPuff = 1;
+      const m = Math.min(15, nextNewIn()), r = 5.5 * U;
+      for (let i = 0; i < m; i++) bubbles.push({ x: clockAn.x, y: clockAn.y - clockAn.r * 1.4 - i * r * 3, r, vy: 40, ph: 0, clock: true });
+    }
+  }
   // calibration
   if (st.calib) {
     st.calib.sum += st.level; st.calib.n++; st.calib.left -= dt;
@@ -2124,9 +2193,13 @@ function render() {
     ctx.fillStyle = shade(an.col, -.35); ctx.beginPath(); ctx.ellipse(0, 4 * U, an.r * .5, an.r * .3, 0, 0, 7); ctx.fill();
     ctx.restore();
   }
+  if (clockAn) drawClockAnemone(ctx, clockAn, t);
   // bubbles
-  ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 1.5;
-  for (const b of bubbles) { ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.stroke(); ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.arc(b.x - b.r * .35, b.y - b.r * .35, b.r * .25, 0, 7); ctx.fill(); }
+  for (const b of bubbles) {
+    ctx.strokeStyle = b.clock ? 'rgba(236, 220, 255, .95)' : 'rgba(255,255,255,.7)'; ctx.lineWidth = b.clock ? 2 : 1.5;
+    if (b.clock) { ctx.fillStyle = 'rgba(190, 150, 255, .22)'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill(); }
+    ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.stroke(); ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.arc(b.x - b.r * .35, b.y - b.r * .35, b.r * .25, 0, 7); ctx.fill();
+  }
   // splash where a drawn fish plopped into the water: foam ring and a bright flash at the surface
   splashes = splashes.filter(sp => st.t - sp.born < 1.1);
   for (const sp of splashes) {
@@ -2197,6 +2270,13 @@ function seqKind(n, q) {
   if (n === q.kr) return 'kraken';
   if (n === q.sub) return 'sub';
   return fillKind(n, q);
+}
+// how many HaiZeiten are left until a visitor comes that has not been there yet in this round
+function nextNewIn() {
+  const q = seq(), nx = (st.tick % q.dv) + 1, seen = new Set();
+  for (let n = 1; n < nx; n++) seen.add(seqKind(n, q));
+  for (let n = nx; n <= q.dv; n++) { const k = seqKind(n, q); if (k !== 'roam' && !seen.has(k)) return n - nx + 1; }
+  return q.dv - nx + 2;
 }
 function visitorFor(n) {
   const q = seq(), k = seqKind(n, q);
@@ -2520,15 +2600,28 @@ function seqRead() {
   const q = {}; for (const k in SEQ_IN) q[k] = $(SEQ_IN[k]).value;
   S.seq = normSeq(q); persist(); seqPlan();
 }
-for (const k in SEQ_IN) $(SEQ_IN[k]).addEventListener('change', () => { seqRead(); seqFill(); });
+for (const k in SEQ_IN) $(SEQ_IN[k]).addEventListener('change', () => { seqRead(); seqFill(); if (!$('#pvBox').hidden) pvStart(); });
 for (const k in SEQ_IN) $(SEQ_IN[k]).addEventListener('input', () => { if ($(SEQ_IN[k]).value !== '') seqRead(); });
 $('#btnSeq').addEventListener('click', () => { seqFill(); seqOv.hidden = false; });
-const seqClose = () => { seqRead(); seqFill(); seqOv.hidden = true; };
+const seqClose = () => { seqRead(); seqFill(); pvStop(); seqOv.hidden = true; };
 $('#btnSeqClose').addEventListener('click', seqClose);
 $('#btnSeqOk').addEventListener('click', seqClose);
 seqOv.addEventListener('click', e => { if (e.target === seqOv) seqClose(); });
 $('#btnSeqDefault').addEventListener('click', () => { S.seq = null; persist(); seqFill(); });
 if (S.seq) S.seq = normSeq(S.seq);
+// test run: the same page again, small, in a frame, in time lapse
+function pvStop() { const box = $('#pvBox'); box.innerHTML = ''; box.hidden = true; $('#btnPv').textContent = 'Testlauf starten'; }
+function pvStart() {
+  seqRead();
+  const box = $('#pvBox'), f = document.createElement('iframe');
+  const cfg = { speed: +$('#pvSpeed').value, S: { sharkSeconds: S.sharkSeconds, seq: S.seq, threshold: S.threshold, fishSeconds: S.fishSeconds, tolerance: S.tolerance } };
+  f.title = 'Vorschau Testlauf';
+  f.srcdoc = PRISTINE.replace(/<head[^>]*>/i, m => m + '<script>window.__PREVIEW=' + JSON.stringify(cfg).replace(/</g, '\\u003c') + ';<\/script>');
+  box.innerHTML = ''; box.appendChild(f); box.hidden = false; $('#btnPv').textContent = 'Testlauf stoppen';
+  try { box.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) {}
+}
+$('#btnPv').addEventListener('click', () => { if ($('#pvBox').hidden) pvStart(); else pvStop(); });
+$('#pvSpeed').addEventListener('change', () => { const f = $('#pvBox iframe'); if (f && f.contentWindow) f.contentWindow.postMessage({ pvSpeed: +$('#pvSpeed').value }, '*'); });
 
 /* ---------- Info & privacy ---------- */
 const infoOv = $('#infoOverlay');
@@ -2546,7 +2639,7 @@ $('#btnWipe').addEventListener('click', () => {
 /* ---------- Offline / install (only when opened as its own page) ---------- */
 try {
   const standalonePage = window.self === window.top && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1');
-  if (standalonePage && 'serviceWorker' in navigator && document.documentElement.dataset.pwa === '1') {
+  if (!PREVIEW && standalonePage && 'serviceWorker' in navigator && document.documentElement.dataset.pwa === '1') {
     navigator.serviceWorker.register('../sw.js', { scope: '../' }).catch(() => {});
   }
 } catch (e) {}
@@ -2559,6 +2652,13 @@ function addAmbientFish() { ['clown', 'btang', 'ytang', 'idol', 'emperor'].forEa
 addAmbientFish();
 for (let i = 0; i < 15; i++) spawnBubble(Math.random() * W, Math.random() * H);
 updateCounter(); updateHud();
+if (PREVIEW) { // the test run inside the visitor settings: no microphone, always quiet, no buttons
+  document.body.classList.add('preview');
+  const lab = document.createElement('div'); lab.id = 'pvLabel'; document.body.appendChild(lab);
+  $('#demoLevel').value = 0;
+  addEventListener('message', e => { if (e.data && e.data.pvSpeed) PREVIEW.speed = +e.data.pvSpeed; });
+  beginSession('demo');
+}
 requestAnimationFrame(frame);
 })();
 </script>
