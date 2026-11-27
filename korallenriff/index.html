@@ -138,6 +138,15 @@ button { cursor: pointer; }
 .vis-list { display: flex; flex-direction: column; gap: 6px; }
 .vis-row { min-width: 0; display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; align-items: center; gap: 10px; background: #fff; border: 1px solid #d3e2ea; border-radius: 14px; padding: 8px 10px; transition: transform .15s ease, box-shadow .15s ease; }
 .vis-row.dragging { transition: none; box-shadow: 0 10px 26px rgba(0,0,0,.22); position: relative; z-index: 2; background: #fffdf6; }
+.rnd-box { background: var(--paper-2); border-radius: 14px; padding: 10px 12px; margin: 4px 0 10px; }
+.rnd-sw { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.rnd-sw input { width: 22px; height: 22px; accent-color: var(--coral); flex: none; margin-top: 2px; }
+.rnd-sw b { display: block; } .rnd-sw small { display: block; color: var(--muted); font-size: 13px; }
+.rnd-gap { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 10px; font-size: 14px; color: var(--ink); }
+.rnd-gap[hidden] { display: none; }
+.rnd-range { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.vis-list.rnd .vis-row { grid-template-columns: auto minmax(0, 1fr); }
+.vis-list.rnd .vis-handle, .vis-list.rnd .vis-gap { display: none; }
 .vis-row.off .vis-name { opacity: .45; text-decoration: line-through; }
 .vis-handle { width: 40px; height: 40px; display: grid; place-items: center; border: 0; background: var(--paper-2); border-radius: 10px; color: var(--ink); font-size: 20px; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
 .vis-row input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--coral); }
@@ -363,7 +372,18 @@ body.preview .hud, body.preview .overlay, body.preview .paused-tag, body.preview
     <div class="info-head"><h1 id="seqTitle">Einstellungen: Besucher</h1>
       <button class="iconbtn light" id="btnSeqClose" aria-label="Schließen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
-    <p>Jeder ruhige Bonus bringt einen Besucher. Zieh die Besucher am Griff <b>☰</b> in die gewünschte Reihenfolge und stell ein, wie viele Boni nach dem vorherigen Besucher sie kommen. Zwischen den Besuchern kommen Haie, weiße Haie oder Wale. Ein Haken weg = kommt nicht.</p>
+    <div class="rnd-box">
+      <label class="rnd-sw"><input type="checkbox" id="rndOn"><span><b>Zufallsmodus</b><small>Besucher kommen in zufälliger Reihenfolge, jede Runde neu gemischt. Dazwischen kommen nur Haie.</small></span></label>
+      <div class="rnd-gap" id="rndGap" hidden>
+        <span>Abstand zwischen zwei Besuchern:</span>
+        <span class="rnd-range"><span class="vis-gap"><button type="button" data-r="rMin" data-d="-1" aria-label="weniger">−</button><input type="number" id="rMin" min="1" max="99" inputmode="numeric" aria-label="mindestens Boni"><button type="button" data-r="rMin" data-d="1" aria-label="mehr">+</button></span>
+        <span>bis</span>
+        <span class="vis-gap"><button type="button" data-r="rMax" data-d="-1" aria-label="weniger">−</button><input type="number" id="rMax" min="1" max="99" inputmode="numeric" aria-label="höchstens Boni"><button type="button" data-r="rMax" data-d="1" aria-label="mehr">+</button></span>
+        <span>Boni</span></span>
+        <button type="button" class="btn" id="btnRndMix">Neu mischen</button>
+      </div>
+    </div>
+    <p id="seqIntro">Jeder ruhige Bonus bringt einen Besucher. Zieh die Besucher am Griff <b>☰</b> in die gewünschte Reihenfolge und stell ein, wie viele Boni nach dem vorherigen Besucher sie kommen. Zwischen den Besuchern kommen Haie, weiße Haie oder Wale. Ein Haken weg = kommt nicht.</p>
     <div class="tl-wrap"><div class="tl" id="seqTl" aria-label="Zeitstrahl der Besucher"></div></div>
     <p class="seq-total" id="seqTotal"></p>
     <div class="vis-list" id="visList"></div>
@@ -471,7 +491,7 @@ const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: r
 
 /* ---------- Settings & persistence (local only) ---------- */
 const KEY = 'laermampel-riff-v2';
-const S = { threshold: 32, fishSeconds: 3, tolerance: 1, swimAway: true, goal: 40, sharkSeconds: 60, mA: 5, mB: 10, mC: 15, seq: null };
+const S = { threshold: 32, fishSeconds: 3, tolerance: 1, swimAway: true, goal: 40, sharkSeconds: 60, mA: 5, mB: 10, mC: 15, seq: null, rnd: false, rMin: 2, rMax: 4 };
 const SEQ_DEFAULT = { ws: 5, wh: 11, sub: 15, kr: 19, gr: 25, ink: 28, dv: 31 };
 let saved = { species: [] };
 try {
@@ -2514,6 +2534,7 @@ function logic(dt) {
     if (st.sharkT >= S.sharkSeconds && !st.ev && !st.events.length && !(st.octo && (st.octo.goInk || !st.octo.green))) { // also wait while the orange octopus is still in the reef
       st.sharkT = 0; st.tick++;
       visitorFor(((st.tick - 1) % seq().len) + 1);
+      if (S.rnd && st.tick >= seq().len) { st.tick = 0; seqCache = null; } // random mode: shuffle the next round now, so the anemone counts right
     }
     updateEvents(dt);
     updateOcto(dt);
@@ -2709,9 +2730,9 @@ function onLoud() {
    then it starts again). */
 // list of visitors in order; gap = how many Boni after the previous visitor (or after the start)
 const VIS_META = {
-  ws:   { nm: 'Weiße Haie', sub: 'ab hier statt Haie', col: '#9fb3bf' },
+  ws:   { nm: 'Weiße Haie', rnm: 'Weißer Hai', sub: 'ab hier statt Haie', rsub: 'ein weißer Hai', col: '#9fb3bf' },
   dol:  { nm: 'Delfine', sub: '5 Delfine mit Loopings und Rollen', col: '#6fa8c9' },
-  wh:   { nm: 'Wale', sub: 'ab hier statt weißer Haie', col: '#2f5d8a' },
+  wh:   { nm: 'Wale', rnm: 'Wal', sub: 'ab hier statt weißer Haie', rsub: 'ein Wal', col: '#2f5d8a' },
   tur:  { nm: 'Schildkröte', sub: 'groß, schwimmt langsam und majestätisch', col: '#6b8f3a' },
   sub:  { nm: 'U-Boot', sub: 'fährt von links durchs Riff', col: '#5c6b70' },
   kr:   { nm: 'Kraken', sub: 'schwimmt zum Bildschirm', col: '#ef6a1f' },
@@ -2745,9 +2766,20 @@ function seqFromVis(v) {
   for (const it of v) if (it.on) { n += it.gap; q[it.k] = n; }
   q.len = Math.max(1, n); return q;
 }
+/* random mode: the switched-on visitors come in a new random order every round, with rMin..rMax Boni between
+   them; in between only sharks come. The green octopus, its ink and the diver stay together, in this order. */
+function seqRandom(v) {
+  const on = v.filter(it => it.on).map(it => it.k), chain = ['gr', 'ink', 'dv'].filter(k => on.includes(k));
+  const items = on.filter(k => !chain.includes(k)).map(k => [k]); if (chain.length) items.push(chain);
+  for (let i = items.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [items[i], items[j]] = [items[j], items[i]]; }
+  const lo = clamp(Math.round(S.rMin) || 1, 1, 99), hi = Math.max(lo, clamp(Math.round(S.rMax) || lo, 1, 99));
+  const q = seqFromVis(items.flat().map(k => ({ k, gap: lo + Math.floor(Math.random() * (hi - lo + 1)), on: true })));
+  q.rnd = true; q.order = items.flat(); return q;
+}
 let seqCache = null;
-function seq() { if (!seqCache) seqCache = seqFromVis(S.vis || VIS_DEFAULT); return seqCache; }
+function seq() { if (!seqCache) seqCache = S.rnd ? seqRandom(S.vis || VIS_DEFAULT) : seqFromVis(S.vis || VIS_DEFAULT); return seqCache; }
 function fillKind(n, q) { // the ordinary visitor of a HaiZeit
+  if (q.rnd) return 'shark'; // random mode: only the shark is fixed
   if (q.wh > 0 && n >= q.wh) return 'whale';
   if (q.ws > 0 && n >= q.ws) return 'bigshark';
   return 'shark';
@@ -2761,6 +2793,8 @@ function seqKind(n, q) {
   if (n === q.near) return 'subnear';
   if (n === q.dol) return 'dolphins';
   if (n === q.tur) return 'turtle';
+  if (q.rnd && n === q.ws) return 'bigshark';
+  if (q.rnd && n === q.wh) return 'whale';
   if (q.gr && q.ink > q.gr && n > q.gr && n < q.ink) return 'roam'; // the green octopus swims to and fro
   return fillKind(n, q);
 }
@@ -2768,8 +2802,8 @@ function seqKind(n, q) {
 function nextNewIn() {
   const q = seq(), nx = (st.tick % q.len) + 1, seen = new Set();
   for (let n = 1; n < nx; n++) seen.add(seqKind(n, q));
-  for (let n = nx; n <= q.len; n++) { const k = seqKind(n, q); if (k !== 'roam' && !seen.has(k)) return n - nx + 1; }
-  return q.len - nx + 2;
+  for (let n = nx; n <= q.len; n++) { const k = seqKind(n, q); if (k !== 'roam' && !(q.rnd && k === 'shark') && !seen.has(k)) return n - nx + 1; }
+  return q.rnd ? q.len - nx + 1 + (q.order.length ? q[q.order[0]] : 1) : q.len - nx + 2; // random: the first visitor of the next round (estimate, it is shuffled then)
 }
 function visitorFor(n) {
   const q = seq(), k = seqKind(n, q);
@@ -2804,6 +2838,7 @@ function fleeOnNoise(dt) {
 function restartSequence() {
   // like a fresh start: all timers and the order of the visitors begin again; whoever is swimming just swims on
   st.progress = 0; st.sharkT = 0; st.tick = 0; st.sharkCount = 0; st.events = []; st.silentT = 0; st.afterK = 0;
+  if (S.rnd) seqCache = null;
   if (st.octo && st.octo.state !== 'flee') octoStartle(st.octo);
   st.done = { whale: false, sub: false, kraken: false, inkpass: false, diver: false };
   if (st.ev && st.ev.kind === 'inkpass') st.ev.noSplat = true;
@@ -3092,20 +3127,23 @@ function visRender() {
 }
 function visUpdate() {
   const q = seq(), T = seqTimes(), v = S.vis || VIS_DEFAULT; let firstOn = true;
+  $('#rndOn').checked = !!S.rnd; $('#rndGap').hidden = !S.rnd; $('#visList').classList.toggle('rnd', !!S.rnd);
+  if (document.activeElement !== $('#rMin')) $('#rMin').value = S.rMin; if (document.activeElement !== $('#rMax')) $('#rMax').value = S.rMax;
+  $('#seqIntro').innerHTML = S.rnd ? 'Im Zufallsmodus mischt die App die Besucher mit Haken jede Runde neu. Der Zeitstrahl zeigt eine mögliche Runde, mit <b>Neu mischen</b> siehst du eine andere. Ein Haken weg = kommt nicht.' : 'Jeder ruhige Bonus bringt einen Besucher. Zieh die Besucher am Griff <b>☰</b> in die gewünschte Reihenfolge und stell ein, wie viele Boni nach dem vorherigen Besucher sie kommen. Zwischen den Besuchern kommen Haie, weiße Haie oder Wale. Ein Haken weg = kommt nicht.';
   [...$('#visList').children].forEach(row => {
     const it = v.find(x => x.k === row.dataset.k), m = VIS_META[it.k];
     row.classList.toggle('off', !it.on);
     row.querySelector('input[type=checkbox]').checked = it.on;
     const inp = row.querySelector('.vis-gap input'); if (document.activeElement !== inp) inp.value = it.gap;
     row.querySelector('.vis-gap span').textContent = it.on && firstOn ? 'Boni nach Start' : 'Boni später';
-    row.querySelector('.vis-name small').textContent = it.on ? m.sub + ' · Bonus ' + q[it.k] + ' · nach ' + fmtDur(T.at[q[it.k]]) : 'kommt nicht';
+    row.querySelector('.vis-name small').textContent = !it.on ? 'kommt nicht' : S.rnd ? (m.rsub || m.sub) + ' · diese Runde bei Bonus ' + q[it.k] : m.sub + ' · Bonus ' + q[it.k] + ' · nach ' + fmtDur(T.at[q[it.k]]);
     if (it.on) firstOn = false;
   });
-  $('#seqTotal').textContent = 'Ganzer Ablauf: ' + q.len + ' Boni, ca. ' + fmtDur(T.end) + ' (bei Bonus alle ' + S.sharkSeconds + ' s, wenn es durchgehend ruhig bleibt). Danach beginnt es wieder von vorn.';
+  $('#seqTotal').textContent = S.rnd ? 'Diese Runde: ' + q.len + ' Boni, ca. ' + fmtDur(T.end) + ' (bei Bonus alle ' + S.sharkSeconds + ' s, wenn es durchgehend ruhig bleibt). Danach wird neu gemischt.' : 'Ganzer Ablauf: ' + q.len + ' Boni, ca. ' + fmtDur(T.end) + ' (bei Bonus alle ' + S.sharkSeconds + ' s, wenn es durchgehend ruhig bleibt). Danach beginnt es wieder von vorn.';
   // hints when the green octopus, the ink and the diver are in an odd order
   const w = [];
-  if (q.ink && q.gr && q.ink < q.gr) w.push('Die Tinte kommt vor dem grünen Kraken: dann schwimmt ein grüner Kraken extra vorbei, und der grüne Kraken bleibt danach bis zur nächsten Runde.');
-  if (q.dv && (!q.ink || q.dv < q.ink)) w.push('Der Taucher kommt vor der Tinte: dann ist die Scheibe noch sauber, und statt des Tauchers kommt ein Wal oder Hai.');
+  if (!S.rnd && q.ink && q.gr && q.ink < q.gr) w.push('Die Tinte kommt vor dem grünen Kraken: dann schwimmt ein grüner Kraken extra vorbei, und der grüne Kraken bleibt danach bis zur nächsten Runde.');
+  if (!S.rnd && q.dv && (!q.ink || q.dv < q.ink)) w.push('Der Taucher kommt vor der Tinte: dann ist die Scheibe noch sauber, und statt des Tauchers kommt ein Wal oder Hai.');
   $('#seqWarn').hidden = !w.length; $('#seqWarn').textContent = w.join(' ');
   tlRender(q, T);
 }
@@ -3120,7 +3158,7 @@ function tlRender(q, T) {
   marks.forEach((it, i) => {
     const m = VIS_META[it.k], n = q[it.k], low = i % 2 === 1, lvl = Math.floor(i / 2) % 2, stem = 10 + lvl * 26;
     h += '<div class="tl-mk' + (low ? ' low' : '') + '" style="left:' + x(n) + '">' +
-      '<b>' + m.nm + '</b><small>' + n + ' · ' + fmtDur(T.at[n]).replace(' min', '').replace(' h', '') + '</small>' +
+      '<b>' + (S.rnd && m.rnm || m.nm) + '</b><small>' + n + ' · ' + fmtDur(T.at[n]).replace(' min', '').replace(' h', '') + '</small>' +
       '<span class="stem" style="height:' + stem + 'px"></span><span class="dot" style="background:' + m.col + '"></span></div>';
   });
   h += '';
@@ -3140,6 +3178,12 @@ $('#visList').addEventListener('click', e => {
   const b = e.target.closest('.vis-gap button'); if (!b) return; const row = b.closest('.vis-row'), it = S.vis.find(x => x.k === row.dataset.k);
   it.gap = clamp(it.gap + +b.dataset.d, 1, 99); visChanged();
 });
+// random mode switch and its Boni range
+$('#rndOn').addEventListener('change', e => { S.rnd = e.target.checked; visChanged(true); });
+const rndSet = (k, val) => { S[k] = clamp(Math.round(val) || 1, 1, 99); if (k === 'rMin' && S.rMax < S.rMin) S.rMax = S.rMin; if (k === 'rMax' && S.rMin > S.rMax) S.rMin = S.rMax; };
+$('#rndGap').addEventListener('click', e => { const b = e.target.closest('button[data-r]'); if (b) { rndSet(b.dataset.r, S[b.dataset.r] + +b.dataset.d); visChanged(); } });
+$('#rndGap').addEventListener('change', e => { if (e.target.id === 'rMin' || e.target.id === 'rMax') { rndSet(e.target.id, +e.target.value); visChanged(); } });
+$('#btnRndMix').addEventListener('click', () => { st.tick = 0; visChanged(); });
 // drag the handle to change the order (mouse, pen and finger)
 $('#visList').addEventListener('pointerdown', e => {
   const hd = e.target.closest('.vis-handle'); if (!hd) return;
@@ -3170,7 +3214,7 @@ const seqClose = () => { persist(); pvStop(); seqOv.hidden = true; };
 $('#btnSeqClose').addEventListener('click', seqClose);
 $('#btnSeqOk').addEventListener('click', seqClose);
 seqOv.addEventListener('click', e => { if (e.target === seqOv) seqClose(); });
-$('#btnSeqDefault').addEventListener('click', () => { S.vis = VIS_DEFAULT.map(d => ({ ...d })); visChanged(true); });
+$('#btnSeqDefault').addEventListener('click', () => { S.vis = VIS_DEFAULT.map(d => ({ ...d })); S.rnd = false; S.rMin = 2; S.rMax = 4; visChanged(true); });
 // settings from before: absolute HaiZeiten -> list
 if (!S.vis && S.seq) { const o = S.seq, d = SEQ_DEFAULT; S.vis = ['ws', 'wh', 'sub', 'kr', 'gr', 'ink', 'dv'].every(k => o[k] === d[k]) ? null : visFromOldSeq(o); }
 S.vis = normVis(S.vis) || VIS_DEFAULT.map(d => ({ ...d })); delete S.seq; seqCache = null;
