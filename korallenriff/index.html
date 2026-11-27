@@ -122,7 +122,7 @@ button { cursor: pointer; }
 .overlay#infoOverlay { place-items: start center; z-index: 40; }
 .overlay#seqOverlay { place-items: start center; z-index: 40; grid-template-columns: minmax(0, 1fr); }
 #seqOverlay .card { min-width: 0; }
-.tl-wrap { min-width: 0; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; background: var(--paper-2); border-radius: 14px; padding: 10px 12px 6px; }
+.tl-wrap { min-width: 0; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; background: var(--paper-2); border-radius: 14px; padding: 10px 36px 6px; }
 .tl { position: relative; height: 188px; min-width: 100%; }
 .tl-track { position: absolute; left: 0; right: 0; top: 80px; height: 14px; border-radius: 7px; overflow: hidden; display: flex; }
 .tl-track i { flex: 1; height: 100%; border-right: 1px solid rgba(255,255,255,.5); }
@@ -1177,6 +1177,16 @@ function startEvent(kind) {
     const R = Math.min(H * .16, W * .13), D = R * 3.3, N = 6, L = D * (N + 1.7), v = D / 2.6;
     return { kind, t: 0, dir: -1, L, v, R, D, N, dur: (W + 1.2 * L) / v, y0: H * .5, ph: 0, bubT: 0 };
   }
+  if (kind === 'turtle') { // big, slow and majestic
+    const L = clamp(Math.min(W, H) * .5, 240, 560), d = Math.random() < .5 ? 1 : -1, dur = 40;
+    return { kind, t: 0, dir: d, L, dur, v: (W + L * 1.6) / dur, y0: Math.min(H * .38, sandY - L * .6), ph: 0 };
+  }
+  if (kind === 'dolphins') { // a pod of five, looping and rolling as they pass
+    const Ld = clamp(Math.min(W, H) * .2, 110, 260), d = Math.random() < .5 ? 1 : -1, dur = 22;
+    const pod = [0, 1, 2, 3, 4].map(j => ({ dx: -j * Ld * .75 - (j % 2) * Ld * .3, dy: [0, -.9, .8, -.3, .4][j] * Ld * .7, s: .85 + (j % 3) * .1, ph: j * 1.3,
+      loops: [3.2 + j * .45, 13.5 + j * .35], rolls: [8.2 + j * .3, 17.5 + j * .25] }));
+    return { kind, t: 0, dir: d, Ld, pod, dur, v: (W + Ld * 7) / dur, y0: Math.min(H * .36, sandY - Ld * 1.6), ph: 0 };
+  }
   if (kind === 'inkpass') return { kind, t: 0, dir, dur: 16, ph: 0, splat: false };
   if (kind === 'diver') return { kind, t: 0, dir, dur: 21, ph: 0, bubT: 2 };
   return { kind: 'kraken', t: 0, dir, dur: 16.6, ph: 0 };
@@ -1225,6 +1235,8 @@ function drawVisitorBehindReef(g) {
   if (e.kind === 'shark') drawShark(g, e);
   else if (e.kind === 'whale') drawWhale(g, e);
   else if (e.kind === 'sub' && e.t > 0) drawSub(g, e);
+  else if (e.kind === 'dolphins') drawDolphins(g, e);
+  else if (e.kind === 'turtle') drawTurtle(g, e);
   else if (e.kind === 'inkpass') {
     const p = inkPassPose(e.t); p.green = true;
     if (e.fromOcto && e.t < 6.9) { const k = sm((e.t - 6) / .9), f = e.fromOcto; p.rot = lerp(f.rot, p.rot, k); p.yaw = lerp(f.yaw, p.yaw, k); p.spread = lerp(f.spread, p.spread, k); }
@@ -1478,6 +1490,97 @@ function drawSub(g, e) {
   lens.addColorStop(0, '#ffffff'); lens.addColorStop(.5, '#fff6cf'); lens.addColorStop(1, '#f0d27a');
   g.fillStyle = lens; g.beginPath(); g.ellipse(lx + lr * .12, ly, lr * .5, lr * .95, 0, 0, 7); g.fill();
   g.restore();
+}
+
+/* Sea turtle: glides past slowly with long, calm strokes of its front flippers, a little up and down */
+function drawTurtle(g, e) {
+  const L = e.L, t = e.t, x = sweepX(e, t), st = Math.sin(t * 1.1), y = e.y0 + Math.sin(t * .35) * L * .06 - st * L * .02;
+  g.save(); g.translate(x, y); g.scale(e.dir, 1); g.rotate(Math.sin(t * .35 + 1) * .05 - st * .025);
+  const skin = '#8a9a5b', skinD = '#5f6f3a';
+  const flip = (px, py, len, w, ang, far) => {
+    g.save(); g.translate(px, py); g.rotate(ang);
+    g.fillStyle = far ? skinD : skin; g.beginPath(); g.moveTo(0, -w * .5); g.bezierCurveTo(-len * .3, -w * .9, -len * .8, -w * .4, -len, 0); g.bezierCurveTo(-len * .7, w * .2, -len * .3, w * .6, 0, w * .5); g.closePath(); g.fill();
+    if (!far) { g.fillStyle = 'rgba(60, 70, 30, .5)'; for (let k = 0; k < 7; k++) { g.beginPath(); g.ellipse(-len * (.15 + k * .11), (k % 2 - .5) * w * .2, w * .12, w * .09, 0, 0, 7); g.fill(); } }
+    g.restore();
+  };
+  // far flippers
+  flip(L * .14, -L * .05, L * .42, L * .12, -2.2 + st * .55, true);
+  flip(-L * .28, -L * .02, L * .18, L * .08, -2.6 + st * .2, true);
+  // head and neck
+  g.fillStyle = skin; g.beginPath(); g.ellipse(L * .43, -L * .01, L * .12, L * .075, Math.sin(t * .5) * .08, 0, 7); g.fill();
+  g.fillStyle = 'rgba(60, 70, 30, .45)'; for (let k = 0; k < 6; k++) { g.beginPath(); g.ellipse(L * (.4 + (k % 3) * .04), -L * (.04 - Math.floor(k / 3) * .03), L * .018, L * .012, 0, 0, 7); g.fill(); }
+  g.fillStyle = '#1c1a12'; g.beginPath(); g.arc(L * .48, -L * .025, L * .013, 0, 7); g.fill();
+  g.fillStyle = 'rgba(255,255,255,.7)'; g.beginPath(); g.arc(L * .484, -L * .029, L * .004, 0, 7); g.fill();
+  g.strokeStyle = 'rgba(40, 40, 20, .6)'; g.lineWidth = Math.max(1, L * .005); g.beginPath(); g.moveTo(L * .54, L * .01); g.quadraticCurveTo(L * .5, L * .03, L * .45, L * .02); g.stroke();
+  // shell (carapace) with plates
+  const shell = () => { g.beginPath(); g.moveTo(L * .32, 0); g.bezierCurveTo(L * .28, -L * .2, -L * .05, -L * .26, -L * .3, -L * .12); g.quadraticCurveTo(-L * .38, -L * .02, -L * .3, L * .05); g.bezierCurveTo(-L * .1, L * .1, L * .2, L * .09, L * .32, 0); g.closePath(); };
+  shell(); const sg = g.createLinearGradient(0, -L * .25, 0, L * .08);
+  sg.addColorStop(0, '#8a6a32'); sg.addColorStop(.5, '#6e5226'); sg.addColorStop(1, '#4a3618'); g.fillStyle = sg; g.fill();
+  g.save(); shell(); g.clip();
+  g.strokeStyle = 'rgba(40, 26, 10, .7)'; g.lineWidth = Math.max(1.2, L * .008);
+  const plates = [[.12, -.12], [-.04, -.15], [-.18, -.1], [.2, -.04], [.04, -.05], [-.12, -.03], [-.25, -.02]];
+  for (const [px, py] of plates) {
+    g.fillStyle = 'rgba(190, 150, 80, .35)'; g.beginPath();
+    for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; g.lineTo(L * px + Math.cos(a) * L * .075, L * py + Math.sin(a) * L * .05); }
+    g.closePath(); g.fill(); g.stroke();
+  }
+  g.fillStyle = 'rgba(255, 240, 200, .12)'; g.beginPath(); g.ellipse(L * .02, -L * .15, L * .2, L * .04, -.1, 0, 7); g.fill();
+  g.restore();
+  // plastron rim
+  g.strokeStyle = '#d9c98a'; g.lineWidth = Math.max(2, L * .014); g.beginPath(); g.moveTo(-L * .3, L * .05); g.bezierCurveTo(-L * .1, L * .1, L * .2, L * .09, L * .32, 0); g.stroke();
+  // near flippers: the big front one sweeps slowly
+  flip(-L * .24, L * .05, L * .2, L * .09, 2.5 - st * .25, false);
+  flip(L * .16, L * .05, L * .5, L * .14, 2.25 - st * .6, false);
+  g.restore();
+}
+
+/* Dolphins: each one follows the pod and now and then swims a loop (a full circle up and over) or a roll round its long axis */
+function dolphinPos(e, m, t) {
+  const Ld = e.Ld, d = e.dir;
+  let x = (d > 0 ? -Ld * 1.5 : W + Ld * 1.5) + d * (e.v * t + m.dx), y = e.y0 + m.dy + Math.sin(t * 1.6 + m.ph) * Ld * .12;
+  for (const t0 of m.loops) { const k = (t - t0) / 2.2; if (k > 0 && k < 1) { const a = sm(k) * Math.PI * 2, R = Ld * .55 * m.s; x += d * R * Math.sin(a); y -= R * (1 - Math.cos(a)); } }
+  return [x, y];
+}
+function drawDolphins(g, e) {
+  const t = e.t;
+  for (const m of e.pod) {
+    const [x, y] = dolphinPos(e, m, t), [x2, y2] = dolphinPos(e, m, t + .03);
+    if (x < -e.Ld * 1.5 || x > W + e.Ld * 1.5) continue;
+    let roll = 1; for (const t0 of m.rolls) { const k = (t - t0) / 1.3; if (k > 0 && k < 1) roll = Math.cos(sm(k) * Math.PI * 2); }
+    const head = Math.atan2(y2 - y, (x2 - x) * e.dir);
+    g.save(); g.translate(x, y); g.scale(e.dir, 1); g.rotate(head); g.scale(1, Math.abs(roll) < .12 ? .12 * Math.sign(roll || 1) : roll);
+    drawDolphin(g, e.Ld * m.s, t * 6 + m.ph);
+    g.restore();
+  }
+}
+function drawDolphin(g, L, ph) {
+  const kick = Math.sin(ph) * .09; // up-and-down fluke stroke
+  const yb = s => Math.sin(ph - s * 2.4) * L * .03 * s * s; // body follows the stroke towards the tail
+  // pectoral fin (far side, behind the body)
+  g.fillStyle = '#4e6a80'; g.beginPath(); g.moveTo(L * .14, L * .07); g.quadraticCurveTo(L * .05, L * .2, -L * .04, L * .22); g.quadraticCurveTo(L * .06, L * .12, L * .06, L * .07); g.closePath(); g.fill();
+  // flukes
+  g.save(); g.translate(-L * .5, yb(1)); g.rotate(kick * 2.4);
+  g.fillStyle = '#4f6d84'; g.beginPath(); g.moveTo(L * .04, 0); g.quadraticCurveTo(-L * .05, -L * .03, -L * .14, -L * .12); g.quadraticCurveTo(-L * .09, 0, -L * .14, L * .12); g.quadraticCurveTo(-L * .05, L * .03, L * .04, 0); g.fill();
+  g.restore();
+  // dorsal fin
+  g.fillStyle = '#4a667c'; g.beginPath(); g.moveTo(L * .02, -L * .1 + yb(.5)); g.quadraticCurveTo(-L * .04, -L * .24, -L * .14, -L * .25); g.quadraticCurveTo(-L * .08, -L * .16, -L * .12, -L * .08 + yb(.6)); g.closePath(); g.fill();
+  // body: beak at +x, tail stock at -x
+  const P = [[.56, .0], [.5, -.015], [.42, -.04], [.36, -.085], [.25, -.115], [.1, -.12], [-.1, -.1], [-.3, -.06], [-.46, -.022], [-.5, -.01]];
+  const B = [[-.5, .012], [-.44, .03], [-.28, .065], [-.1, .1], [.1, .11], [.26, .09], [.36, .06], [.42, .03], [.5, .018], [.56, .006]];
+  g.beginPath();
+  P.forEach(([u, v], i) => { const s = (.56 - u) / 1.06, X = u * L, Y = v * L + yb(s); i ? g.lineTo(X, Y) : g.moveTo(X, Y); });
+  B.forEach(([u, v]) => { const s = (.56 - u) / 1.06; g.lineTo(u * L, v * L + yb(s)); });
+  g.closePath();
+  const bg = g.createLinearGradient(0, -L * .12, 0, L * .11);
+  bg.addColorStop(0, '#4d6a82'); bg.addColorStop(.42, '#7f9bb0'); bg.addColorStop(.58, '#c9d7e0'); bg.addColorStop(1, '#eef3f6');
+  g.fillStyle = bg; g.fill();
+  g.strokeStyle = 'rgba(30, 45, 60, .35)'; g.lineWidth = Math.max(1, L * .006); g.stroke();
+  // near pectoral fin, eye, smile and blowhole
+  g.fillStyle = '#5b7890'; g.beginPath(); g.moveTo(L * .2, L * .06); g.quadraticCurveTo(L * .14, L * .17, L * .05, L * .2); g.quadraticCurveTo(L * .12, L * .1, L * .12, L * .06); g.closePath(); g.fill();
+  g.fillStyle = '#1c2630'; g.beginPath(); g.arc(L * .33, -L * .03, L * .016, 0, 7); g.fill();
+  g.fillStyle = 'rgba(255,255,255,.8)'; g.beginPath(); g.arc(L * .335, -L * .036, L * .005, 0, 7); g.fill();
+  g.strokeStyle = 'rgba(30, 40, 50, .55)'; g.lineWidth = Math.max(1, L * .007); g.beginPath(); g.moveTo(L * .55, L * .005); g.quadraticCurveTo(L * .47, L * .03, L * .4, L * .012); g.stroke();
+  g.fillStyle = 'rgba(30,40,50,.5)'; g.beginPath(); g.ellipse(L * .22, -L * .118, L * .012, L * .005, 0, 0, 7); g.fill();
 }
 
 /* The submarine close to the glass: a huge hull glides past from right to left; behind each big porthole there is a little cabin */
@@ -2300,7 +2403,7 @@ let pvLabT = 0;
 function pvLabelUpdate(dt) {
   if ((pvLabT -= dt) > 0) return; pvLabT = .25;
   const q = seq(), n = st.tick ? ((st.tick - 1) % q.len) + 1 : 0, ev = st.ev ? (st.ev.big ? 'bigshark' : st.ev.kind) : null;
-  const NAME = { shark: 'Hai', bigshark: 'weißer Hai', whale: 'Wal', sub: 'U-Boot', subnear: 'U-Boot ganz nah', kraken: 'Kraken', inkpass: 'grüner Kraken spritzt Tinte', diver: 'Taucher' };
+  const NAME = { shark: 'Hai', bigshark: 'weißer Hai', whale: 'Wal', sub: 'U-Boot', subnear: 'U-Boot ganz nah', dolphins: 'Delfine', turtle: 'Schildkröte', kraken: 'Kraken', inkpass: 'grüner Kraken spritzt Tinte', diver: 'Taucher' };
   const lab = $('#pvLabel'); if (!lab) return;
   lab.textContent = (n ? 'Bonus ' + n + ' von ' + q.len + ' · Unterrichtszeit ca. ' + fmtDur(seqTimes().at[n] + Math.min(st.sharkT, S.sharkSeconds)) : 'Start · erster Bonus läuft') +
     (ev ? ' · jetzt: ' + NAME[ev] : st.octo && st.octo.green ? ' · grüner Kraken schwimmt hin und her' : '') + ' · nächster neuer Besucher in ' + nextNewIn() + (nextNewIn() === 1 ? ' Bonus' : ' Boni') + ' · ' + PREVIEW.speed + '-fach';
@@ -2521,7 +2624,9 @@ function onLoud() {
 // list of visitors in order; gap = how many Boni after the previous visitor (or after the start)
 const VIS_META = {
   ws:   { nm: 'Weiße Haie', sub: 'ab hier statt Haie', col: '#9fb3bf' },
+  dol:  { nm: 'Delfine', sub: '5 Delfine mit Loopings und Rollen', col: '#6fa8c9' },
   wh:   { nm: 'Wale', sub: 'ab hier statt weißer Haie', col: '#2f5d8a' },
+  tur:  { nm: 'Schildkröte', sub: 'groß, schwimmt langsam und majestätisch', col: '#6b8f3a' },
   sub:  { nm: 'U-Boot', sub: 'fährt von links durchs Riff', col: '#5c6b70' },
   kr:   { nm: 'Kraken', sub: 'schwimmt zum Bildschirm', col: '#ef6a1f' },
   near: { nm: 'U-Boot ganz nah', sub: 'von rechts, Blick in die Fenster', col: '#c9a23a' },
@@ -2529,12 +2634,18 @@ const VIS_META = {
   ink:  { nm: 'Tinte', sub: 'grüner Kraken spritzt an die Scheibe', col: '#2b2b3a' },
   dv:   { nm: 'Taucher', sub: 'putzt die Scheibe', col: '#b87333' }
 };
-const VIS_DEFAULT = [['ws', 5], ['wh', 6], ['sub', 4], ['kr', 4], ['near', 3], ['gr', 3], ['ink', 3], ['dv', 3]].map(([k, gap]) => ({ k, gap, on: true }));
+const VIS_DEFAULT = [['ws', 5], ['dol', 3], ['wh', 3], ['tur', 2], ['sub', 2], ['kr', 4], ['near', 3], ['gr', 3], ['ink', 3], ['dv', 3]].map(([k, gap]) => ({ k, gap, on: true }));
 function normVis(v) {
   if (!Array.isArray(v)) return null;
   const seen = new Set(), out = [];
   for (const it of v) if (it && VIS_META[it.k] && !seen.has(it.k)) { seen.add(it.k); out.push({ k: it.k, gap: clamp(Math.round(+it.gap) || 1, 1, 99), on: it.on !== false }); }
-  for (const d of VIS_DEFAULT) if (!seen.has(d.k)) out.push({ ...d });
+  // a visitor that is new in this version goes to its usual place, without moving the others
+  VIS_DEFAULT.forEach((d, i) => {
+    if (seen.has(d.k)) return;
+    const prev = i ? out.findIndex(x => x.k === VIS_DEFAULT[i - 1].k) : -1, at = prev + 1, it = { ...d };
+    const next = out[at]; if (next && next.gap > it.gap) next.gap -= it.gap; else if (next) it.gap = Math.max(1, Math.min(it.gap, next.gap - 1) || 1);
+    out.splice(at, 0, it); seen.add(d.k);
+  });
   return out;
 }
 function visFromOldSeq(q) { // settings from the previous version (absolute HaiZeiten)
@@ -2544,7 +2655,7 @@ function visFromOldSeq(q) { // settings from the previous version (absolute HaiZ
   return normVis(out);
 }
 function seqFromVis(v) {
-  const q = { ws: 0, wh: 0, sub: 0, kr: 0, near: 0, gr: 0, ink: 0, dv: 0, len: 1 }; let n = 0;
+  const q = { ws: 0, dol: 0, wh: 0, tur: 0, sub: 0, kr: 0, near: 0, gr: 0, ink: 0, dv: 0, len: 1 }; let n = 0;
   for (const it of v) if (it.on) { n += it.gap; q[it.k] = n; }
   q.len = Math.max(1, n); return q;
 }
@@ -2562,6 +2673,8 @@ function seqKind(n, q) {
   if (n === q.kr) return 'kraken';
   if (n === q.sub) return 'sub';
   if (n === q.near) return 'subnear';
+  if (n === q.dol) return 'dolphins';
+  if (n === q.tur) return 'turtle';
   if (q.gr && q.ink > q.gr && n > q.gr && n < q.ink) return 'roam'; // the green octopus swims to and fro
   return fillKind(n, q);
 }
@@ -2863,7 +2976,7 @@ $('#btnResetYes').addEventListener('click', () => { resetRound(); $('#resetConfi
 const seqOv = $('#seqOverlay');
 const KIND_COL = { shark: '#8fa3b0', bigshark: '#c9d6de', whale: '#2f5d8a', roam: '#9bd59e' };
 // how long each visitor stays on screen (s); the next Bonus only starts counting once it has left
-const VIS_DUR = { shark: 18, bigshark: 45, whale: 30, sub: 58, subnear: 34, kraken: 16.6, green: 0, roam: 0, ink: 16, diver: 21 };
+const VIS_DUR = { dolphins: 22, turtle: 40, shark: 18, bigshark: 45, whale: 30, sub: 58, subnear: 34, kraken: 16.6, green: 0, roam: 0, ink: 16, diver: 21 };
 function seqTimes() { // seconds after the start at which Bonus n's visitor appears, if it stays quiet all the time
   const q = seq(), H = S.sharkSeconds, at = [0]; let t = 0;
   for (let n = 1; n <= q.len; n++) { const k = n > 1 ? seqKind(n - 1, q) : null; t += n === 1 ? H : Math.max(H, k === 'kraken' ? VIS_DUR.kraken + 2 * H + 6 : VIS_DUR[k] || 0); at[n] = t; } // the octopus stays 2 Boni
