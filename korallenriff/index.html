@@ -121,9 +121,12 @@ button { cursor: pointer; }
 .small { font-size: 13px !important; color: var(--muted) !important; }
 .overlay#infoOverlay { place-items: start center; z-index: 40; }
 .overlay#seqOverlay { place-items: start center; z-index: 40; }
-.seq-grid { display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; align-items: center; background: var(--paper-2); border-radius: 14px; padding: 12px 14px; }
+.seq-grid { display: grid; grid-template-columns: 1fr auto auto; gap: 8px 12px; align-items: center; background: var(--paper-2); border-radius: 14px; padding: 12px 14px; }
 .seq-grid label { font-weight: 700; font-size: 15px; }
 .seq-grid input { width: 5em; padding: 8px 10px; border-radius: 10px; border: 1px solid #c3d6df; font-size: 17px; font-variant-numeric: tabular-nums; background: #fff; color: var(--ink); }
+.seq-grid output { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 5.5em; text-align: right; white-space: nowrap; }
+.seq-total { font-weight: 700; font-size: 16px; }
+@media (max-width: 520px) { .seq-grid { grid-template-columns: 1fr auto; } .seq-grid output { grid-column: 1 / -1; text-align: left; margin-top: -6px; } }
 .seq-plan { font-size: 14px; line-height: 1.6; color: #223b4d; background: var(--paper-2); border-radius: 14px; padding: 12px 14px; }
 .seq-plan b { font-variant-numeric: tabular-nums; }
 .shark-set { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--paper-2); border-radius: 14px; padding: 12px 14px; }
@@ -325,14 +328,15 @@ button { cursor: pointer; }
     </div>
     <p>Jede ruhige HaiZeit bringt einen Besucher. Hier legst du fest, in welcher HaiZeit welches große Ding kommt. Dazwischen kommen Haie, weiße Haie oder Wale. 0 heißt: kommt nicht.</p>
     <div class="seq-grid">
-      <label for="seqWs">Weiße Haie ab HaiZeit</label><input type="number" id="seqWs" min="0" max="999" step="1" inputmode="numeric">
-      <label for="seqWh">Wale ab HaiZeit</label><input type="number" id="seqWh" min="0" max="999" step="1" inputmode="numeric">
-      <label for="seqSub">U-Boot in HaiZeit</label><input type="number" id="seqSub" min="0" max="999" step="1" inputmode="numeric">
-      <label for="seqKr">Kraken (schwimmt zum Bildschirm) in HaiZeit</label><input type="number" id="seqKr" min="0" max="999" step="1" inputmode="numeric">
-      <label for="seqGr">Grüner Kraken kommt in HaiZeit</label><input type="number" id="seqGr" min="1" max="999" step="1" inputmode="numeric">
-      <label for="seqInk">Grüner Kraken spritzt Tinte in HaiZeit</label><input type="number" id="seqInk" min="2" max="999" step="1" inputmode="numeric">
-      <label for="seqDv">Taucher putzt die Scheibe in HaiZeit</label><input type="number" id="seqDv" min="3" max="999" step="1" inputmode="numeric">
+      <label for="seqWs">Weiße Haie ab HaiZeit</label><input type="number" id="seqWs" min="0" max="999" step="1" inputmode="numeric"><output id="seqWsT"></output>
+      <label for="seqWh">Wale ab HaiZeit</label><input type="number" id="seqWh" min="0" max="999" step="1" inputmode="numeric"><output id="seqWhT"></output>
+      <label for="seqSub">U-Boot in HaiZeit</label><input type="number" id="seqSub" min="0" max="999" step="1" inputmode="numeric"><output id="seqSubT"></output>
+      <label for="seqKr">Kraken (schwimmt zum Bildschirm) in HaiZeit</label><input type="number" id="seqKr" min="0" max="999" step="1" inputmode="numeric"><output id="seqKrT"></output>
+      <label for="seqGr">Grüner Kraken kommt in HaiZeit</label><input type="number" id="seqGr" min="1" max="999" step="1" inputmode="numeric"><output id="seqGrT"></output>
+      <label for="seqInk">Grüner Kraken spritzt Tinte in HaiZeit</label><input type="number" id="seqInk" min="2" max="999" step="1" inputmode="numeric"><output id="seqInkT"></output>
+      <label for="seqDv">Taucher putzt die Scheibe in HaiZeit</label><input type="number" id="seqDv" min="3" max="999" step="1" inputmode="numeric"><output id="seqDvT"></output>
     </div>
+    <p class="seq-total" id="seqTotal"></p>
     <div class="seq-plan" id="seqPlan"></div>
     <div class="btns">
       <button class="btn primary" id="btnSeqOk">Fertig</button>
@@ -2487,19 +2491,37 @@ const SEQ_IN = { ws: '#seqWs', wh: '#seqWh', sub: '#seqSub', kr: '#seqKr', gr: '
 const SEQ_NAME = { shark: 'Hai', bigshark: 'weißer Hai', whale: 'Wal', sub: 'U-Boot', kraken: 'Kraken', green: 'grüner Kraken kommt', roam: 'grüner Kraken schwimmt hin und her', ink: 'grüner Kraken spritzt Tinte', diver: 'Taucher putzt' };
 function seqFill() { const q = seq(); for (const k in SEQ_IN) $(SEQ_IN[k]).value = q[k]; seqPlan(); }
 function seqPlan() {
-  const q = seq(), parts = []; let a = 1, last = seqKind(1, q);
+  const q = seq(), T = seqTimes(), parts = []; let a = 1, last = seqKind(1, q);
   for (let n = 2; n <= q.dv + 1; n++) {
     const k = n <= q.dv ? seqKind(n, q) : null;
-    if (k !== last || ['green', 'ink', 'diver', 'sub', 'kraken'].includes(k)) { parts.push('<b>' + (a === n - 1 ? a : a + '–' + (n - 1)) + '</b> ' + SEQ_NAME[last]); a = n; last = k; }
+    if (k !== last || ['green', 'ink', 'diver', 'sub', 'kraken'].includes(k)) { parts.push('<b>' + (a === n - 1 ? a : a + '–' + (n - 1)) + '</b> ' + SEQ_NAME[last] + ' <small>(' + fmtDur(T.at[a]).replace(' min', '').replace(' h', '') + ')</small>'); a = n; last = k; }
   }
   const lost = [['kr', 'kraken', 'Der Kraken'], ['sub', 'sub', 'Das U-Boot']].filter(([k, kind]) => q[k] > 0 && (q[k] > q.dv || seqKind(q[k], q) !== kind)).map(x => x[2]);
+  seqTimeShow();
   $('#seqPlan').innerHTML = 'Ablauf: ' + parts.join(' · ') + '. Danach beginnt es wieder bei 1.' + (lost.length ? '<br><b>Achtung:</b> ' + lost.join(' und ') + ' kommt so nicht, weil die HaiZeit schon belegt ist (oder hinter dem Taucher liegt).' : '');
+}
+// how long each visitor stays on screen (s); the next HaiZeit only starts counting once it has left
+const VIS_DUR = { shark: 18, bigshark: 45, whale: 30, sub: 58, kraken: 16.6, green: 0, roam: 0, ink: 16, diver: 21 };
+function seqTimes() { // seconds after the start at which HaiZeit n's visitor appears, if it stays quiet all the time
+  const q = seq(), H = S.sharkSeconds, at = [0]; let t = 0;
+  for (let n = 1; n <= q.dv; n++) { t += n === 1 ? H : Math.max(H, VIS_DUR[seqKind(n - 1, q)] || 0); at[n] = t; }
+  return { at, end: t + VIS_DUR.diver };
+}
+function fmtDur(sec) {
+  sec = Math.round(sec); const h = Math.floor(sec / 3600), m = Math.floor(sec / 60) % 60, s = sec % 60, p = v => String(v).padStart(2, '0');
+  return h ? h + ':' + p(m) + ':' + p(s) + ' h' : m + ':' + p(s) + ' min';
+}
+function seqTimeShow() {
+  const q = seq(), T = seqTimes();
+  for (const k in SEQ_IN) $(SEQ_IN[k] + 'T').textContent = q[k] > 0 && q[k] <= q.dv ? 'nach ' + fmtDur(T.at[q[k]]) : '–';
+  $('#seqTotal').textContent = 'Ganzer Ablauf bis der Taucher fertig ist: ' + fmtDur(T.end) + ' (bei HaiZeit ' + S.sharkSeconds + ' s, wenn es durchgehend ruhig bleibt)';
 }
 function seqRead() {
   const q = {}; for (const k in SEQ_IN) q[k] = $(SEQ_IN[k]).value;
   S.seq = normSeq(q); persist(); seqPlan();
 }
 for (const k in SEQ_IN) $(SEQ_IN[k]).addEventListener('change', () => { seqRead(); seqFill(); });
+for (const k in SEQ_IN) $(SEQ_IN[k]).addEventListener('input', () => { if ($(SEQ_IN[k]).value !== '') seqRead(); });
 $('#btnSeq').addEventListener('click', () => { seqFill(); seqOv.hidden = false; });
 const seqClose = () => { seqRead(); seqFill(); seqOv.hidden = true; };
 $('#btnSeqClose').addEventListener('click', seqClose);
