@@ -1958,8 +1958,10 @@ function logic(dt) {
   if (st.mode !== 'idle' && !st.paused) {
     if (st.calmWait > 0) st.sharkT = 0; else if (st.status !== 'loud') st.sharkT += dt; // the HaiZeit pauses while it is too loud
     if (lv < 5) st.silentT += dt; else st.silentT = 0;
-    if (st.sharkT >= S.sharkSeconds) {
-      st.sharkT -= S.sharkSeconds; st.tick++;
+    // a HaiZeit only counts once the previous visitor has left the screen, so no visitor is skipped
+    // and the green octopus cannot come early when the HaiZeit is shorter than a visit
+    if (st.sharkT >= S.sharkSeconds && !st.ev && !st.events.length && !(st.octo && st.octo.goInk)) {
+      st.sharkT = 0; st.tick++;
       visitorFor(((st.tick - 1) % 31) + 1);
     }
     updateEvents(dt);
