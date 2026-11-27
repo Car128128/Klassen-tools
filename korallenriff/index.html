@@ -120,7 +120,35 @@ button { cursor: pointer; }
 .card.info ul { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
 .small { font-size: 13px !important; color: var(--muted) !important; }
 .overlay#infoOverlay { place-items: start center; z-index: 40; }
-.overlay#seqOverlay { place-items: start center; z-index: 40; }
+.overlay#seqOverlay { place-items: start center; z-index: 40; grid-template-columns: minmax(0, 1fr); }
+#seqOverlay .card { min-width: 0; }
+.tl-wrap { min-width: 0; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; background: var(--paper-2); border-radius: 14px; padding: 10px 12px 6px; }
+.tl { position: relative; height: 188px; min-width: 100%; }
+.tl-track { position: absolute; left: 0; right: 0; top: 80px; height: 14px; border-radius: 7px; overflow: hidden; display: flex; }
+.tl-track i { flex: 1; height: 100%; border-right: 1px solid rgba(255,255,255,.5); }
+.tl-mk { position: absolute; bottom: 94px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; width: 0; }
+.tl-mk b { display: block; white-space: nowrap; font-size: 12px; line-height: 1.2; color: var(--ink); text-align: center; }
+.tl-mk small { display: block; white-space: nowrap; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; text-align: center; }
+.tl-mk .dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.25); flex: none; }
+.tl-mk .stem { width: 2px; background: #9fb5c2; flex: none; }
+.tl-mk.low { bottom: auto; top: 80px; flex-direction: column-reverse; }
+.tl-num { position: absolute; top: 170px; transform: translateX(-50%); font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tl-key { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); margin-top: 4px; }
+.tl-key span::before { content: ''; display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; background: var(--c); }
+.vis-list { display: flex; flex-direction: column; gap: 6px; }
+.vis-row { min-width: 0; display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; align-items: center; gap: 10px; background: #fff; border: 1px solid #d3e2ea; border-radius: 14px; padding: 8px 10px; transition: transform .15s ease, box-shadow .15s ease; }
+.vis-row.dragging { transition: none; box-shadow: 0 10px 26px rgba(0,0,0,.22); position: relative; z-index: 2; background: #fffdf6; }
+.vis-row.off .vis-name { opacity: .45; text-decoration: line-through; }
+.vis-handle { width: 40px; height: 40px; display: grid; place-items: center; border: 0; background: var(--paper-2); border-radius: 10px; color: var(--ink); font-size: 20px; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+.vis-row input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--coral); }
+.vis-name { min-width: 0; }
+.vis-name b { display: block; font-size: 15px; }
+.vis-name small { display: block; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.vis-gap { display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--muted); }
+.vis-gap button { width: 34px; height: 34px; border-radius: 10px; border: 1px solid #c3d6df; background: #fff; font-size: 18px; font-weight: 700; color: var(--ink); }
+.vis-gap input { width: 3.2em; padding: 6px 4px; border-radius: 9px; border: 1px solid #c3d6df; background: #fff; color: var(--ink); font-size: 16px; text-align: center; font-variant-numeric: tabular-nums; }
+.seq-warn { font-size: 14px; color: #8a3a12; background: #fff1e6; border-radius: 12px; padding: 10px 12px; margin: 0; }
+@media (max-width: 520px) { .vis-row { grid-template-columns: auto auto minmax(0, 1fr); } .vis-gap { grid-column: 2 / -1; } }
 .seq-grid { display: grid; grid-template-columns: 1fr auto auto; gap: 8px 12px; align-items: center; background: var(--paper-2); border-radius: 14px; padding: 12px 14px; }
 .seq-grid label { font-weight: 700; font-size: 15px; }
 .seq-grid input { width: 5em; padding: 8px 10px; border-radius: 10px; border: 1px solid #c3d6df; font-size: 17px; font-variant-numeric: tabular-nums; background: #fff; color: var(--ink); }
@@ -271,10 +299,10 @@ body.preview .hud, body.preview .overlay, body.preview .paused-tag, body.preview
       <small>0 bis 100. Wird die Schwelle überschritten, verstecken sich die Fische. Niedrig = empfindlich, hoch = erst bei großem Lärm.</small>
     </div>
     <div class="shark-set">
-      <label for="sharkSec">HaiZeit: alle</label>
-      <input type="number" id="sharkSec" min="1" max="3600" step="1" value="60" inputmode="numeric"> <span>Sekunden kommt ein Hai</span>
-      <small>1 bis 3600 Sekunden. Jede ruhige HaiZeit bringt einen Besucher: erst Haie, dann weiße Haie, Wale, das U-Boot, Kraken und am Ende den Taucher. Flüchten alle Fische, beginnt es von vorn.</small>
-      <small>Die lila Anemone im Riff zeigt mit Luftblasen, wie viele HaiZeiten es noch bis zum nächsten neuen Besucher sind: 4 Blasen übereinander = noch 4 HaiZeiten.</small>
+      <label for="sharkSec">Bonus: alle</label>
+      <input type="number" id="sharkSec" min="1" max="3600" step="1" value="60" inputmode="numeric"> <span>Sekunden</span>
+      <small>1 bis 3600 Sekunden. Jeder ruhige Bonus bringt einen Besucher: erst Haie, dann weiße Haie, Wale, U-Boote, Kraken und am Ende den Taucher. Flüchten alle Fische, beginnt es von vorn.</small>
+      <small>Die lila Anemone im Riff zeigt mit Luftblasen, wie viele Boni es noch bis zum nächsten neuen Besucher sind: 4 Blasen übereinander = noch 4 Boni.</small>
       <button type="button" class="btn" id="btnSeq">Einstellungen: Wann kommt welcher Besucher?</button>
     </div>
     <p class="err" id="micErr" hidden></p>
@@ -302,7 +330,7 @@ body.preview .hud, body.preview .overlay, body.preview .paused-tag, body.preview
       <h3>4. Keine Personendaten</h3>
       <p>Es gibt keine Konten, keine Namen, keine Profile von Kindern und keine Zuordnung zu einzelnen Personen. Die Ampel bewertet immer nur die Lautstärke im ganzen Raum.</p>
       <h3>5. Was auf dem Gerät bleibt</h3>
-      <p>Damit die Einstellungen nicht jedes Mal neu gemacht werden müssen, merkt sich der Browser auf diesem Gerät nur die Einstellungen: Lautstärke-Grenze, Wartezeit, HaiZeit, die Reihenfolge der Besucher und die Toleranz. Fische und Fotos werden nicht gespeichert. Das sind keine personenbezogenen Daten. Mit dem Knopf unten lässt sich das jederzeit löschen.</p>
+      <p>Damit die Einstellungen nicht jedes Mal neu gemacht werden müssen, merkt sich der Browser auf diesem Gerät nur die Einstellungen: Lautstärke-Grenze, Wartezeit, Bonus-Zeit, die Reihenfolge der Besucher und die Toleranz. Fische und Fotos werden nicht gespeichert. Das sind keine personenbezogenen Daten. Mit dem Knopf unten lässt sich das jederzeit löschen.</p>
       <h3>6. Kamera für gemalte Fische</h3>
       <p>Die Kamera wird nur geöffnet, wenn jemand auf „Gemalten Fisch fotografieren“ tippt. Das Foto wird sofort auf diesem Gerät ausgeschnitten und nur als kleines Bild im Arbeitsspeicher behalten, solange die App offen ist. Es wird nicht gespeichert, nicht in die Fotos-Mediathek gelegt und nicht übertragen. „Gemalte Fische entfernen“ in den Einstellungen löscht die Bilder sofort. Bitte nur die Zeichnung fotografieren, ohne Gesichter und ohne Namen.</p>
       <h3>7. Mikrofonzugriff</h3>
@@ -335,18 +363,11 @@ body.preview .hud, body.preview .overlay, body.preview .paused-tag, body.preview
     <div class="info-head"><h1 id="seqTitle">Einstellungen: Besucher</h1>
       <button class="iconbtn light" id="btnSeqClose" aria-label="Schließen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
-    <p>Jede ruhige HaiZeit bringt einen Besucher. Hier legst du fest, in welcher HaiZeit welches große Ding kommt. Dazwischen kommen Haie, weiße Haie oder Wale. 0 heißt: kommt nicht.</p>
-    <div class="seq-grid">
-      <label for="seqWs">Weiße Haie ab HaiZeit</label><input type="number" id="seqWs" min="0" max="999" step="1" inputmode="numeric"><output id="seqWsT"></output>
-      <label for="seqWh">Wale ab HaiZeit</label><input type="number" id="seqWh" min="0" max="999" step="1" inputmode="numeric"><output id="seqWhT"></output>
-      <label for="seqSub">U-Boot in HaiZeit</label><input type="number" id="seqSub" min="0" max="999" step="1" inputmode="numeric"><output id="seqSubT"></output>
-      <label for="seqKr">Kraken (schwimmt zum Bildschirm) in HaiZeit</label><input type="number" id="seqKr" min="0" max="999" step="1" inputmode="numeric"><output id="seqKrT"></output>
-      <label for="seqGr">Grüner Kraken kommt in HaiZeit</label><input type="number" id="seqGr" min="1" max="999" step="1" inputmode="numeric"><output id="seqGrT"></output>
-      <label for="seqInk">Grüner Kraken spritzt Tinte in HaiZeit</label><input type="number" id="seqInk" min="2" max="999" step="1" inputmode="numeric"><output id="seqInkT"></output>
-      <label for="seqDv">Taucher putzt die Scheibe in HaiZeit</label><input type="number" id="seqDv" min="3" max="999" step="1" inputmode="numeric"><output id="seqDvT"></output>
-    </div>
+    <p>Jeder ruhige Bonus bringt einen Besucher. Zieh die Besucher am Griff <b>☰</b> in die gewünschte Reihenfolge und stell ein, wie viele Boni nach dem vorherigen Besucher sie kommen. Zwischen den Besuchern kommen Haie, weiße Haie oder Wale. Ein Haken weg = kommt nicht.</p>
+    <div class="tl-wrap"><div class="tl" id="seqTl" aria-label="Zeitstrahl der Besucher"></div></div>
     <p class="seq-total" id="seqTotal"></p>
-    <div class="seq-plan" id="seqPlan"></div>
+    <div class="vis-list" id="visList"></div>
+    <p class="seq-warn" id="seqWarn" hidden></p>
     <section class="seq-test">
       <h2>Testlauf ohne Mikrofon</h2>
       <p>Spielt den eingestellten Ablauf im Zeitraffer in einem kleinen Vorschaufenster ab. Die Klasse ist dabei immer leise.</p>
@@ -404,7 +425,7 @@ body.preview .hud, body.preview .overlay, body.preview .paused-tag, body.preview
       <small>So lange muss es leise sein, dann kommt ein neuer Fisch. Wird es laut, beginnt die Wartezeit von vorn.</small>
     </div>
     <div class="field">
-      <label for="sharkSec2">Hai schwimmt durchs Bild alle … Sekunden</label>
+      <label for="sharkSec2">Bonus alle … Sekunden (jeder ruhige Bonus bringt einen Besucher)</label>
       <input type="number" id="sharkSec2" min="1" max="3600" step="1" value="60" inputmode="numeric" style="padding:10px 12px;border-radius:12px;border:1px solid #c3d6df;font-size:16px;background:#fff;color:var(--ink);width:8em">
       <small>5 bis 3600 Sekunden. Die Zeit läuft, solange die App nicht pausiert ist.</small>
     </div>
@@ -1152,6 +1173,10 @@ function startEvent(kind) {
     // starts out of view, rumbling for 5 s before, and keeps rumbling (fading) after it has left
     return { kind, t: -pre, dir, L, v, pre, dur: (W + 1.15 * L) / v + 5, y0: sandY * .56, ph: 0, bubT: 0 };
   }
+  if (kind === 'subnear') { // the second submarine: from the right, right in front of the glass, you can look into its windows
+    const R = Math.min(H * .16, W * .13), D = R * 3.3, N = 6, L = D * (N + 1.7), v = D / 2.6;
+    return { kind, t: 0, dir: -1, L, v, R, D, N, dur: (W + 1.2 * L) / v, y0: H * .5, ph: 0, bubT: 0 };
+  }
   if (kind === 'inkpass') return { kind, t: 0, dir, dur: 16, ph: 0, splat: false };
   if (kind === 'diver') return { kind, t: 0, dir, dur: 21, ph: 0, bubT: 2 };
   return { kind: 'kraken', t: 0, dir, dur: 16.6, ph: 0 };
@@ -1161,7 +1186,7 @@ function updateEvents(dt) {
   const e = st.ev; if (!e) return;
   const slow = e.kind === 'kraken' ? .7 : 1; // the octopus takes its time
   e.t += dt * slow; e.ph += dt * slow;
-  if (e.kind === 'sub' && e.t > 0 && !reduceMotion) {
+  if ((e.kind === 'sub' || e.kind === 'subnear') && e.t > 0 && !reduceMotion) {
     e.bubT -= dt;
     const g = subGeom(e);
     if (e.bubT <= 0) { e.bubT = .04; const sx = g.x - e.dir * e.L * .5; if (sx > -80 && sx < W + 80) for (let k = 0; k < 3; k++) { const b = spawnBubble(sx + (Math.random() - .5) * 16, g.y + (Math.random() - .5) * e.L * .05, k === 0, k > 0); b.vx = -e.dir * (50 + Math.random() * 110) * U; } }
@@ -1453,6 +1478,142 @@ function drawSub(g, e) {
   lens.addColorStop(0, '#ffffff'); lens.addColorStop(.5, '#fff6cf'); lens.addColorStop(1, '#f0d27a');
   g.fillStyle = lens; g.beginPath(); g.ellipse(lx + lr * .12, ly, lr * .5, lr * .95, 0, 0, 7); g.fill();
   g.restore();
+}
+
+/* The submarine close to the glass: a huge hull glides past from right to left; behind each big porthole there is a little cabin */
+function drawSubNear(g, e) {
+  const L = e.L, R = e.R, D = e.D, Hh = H * .86, x0 = sweepX(e, e.t), y0 = e.y0 + Math.sin(e.t * .35) * 5 * U;
+  if (x0 + L * .6 < 0 || x0 - L * .6 > W) return;
+  g.save(); g.translate(x0, y0); g.scale(e.dir, 1);
+  const top = -Hh * .5, bot = Hh * .5, bow = L * .5, st0 = -L * .5;
+  // propeller at the stern
+  g.save(); g.translate(st0 - D * .05, 0);
+  g.fillStyle = '#3a3324'; g.fillRect(0, -R * .12, D * .3, R * .24);
+  for (let i = 0; i < 4; i++) { const a = e.t * 6 + i * Math.PI / 2, c = Math.cos(a); g.fillStyle = c > 0 ? '#c9a84e' : '#957a36'; g.beginPath(); g.ellipse(-D * .02, Math.sin(a) * R * 1.1, D * .05, R * Math.abs(c) * 1 + 2, 0, 0, 7); g.fill(); }
+  g.fillStyle = '#5a4a2a'; g.beginPath(); g.ellipse(-D * .03, 0, D * .06, R * .3, 0, 0, 7); g.fill();
+  g.restore();
+  // hull
+  const hull = () => { g.beginPath(); g.moveTo(st0 + D * .9, top); g.lineTo(bow - D * 1.1, top);
+    g.bezierCurveTo(bow - D * .15, top, bow, top * .45, bow, 0); g.bezierCurveTo(bow, bot * .45, bow - D * .15, bot, bow - D * 1.1, bot);
+    g.lineTo(st0 + D * .9, bot); g.bezierCurveTo(st0 + D * .3, bot * .85, st0, R * .5, st0, 0); g.bezierCurveTo(st0, -R * .5, st0 + D * .3, top * .85, st0 + D * .9, top); g.closePath(); };
+  hull();
+  const hg = g.createLinearGradient(0, top, 0, bot);
+  hg.addColorStop(0, '#2a3539'); hg.addColorStop(.18, '#5d6f75'); hg.addColorStop(.32, '#8fa1a6'); hg.addColorStop(.5, '#61737a'); hg.addColorStop(.85, '#33403f'); hg.addColorStop(1, '#1a2224');
+  g.fillStyle = hg; g.fill();
+  g.save(); hull(); g.clip();
+  // plates, seams, rivets and a few rust streaks
+  g.strokeStyle = 'rgba(0,0,0,.28)'; g.lineWidth = 2 * U;
+  for (let x = st0 + D * .5; x < bow; x += D * .5) { g.beginPath(); g.moveTo(x, top); g.lineTo(x, bot); g.stroke(); }
+  for (const y of [-R * 1.75, R * 1.75]) { g.beginPath(); g.moveTo(st0, y); g.lineTo(bow, y); g.stroke(); }
+  g.fillStyle = 'rgba(225, 235, 238, .4)';
+  for (const y of [-R * 1.65, R * 1.85]) for (let x = st0 + D * .2; x < bow; x += D * .1) { g.beginPath(); g.arc(x, y, 2.6 * U, 0, 7); g.fill(); }
+  const rr = rng(11);
+  for (let i = 0; i < 30; i++) { g.fillStyle = 'rgba(150, 85, 30, ' + (.12 + rr() * .18) + ')'; const x = st0 + rr() * L; g.fillRect(x, R * (1.25 + rr() * .3), 3 * U, R * (.3 + rr() * .7)); }
+  // a waterline stripe and a name
+  g.fillStyle = 'rgba(170, 40, 30, .65)'; g.fillRect(st0, R * 2.05, L, R * .25);
+  g.restore();
+  // portholes with a little cabin behind each one
+  for (let i = 0; i < e.N; i++) {
+    const wx = bow - D * 1.2 - i * D, sx = x0 + e.dir * wx; if (sx < -R * 1.5 || sx > W + R * 1.5) continue;
+    // brass ring with bolts
+    const rg = g.createRadialGradient(wx - R * .4, -R * .4, R * .2, wx, 0, R * 1.3);
+    rg.addColorStop(0, '#f3d58a'); rg.addColorStop(.6, '#c9973a'); rg.addColorStop(1, '#7a5418');
+    g.fillStyle = rg; g.beginPath(); g.arc(wx, 0, R * 1.28, 0, 7); g.fill();
+    g.fillStyle = '#5a3e12'; for (let k = 0; k < 10; k++) { const a = k / 10 * Math.PI * 2; g.beginPath(); g.arc(wx + Math.cos(a) * R * 1.15, Math.sin(a) * R * 1.15, R * .055, 0, 7); g.fill(); }
+    g.fillStyle = '#1b1b1b'; g.beginPath(); g.arc(wx, 0, R * 1.04, 0, 7); g.fill();
+    g.save(); g.beginPath(); g.arc(wx, 0, R, 0, 7); g.clip();
+    g.translate(wx, 0); g.scale(e.dir, 1); // the cabins are not mirrored
+    drawCabin(g, i, R, e.t);
+    // glass: a bluish sheen and a reflection
+    const gl = g.createLinearGradient(-R, -R, R, R); gl.addColorStop(0, 'rgba(180, 220, 255, .28)'); gl.addColorStop(.5, 'rgba(180, 220, 255, 0)'); gl.addColorStop(1, 'rgba(20, 40, 60, .25)');
+    g.fillStyle = gl; g.fillRect(-R, -R, R * 2, R * 2);
+    g.strokeStyle = 'rgba(255,255,255,.45)'; g.lineWidth = R * .07; g.lineCap = 'round'; g.beginPath(); g.arc(0, 0, R * .8, 3.6, 4.3); g.stroke();
+    g.restore();
+  }
+  // bow light
+  const lx = bow - D * .18, lr = R * .32;
+  g.save(); g.globalCompositeOperation = 'lighter';
+  const lg2 = g.createRadialGradient(lx, 0, 0, lx, 0, lr * 4); lg2.addColorStop(0, 'rgba(255, 250, 225, .6)'); lg2.addColorStop(1, 'rgba(255, 245, 200, 0)');
+  g.fillStyle = lg2; g.beginPath(); g.arc(lx, 0, lr * 4, 0, 7); g.fill(); g.restore();
+  g.fillStyle = '#1e2629'; g.beginPath(); g.arc(lx, 0, lr * 1.2, 0, 7); g.fill();
+  g.fillStyle = '#fff6cf'; g.beginPath(); g.arc(lx, 0, lr, 0, 7); g.fill();
+  g.restore();
+}
+/* tiny people and things behind the portholes; drawn around (0,0) inside a circle of radius R */
+function cabinPerson(g, x, y, s, o) {
+  const skin = o.skin || '#f1c6a0';
+  // body
+  g.fillStyle = o.shirt; g.beginPath(); g.moveTo(x - s * .48, y + s * 1.2); g.quadraticCurveTo(x - s * .5, y + s * .12, x, y + s * .1); g.quadraticCurveTo(x + s * .5, y + s * .12, x + s * .48, y + s * 1.2); g.closePath(); g.fill();
+  if (o.stripes) { g.save(); g.clip(); g.fillStyle = o.stripes; for (let k = 0; k < 6; k++) g.fillRect(x - s, y + s * (.25 + k * .17), s * 2, s * .07); g.restore(); }
+  // head
+  g.fillStyle = skin; g.fillRect(x - s * .09, y - s * .02, s * .18, s * .16);
+  g.beginPath(); g.arc(x, y - s * .25, s * .3, 0, 7); g.fill();
+  if (o.hair) { g.fillStyle = o.hair; g.beginPath(); g.arc(x, y - s * .3, s * .31, Math.PI * 1.05, Math.PI * 1.95); g.closePath(); g.fill(); }
+  if (o.beard) { g.fillStyle = o.beard; g.beginPath(); g.arc(x, y - s * .2, s * .3, .15, Math.PI - .15); g.closePath(); g.fill(); }
+  // face
+  if (o.sleep) { g.strokeStyle = '#3a2a1a'; g.lineWidth = s * .03; for (const ex of [-.1, .1]) { g.beginPath(); g.arc(x + ex * s, y - s * .27, s * .05, .2, Math.PI - .2); g.stroke(); } }
+  else { g.fillStyle = '#2a1d12'; for (const ex of [-.1, .1]) { g.beginPath(); g.arc(x + ex * s, y - s * .28, s * .035, 0, 7); g.fill(); } }
+  if (o.glasses) { g.strokeStyle = '#333'; g.lineWidth = s * .025; for (const ex of [-.1, .1]) { g.beginPath(); g.arc(x + ex * s, y - s * .28, s * .075, 0, 7); g.stroke(); } }
+  g.strokeStyle = '#8a3a2a'; g.lineWidth = s * .03; g.beginPath(); g.arc(x, y - s * .2, s * .1, .3, Math.PI - .3); g.stroke();
+  if (o.cap) { g.fillStyle = '#ffffff'; g.beginPath(); g.ellipse(x, y - s * .5, s * .34, s * .12, 0, Math.PI, 0); g.fill(); g.fillRect(x - s * .3, y - s * .56, s * .6, s * .08); g.fillStyle = '#1b1b1b'; g.fillRect(x - s * .32, y - s * .48, s * .64, s * .06); g.fillStyle = '#e3b23c'; g.beginPath(); g.arc(x, y - s * .55, s * .05, 0, 7); g.fill(); }
+  if (o.chef) { g.fillStyle = '#ffffff'; g.fillRect(x - s * .24, y - s * .72, s * .48, s * .2); for (const ex of [-.15, 0, .15]) { g.beginPath(); g.arc(x + ex * s, y - s * .78, s * .16, 0, 7); g.fill(); } }
+  // arms
+  g.strokeStyle = o.shirt; g.lineWidth = s * .16; g.lineCap = 'round';
+  if (o.wave !== undefined) { const a = -2 + Math.sin(o.wave * 5) * .45; g.beginPath(); g.moveTo(x + s * .38, y + s * .3); g.lineTo(x + s * .38 + Math.cos(a) * s * .6, y + s * .3 + Math.sin(a) * s * .6); g.stroke(); g.fillStyle = skin; g.beginPath(); g.arc(x + s * .38 + Math.cos(a) * s * .62, y + s * .3 + Math.sin(a) * s * .62, s * .09, 0, 7); g.fill(); }
+}
+function drawCabin(g, i, R, t) {
+  // warm cabin light, wooden floor
+  const bg = g.createRadialGradient(-R * .2, -R * .5, R * .1, 0, 0, R * 1.2);
+  bg.addColorStop(0, '#fff1c8'); bg.addColorStop(.6, '#f0c27a'); bg.addColorStop(1, '#a8703a');
+  g.fillStyle = bg; g.fillRect(-R, -R, R * 2, R * 2);
+  g.fillStyle = '#8a5a2e'; g.fillRect(-R, R * .62, R * 2, R); g.strokeStyle = 'rgba(60,30,10,.35)'; g.lineWidth = R * .015; for (let k = -3; k <= 3; k++) { g.beginPath(); g.moveTo(k * R * .3, R * .62); g.lineTo(k * R * .45, R); g.stroke(); }
+  const s = R * .55;
+  if (i === 0) { // the captain at the wheel
+    cabinPerson(g, 0, -R * .05, s, { shirt: '#1f3a68', beard: '#d9d4c8', cap: true });
+    g.save(); g.translate(0, R * .58); g.rotate(Math.sin(t * .8) * .5); g.strokeStyle = '#6b3d16'; g.lineWidth = R * .06;
+    g.beginPath(); g.arc(0, 0, R * .3, 0, 7); g.stroke();
+    for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(a) * R * .42, Math.sin(a) * R * .42); g.stroke(); }
+    g.fillStyle = '#8a5320'; g.beginPath(); g.arc(0, 0, R * .07, 0, 7); g.fill(); g.restore();
+  } else if (i === 1) { // a sailor waving at the class
+    cabinPerson(g, 0, -R * .02, s, { shirt: '#ffffff', stripes: '#2a5bb8', hair: '#5a3a1a', wave: t });
+  } else if (i === 2) { // a researcher with a fish bowl
+    cabinPerson(g, -R * .25, 0, s * .95, { shirt: '#f4f4f0', glasses: true, hair: '#b8b0a0' });
+    g.fillStyle = 'rgba(140, 200, 255, .55)'; g.beginPath(); g.arc(R * .45, R * .35, R * .26, 0, 7); g.fill();
+    g.strokeStyle = 'rgba(255,255,255,.8)'; g.lineWidth = R * .02; g.stroke();
+    const fx = R * .45 + Math.sin(t * 1.5) * R * .12; g.fillStyle = '#ff8a1e'; g.beginPath(); g.ellipse(fx, R * .38, R * .07, R * .045, 0, 0, 7); g.fill();
+    g.beginPath(); g.moveTo(fx - Math.sign(Math.cos(t * 1.5)) * R * .06, R * .38); g.lineTo(fx - Math.sign(Math.cos(t * 1.5)) * R * .12, R * .33); g.lineTo(fx - Math.sign(Math.cos(t * 1.5)) * R * .12, R * .43); g.closePath(); g.fill();
+    g.fillStyle = '#6b4a2a'; g.fillRect(R * .1, R * .6, R * .8, R * .06);
+  } else if (i === 3) { // someone fast asleep in a bunk
+    g.fillStyle = '#6b4a2a'; g.fillRect(-R, R * .05, R * 2, R * .1); g.fillRect(-R, R * .55, R * 2, R * .08);
+    g.fillStyle = '#ffffff'; g.beginPath(); g.ellipse(-R * .5, R * .02, R * .2, R * .1, 0, 0, 7); g.fill();
+    g.fillStyle = '#f1c6a0'; g.beginPath(); g.arc(-R * .45, -R * .06, R * .14, 0, 7); g.fill();
+    g.fillStyle = '#c0504d'; g.beginPath(); g.ellipse(R * .2, R * .02, R * .6, R * .14, 0, Math.PI, 0); g.fill();
+    g.strokeStyle = '#3a2a1a'; g.lineWidth = R * .02; g.beginPath(); g.arc(-R * .48, -R * .07, R * .03, .2, Math.PI - .2); g.stroke();
+    g.fillStyle = '#3a4a8a'; g.font = '700 ' + Math.round(R * .2) + 'px system-ui, sans-serif';
+    for (let k = 0; k < 3; k++) { const q = (t * .5 + k / 3) % 1; g.globalAlpha = 1 - q; g.fillText('z', -R * .35 + q * R * .5, -R * .25 - q * R * .5); }
+    g.globalAlpha = 1;
+  } else if (i === 4) { // the cook stirring a pot
+    cabinPerson(g, -R * .15, -R * .02, s, { shirt: '#ffffff', chef: true, beard: null });
+    g.fillStyle = '#5a5f66'; g.beginPath(); g.moveTo(R * .05, R * .3); g.lineTo(R * .75, R * .3); g.lineTo(R * .68, R * .68); g.lineTo(R * .12, R * .68); g.closePath(); g.fill();
+    g.strokeStyle = '#8a5320'; g.lineWidth = R * .04; g.beginPath(); g.moveTo(R * .4 + Math.sin(t * 3) * R * .12, R * .32); g.lineTo(R * .2, -R * .05); g.stroke();
+    g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = R * .04;
+    for (let k = 0; k < 3; k++) { const q = (t * .4 + k / 3) % 1, x = R * (.25 + k * .2); g.globalAlpha = 1 - q; g.beginPath(); g.moveTo(x, R * .25 - q * R * .6); g.quadraticCurveTo(x + R * .08, R * .15 - q * R * .6, x, R * .05 - q * R * .6); g.stroke(); }
+    g.globalAlpha = 1;
+  } else { // a cat looking out
+    g.fillStyle = '#6b4a2a'; g.fillRect(-R, R * .5, R * 2, R * .08);
+    const cx = 0, cy = R * .12, sw = Math.sin(t * 2) * .5;
+    g.strokeStyle = '#e08a2e'; g.lineWidth = R * .08; g.lineCap = 'round'; g.beginPath(); g.moveTo(cx + R * .25, R * .45); g.quadraticCurveTo(cx + R * .6, R * .3, cx + R * .5 + sw * R * .2, R * .05); g.stroke();
+    g.fillStyle = '#f09a3a'; g.beginPath(); g.ellipse(cx, R * .3, R * .3, R * .22, 0, 0, 7); g.fill();
+    g.beginPath(); g.arc(cx, cy - R * .08, R * .22, 0, 7); g.fill();
+    for (const sx of [-1, 1]) { g.beginPath(); g.moveTo(cx + sx * R * .2, cy - R * .18); g.lineTo(cx + sx * R * .14, cy - R * .4); g.lineTo(cx + sx * R * .04, cy - R * .26); g.closePath(); g.fill(); }
+    g.fillStyle = '#2a4a1a'; for (const sx of [-1, 1]) { g.beginPath(); g.ellipse(cx + sx * R * .08, cy - R * .1, R * .035, R * .05, 0, 0, 7); g.fill(); }
+    g.fillStyle = '#d6607a'; g.beginPath(); g.arc(cx, cy - R * .02, R * .025, 0, 7); g.fill();
+    g.strokeStyle = 'rgba(80,40,10,.6)'; g.lineWidth = R * .01; for (const sx of [-1, 1]) for (const dy of [-.02, .02]) { g.beginPath(); g.moveTo(cx + sx * R * .05, cy + dy * R); g.lineTo(cx + sx * R * .25, cy + dy * R * 2); g.stroke(); }
+    g.fillStyle = '#3c8a3a'; for (let k = 0; k < 5; k++) { g.beginPath(); g.ellipse(-R * .6 + k * R * .05, R * .3 - k * R * .05, R * .05, R * .14, -.5 + k * .25, 0, 7); g.fill(); }
+  }
+  // soft shading at the edge of the window
+  const vg = g.createRadialGradient(0, 0, R * .55, 0, 0, R); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(40, 20, 0, .35)');
+  g.fillStyle = vg; g.fillRect(-R, -R, R * 2, R * 2);
 }
 
 /* Octopus: jets in mantle-first, turns its body towards the class (a turn in depth, not a flat flip),
@@ -2138,11 +2299,11 @@ function pvTimer() { return PREVIEW ? PREVIEW.speed / pvAnim() : 1; } // on top 
 let pvLabT = 0;
 function pvLabelUpdate(dt) {
   if ((pvLabT -= dt) > 0) return; pvLabT = .25;
-  const q = seq(), n = st.tick ? ((st.tick - 1) % q.dv) + 1 : 0, ev = st.ev ? (st.ev.big ? 'bigshark' : st.ev.kind) : null;
-  const NAME = { shark: 'Hai', bigshark: 'weißer Hai', whale: 'Wal', sub: 'U-Boot', kraken: 'Kraken', inkpass: 'grüner Kraken spritzt Tinte', diver: 'Taucher' };
+  const q = seq(), n = st.tick ? ((st.tick - 1) % q.len) + 1 : 0, ev = st.ev ? (st.ev.big ? 'bigshark' : st.ev.kind) : null;
+  const NAME = { shark: 'Hai', bigshark: 'weißer Hai', whale: 'Wal', sub: 'U-Boot', subnear: 'U-Boot ganz nah', kraken: 'Kraken', inkpass: 'grüner Kraken spritzt Tinte', diver: 'Taucher' };
   const lab = $('#pvLabel'); if (!lab) return;
-  lab.textContent = (n ? 'HaiZeit ' + n + ' von ' + q.dv + ' · Unterrichtszeit ca. ' + fmtDur(seqTimes().at[n] + Math.min(st.sharkT, S.sharkSeconds)) : 'Start · erste HaiZeit läuft') +
-    (ev ? ' · jetzt: ' + NAME[ev] : st.octo && st.octo.green ? ' · grüner Kraken schwimmt hin und her' : '') + ' · nächster neuer Besucher in ' + nextNewIn() + ' HaiZeit' + (nextNewIn() === 1 ? '' : 'en') + ' · ' + PREVIEW.speed + '-fach';
+  lab.textContent = (n ? 'Bonus ' + n + ' von ' + q.len + ' · Unterrichtszeit ca. ' + fmtDur(seqTimes().at[n] + Math.min(st.sharkT, S.sharkSeconds)) : 'Start · erster Bonus läuft') +
+    (ev ? ' · jetzt: ' + NAME[ev] : st.octo && st.octo.green ? ' · grüner Kraken schwimmt hin und her' : '') + ' · nächster neuer Besucher in ' + nextNewIn() + (nextNewIn() === 1 ? ' Bonus' : ' Boni') + ' · ' + PREVIEW.speed + '-fach';
 }
 
 function logic(dt) {
@@ -2163,7 +2324,7 @@ function logic(dt) {
     // and the green octopus cannot come early when the HaiZeit is shorter than a visit
     if (st.sharkT >= S.sharkSeconds && !st.ev && !st.events.length && !(st.octo && (st.octo.goInk || !st.octo.green))) { // also wait while the orange octopus is still in the reef
       st.sharkT = 0; st.tick++;
-      visitorFor(((st.tick - 1) % seq().dv) + 1);
+      visitorFor(((st.tick - 1) % seq().len) + 1);
     }
     updateEvents(dt);
     updateOcto(dt);
@@ -2321,6 +2482,7 @@ function render() {
   if (inks.length) drawInk(ctx);
   if (st.ev && st.ev.kind === 'kraken') drawKraken(ctx, st.ev);
   if (st.ev && st.ev.kind === 'inkpass') drawInkPass(ctx, st.ev);
+  if (st.ev && st.ev.kind === 'subnear') drawSubNear(ctx, st.ev);
   // the diver comes up from behind the ink and ends up in front of it, at the glass
   // the diver is in the water behind the inked glass: he only becomes clear where he has wiped
   const dv = st.ev && st.ev.kind === 'diver' ? st.ev : null;
@@ -2356,16 +2518,38 @@ function onLoud() {
    (S.seq, default: 1-4 shark, 5-10 white shark, 11-14 whale, 15 submarine, 16-18 whale, 19 octopus,
    20-24 whale, 25 green octopus swims to and fro, 28 it inks the glass, 29-30 whale, 31 the diver cleans it;
    then it starts again). */
-function normSeq(q) {
-  const n = (v, d, lo) => { v = Math.round(+v); return Number.isFinite(v) ? clamp(v, lo, 999) : d; };
-  const D = SEQ_DEFAULT, o = {};
-  o.dv = n(q && q.dv, D.dv, 3);
-  o.ink = Math.min(n(q && q.ink, D.ink, 2), o.dv - 1);
-  o.gr = Math.min(n(q && q.gr, D.gr, 1), o.ink - 1);
-  o.ws = n(q && q.ws, D.ws, 0); o.wh = n(q && q.wh, D.wh, 0); o.sub = n(q && q.sub, D.sub, 0); o.kr = n(q && q.kr, D.kr, 0);
-  return o;
+// list of visitors in order; gap = how many Boni after the previous visitor (or after the start)
+const VIS_META = {
+  ws:   { nm: 'Weiße Haie', sub: 'ab hier statt Haie', col: '#9fb3bf' },
+  wh:   { nm: 'Wale', sub: 'ab hier statt weißer Haie', col: '#2f5d8a' },
+  sub:  { nm: 'U-Boot', sub: 'fährt von links durchs Riff', col: '#5c6b70' },
+  kr:   { nm: 'Kraken', sub: 'schwimmt zum Bildschirm', col: '#ef6a1f' },
+  near: { nm: 'U-Boot ganz nah', sub: 'von rechts, Blick in die Fenster', col: '#c9a23a' },
+  gr:   { nm: 'Grüner Kraken', sub: 'kommt und schwimmt hin und her', col: '#4caf50' },
+  ink:  { nm: 'Tinte', sub: 'grüner Kraken spritzt an die Scheibe', col: '#2b2b3a' },
+  dv:   { nm: 'Taucher', sub: 'putzt die Scheibe', col: '#b87333' }
+};
+const VIS_DEFAULT = [['ws', 5], ['wh', 6], ['sub', 4], ['kr', 4], ['near', 3], ['gr', 3], ['ink', 3], ['dv', 3]].map(([k, gap]) => ({ k, gap, on: true }));
+function normVis(v) {
+  if (!Array.isArray(v)) return null;
+  const seen = new Set(), out = [];
+  for (const it of v) if (it && VIS_META[it.k] && !seen.has(it.k)) { seen.add(it.k); out.push({ k: it.k, gap: clamp(Math.round(+it.gap) || 1, 1, 99), on: it.on !== false }); }
+  for (const d of VIS_DEFAULT) if (!seen.has(d.k)) out.push({ ...d });
+  return out;
 }
-function seq() { return S.seq ? S.seq : SEQ_DEFAULT; }
+function visFromOldSeq(q) { // settings from the previous version (absolute HaiZeiten)
+  const pos = Object.entries({ ws: q.ws, wh: q.wh, sub: q.sub, kr: q.kr, gr: q.gr, ink: q.ink, dv: q.dv }).filter(([, n]) => n > 0).sort((a, b) => a[1] - b[1]);
+  const out = []; let last = 0;
+  for (const [k, n] of pos) { out.push({ k, gap: Math.max(1, n - last), on: true }); last = n; if (k === 'kr') out.push({ k: 'near', gap: 3, on: true }); }
+  return normVis(out);
+}
+function seqFromVis(v) {
+  const q = { ws: 0, wh: 0, sub: 0, kr: 0, near: 0, gr: 0, ink: 0, dv: 0, len: 1 }; let n = 0;
+  for (const it of v) if (it.on) { n += it.gap; q[it.k] = n; }
+  q.len = Math.max(1, n); return q;
+}
+let seqCache = null;
+function seq() { if (!seqCache) seqCache = seqFromVis(S.vis || VIS_DEFAULT); return seqCache; }
 function fillKind(n, q) { // the ordinary visitor of a HaiZeit
   if (q.wh > 0 && n >= q.wh) return 'whale';
   if (q.ws > 0 && n >= q.ws) return 'bigshark';
@@ -2375,17 +2559,18 @@ function seqKind(n, q) {
   if (n === q.dv) return 'diver';
   if (n === q.ink) return 'ink';
   if (n === q.gr) return 'green';
-  if (n > q.gr && n < q.ink) return 'roam'; // the green octopus swims to and fro
   if (n === q.kr) return 'kraken';
   if (n === q.sub) return 'sub';
+  if (n === q.near) return 'subnear';
+  if (q.gr && q.ink > q.gr && n > q.gr && n < q.ink) return 'roam'; // the green octopus swims to and fro
   return fillKind(n, q);
 }
 // how many HaiZeiten are left until a visitor comes that has not been there yet in this round
 function nextNewIn() {
-  const q = seq(), nx = (st.tick % q.dv) + 1, seen = new Set();
+  const q = seq(), nx = (st.tick % q.len) + 1, seen = new Set();
   for (let n = 1; n < nx; n++) seen.add(seqKind(n, q));
-  for (let n = nx; n <= q.dv; n++) { const k = seqKind(n, q); if (k !== 'roam' && !seen.has(k)) return n - nx + 1; }
-  return q.dv - nx + 2;
+  for (let n = nx; n <= q.len; n++) { const k = seqKind(n, q); if (k !== 'roam' && !seen.has(k)) return n - nx + 1; }
+  return q.len - nx + 2;
 }
 function visitorFor(n) {
   const q = seq(), k = seqKind(n, q);
@@ -2676,54 +2861,126 @@ $('#btnResetYes').addEventListener('click', () => { resetRound(); $('#resetConfi
 
 /* ---------- Settings: which HaiZeit brings which visitor ---------- */
 const seqOv = $('#seqOverlay');
-const SEQ_IN = { ws: '#seqWs', wh: '#seqWh', sub: '#seqSub', kr: '#seqKr', gr: '#seqGr', ink: '#seqInk', dv: '#seqDv' };
-const SEQ_NAME = { shark: 'Hai', bigshark: 'weißer Hai', whale: 'Wal', sub: 'U-Boot', kraken: 'Kraken', green: 'grüner Kraken kommt', roam: 'grüner Kraken schwimmt hin und her', ink: 'grüner Kraken spritzt Tinte', diver: 'Taucher putzt' };
-function seqFill() { const q = seq(); for (const k in SEQ_IN) $(SEQ_IN[k]).value = q[k]; seqPlan(); }
-function seqPlan() {
-  const q = seq(), T = seqTimes(), parts = []; let a = 1, last = seqKind(1, q);
-  for (let n = 2; n <= q.dv + 1; n++) {
-    const k = n <= q.dv ? seqKind(n, q) : null;
-    if (k !== last || ['green', 'ink', 'diver', 'sub', 'kraken'].includes(k)) { parts.push('<b>' + (a === n - 1 ? a : a + '–' + (n - 1)) + '</b> ' + SEQ_NAME[last] + ' <small>(' + fmtDur(T.at[a]).replace(' min', '').replace(' h', '') + ')</small>'); a = n; last = k; }
-  }
-  const lost = [['kr', 'kraken', 'Der Kraken'], ['sub', 'sub', 'Das U-Boot']].filter(([k, kind]) => q[k] > 0 && (q[k] > q.dv || seqKind(q[k], q) !== kind)).map(x => x[2]);
-  seqTimeShow();
-  $('#seqPlan').innerHTML = 'Ablauf: ' + parts.join(' · ') + '. Danach beginnt es wieder bei 1.' + (lost.length ? '<br><b>Achtung:</b> ' + lost.join(' und ') + ' kommt so nicht, weil die HaiZeit schon belegt ist (oder hinter dem Taucher liegt).' : '');
-}
-// how long each visitor stays on screen (s); the next HaiZeit only starts counting once it has left
-const VIS_DUR = { shark: 18, bigshark: 45, whale: 30, sub: 58, kraken: 16.6, green: 0, roam: 0, ink: 16, diver: 21 };
-function seqTimes() { // seconds after the start at which HaiZeit n's visitor appears, if it stays quiet all the time
+const KIND_COL = { shark: '#8fa3b0', bigshark: '#c9d6de', whale: '#2f5d8a', roam: '#9bd59e' };
+// how long each visitor stays on screen (s); the next Bonus only starts counting once it has left
+const VIS_DUR = { shark: 18, bigshark: 45, whale: 30, sub: 58, subnear: 34, kraken: 16.6, green: 0, roam: 0, ink: 16, diver: 21 };
+function seqTimes() { // seconds after the start at which Bonus n's visitor appears, if it stays quiet all the time
   const q = seq(), H = S.sharkSeconds, at = [0]; let t = 0;
-  for (let n = 1; n <= q.dv; n++) { const k = n > 1 ? seqKind(n - 1, q) : null; t += n === 1 ? H : Math.max(H, k === 'kraken' ? VIS_DUR.kraken + 2 * H + 6 : VIS_DUR[k] || 0); at[n] = t; } // the octopus stays 2 HaiZeiten
-  return { at, end: t + VIS_DUR.diver };
+  for (let n = 1; n <= q.len; n++) { const k = n > 1 ? seqKind(n - 1, q) : null; t += n === 1 ? H : Math.max(H, k === 'kraken' ? VIS_DUR.kraken + 2 * H + 6 : VIS_DUR[k] || 0); at[n] = t; } // the octopus stays 2 Boni
+  return { at, end: t + (VIS_DUR[seqKind(q.len, q)] || 0) };
 }
 function fmtDur(sec) {
   sec = Math.round(sec); const h = Math.floor(sec / 3600), m = Math.floor(sec / 60) % 60, s = sec % 60, p = v => String(v).padStart(2, '0');
   return h ? h + ':' + p(m) + ':' + p(s) + ' h' : m + ':' + p(s) + ' min';
 }
-function seqTimeShow() {
-  const q = seq(), T = seqTimes();
-  for (const k in SEQ_IN) $(SEQ_IN[k] + 'T').textContent = q[k] > 0 && q[k] <= q.dv ? 'nach ' + fmtDur(T.at[q[k]]) : '–';
-  $('#seqTotal').textContent = 'Ganzer Ablauf bis der Taucher fertig ist: ' + fmtDur(T.end) + ' (bei HaiZeit ' + S.sharkSeconds + ' s, wenn es durchgehend ruhig bleibt)';
+function visChanged(rebuild) {
+  S.vis = normVis(S.vis || VIS_DEFAULT.map(d => ({ ...d }))); seqCache = null; persist();
+  if (rebuild) visRender(); else visUpdate();
+  if (!$('#pvBox').hidden) pvStart();
 }
-function seqRead() {
-  const q = {}; for (const k in SEQ_IN) q[k] = $(SEQ_IN[k]).value;
-  S.seq = normSeq(q); persist(); seqPlan();
+function visRender() {
+  const list = $('#visList'); list.innerHTML = '';
+  (S.vis || VIS_DEFAULT).forEach((it, i) => {
+    const m = VIS_META[it.k], row = document.createElement('div');
+    row.className = 'vis-row'; row.dataset.k = it.k;
+    row.innerHTML = '<button type="button" class="vis-handle" aria-label="' + m.nm + ' verschieben">☰</button>' +
+      '<input type="checkbox" aria-label="' + m.nm + ' kommt">' +
+      '<div class="vis-name"><b>' + m.nm + '</b><small></small></div>' +
+      '<div class="vis-gap"><button type="button" data-d="-1" aria-label="früher">−</button><input type="number" min="1" max="99" step="1" inputmode="numeric" aria-label="Boni nach dem vorherigen Besucher"><button type="button" data-d="1" aria-label="später">+</button><span>Boni später</span></div>';
+    list.appendChild(row);
+  });
+  visUpdate();
 }
-for (const k in SEQ_IN) $(SEQ_IN[k]).addEventListener('change', () => { seqRead(); seqFill(); if (!$('#pvBox').hidden) pvStart(); });
-for (const k in SEQ_IN) $(SEQ_IN[k]).addEventListener('input', () => { if ($(SEQ_IN[k]).value !== '') seqRead(); });
+function visUpdate() {
+  const q = seq(), T = seqTimes(), v = S.vis || VIS_DEFAULT; let firstOn = true;
+  [...$('#visList').children].forEach(row => {
+    const it = v.find(x => x.k === row.dataset.k), m = VIS_META[it.k];
+    row.classList.toggle('off', !it.on);
+    row.querySelector('input[type=checkbox]').checked = it.on;
+    const inp = row.querySelector('.vis-gap input'); if (document.activeElement !== inp) inp.value = it.gap;
+    row.querySelector('.vis-gap span').textContent = it.on && firstOn ? 'Boni nach Start' : 'Boni später';
+    row.querySelector('.vis-name small').textContent = it.on ? m.sub + ' · Bonus ' + q[it.k] + ' · nach ' + fmtDur(T.at[q[it.k]]) : 'kommt nicht';
+    if (it.on) firstOn = false;
+  });
+  $('#seqTotal').textContent = 'Ganzer Ablauf: ' + q.len + ' Boni, ca. ' + fmtDur(T.end) + ' (bei Bonus alle ' + S.sharkSeconds + ' s, wenn es durchgehend ruhig bleibt). Danach beginnt es wieder von vorn.';
+  // hints when the green octopus, the ink and the diver are in an odd order
+  const w = [];
+  if (q.ink && q.gr && q.ink < q.gr) w.push('Die Tinte kommt vor dem grünen Kraken: dann schwimmt ein grüner Kraken extra vorbei, und der grüne Kraken bleibt danach bis zur nächsten Runde.');
+  if (q.dv && (!q.ink || q.dv < q.ink)) w.push('Der Taucher kommt vor der Tinte: dann ist die Scheibe noch sauber, und statt des Tauchers kommt ein Wal oder Hai.');
+  $('#seqWarn').hidden = !w.length; $('#seqWarn').textContent = w.join(' ');
+  tlRender(q, T);
+}
+function tlRender(q, T) {
+  const tl = $('#seqTl'), len = q.len; tl.style.minWidth = Math.max(520, len * 20) + 'px';
+  let h = '<div class="tl-track">';
+  for (let n = 1; n <= len; n++) { const k = seqKind(n, q); h += '<i style="background:' + (KIND_COL[k] || '#e9eef1') + '"></i>'; }
+  h += '</div>';
+  const x = n => ((n - .5) / len * 100).toFixed(2) + '%';
+  for (let n = 1; n <= len; n++) if (n === 1 || n % 5 === 0) h += '<span class="tl-num" style="left:' + x(n) + '">' + n + '</span>';
+  const marks = (S.vis || VIS_DEFAULT).filter(it => it.on).sort((a, b) => q[a.k] - q[b.k]);
+  marks.forEach((it, i) => {
+    const m = VIS_META[it.k], n = q[it.k], low = i % 2 === 1, lvl = Math.floor(i / 2) % 2, stem = 10 + lvl * 26;
+    h += '<div class="tl-mk' + (low ? ' low' : '') + '" style="left:' + x(n) + '">' +
+      '<b>' + m.nm + '</b><small>' + n + ' · ' + fmtDur(T.at[n]).replace(' min', '').replace(' h', '') + '</small>' +
+      '<span class="stem" style="height:' + stem + 'px"></span><span class="dot" style="background:' + m.col + '"></span></div>';
+  });
+  h += '';
+  tl.innerHTML = h;
+  if (!$('#tlKey')) { const k = document.createElement('div'); k.className = 'tl-key'; k.id = 'tlKey';
+    k.innerHTML = '<span style="--c:#8fa3b0">Hai</span><span style="--c:#c9d6de">weißer Hai</span><span style="--c:#2f5d8a">Wal</span><span style="--c:#9bd59e">grüner Kraken schwimmt</span><span style="--c:#e9eef1">besonderer Besucher</span>';
+    tl.parentNode.after(k); }
+}
+// list: checkbox, − / + and typing
+$('#visList').addEventListener('change', e => {
+  const row = e.target.closest('.vis-row'); if (!row) return; const it = S.vis.find(x => x.k === row.dataset.k);
+  if (e.target.type === 'checkbox') it.on = e.target.checked; else it.gap = clamp(Math.round(+e.target.value) || 1, 1, 99);
+  visChanged();
+});
+$('#visList').addEventListener('input', e => { if (e.target.type !== 'number' || e.target.value === '') return; const row = e.target.closest('.vis-row'); S.vis.find(x => x.k === row.dataset.k).gap = clamp(Math.round(+e.target.value) || 1, 1, 99); seqCache = null; visUpdate(); });
+$('#visList').addEventListener('click', e => {
+  const b = e.target.closest('.vis-gap button'); if (!b) return; const row = b.closest('.vis-row'), it = S.vis.find(x => x.k === row.dataset.k);
+  it.gap = clamp(it.gap + +b.dataset.d, 1, 99); visChanged();
+});
+// drag the handle to change the order (mouse, pen and finger)
+$('#visList').addEventListener('pointerdown', e => {
+  const hd = e.target.closest('.vis-handle'); if (!hd) return;
+  e.preventDefault();
+  const list = $('#visList'), row = hd.closest('.vis-row'), rows = [...list.children], from = rows.indexOf(row);
+  const rect = rows.map(r => r.getBoundingClientRect()), step = rows.length > 1 ? rect[1].top - rect[0].top : rect[0].height, y0 = e.clientY;
+  let to = from;
+  try { hd.setPointerCapture(e.pointerId); } catch (err) {}
+  row.classList.add('dragging');
+  const move = ev => {
+    const dy = clamp(ev.clientY - y0, rect[0].top - rect[from].top, rect[rect.length - 1].top - rect[from].top);
+    row.style.transform = 'translateY(' + dy + 'px)';
+    const mid = rect[from].top + rect[from].height / 2 + dy;
+    to = rows.filter((r, i) => i !== from && rect[i].top + rect[i].height / 2 < mid).length;
+    rows.forEach((r, i) => { if (r === row) return; const sh = from < i && i <= to ? -step : to <= i && i < from ? step : 0; r.style.transform = sh ? 'translateY(' + sh + 'px)' : ''; });
+  };
+  const up = () => {
+    hd.removeEventListener('pointermove', move); hd.removeEventListener('pointerup', up); hd.removeEventListener('pointercancel', up);
+    rows.forEach(r => { r.style.transform = ''; }); row.classList.remove('dragging');
+    if (to !== from) { const it = S.vis.splice(from, 1)[0]; S.vis.splice(to, 0, it); visChanged(true); }
+  };
+  hd.addEventListener('pointermove', move); hd.addEventListener('pointerup', up); hd.addEventListener('pointercancel', up);
+});
+function seqRead() { S.vis = normVis(S.vis || VIS_DEFAULT.map(d => ({ ...d }))); seqCache = null; }
+function seqFill() { seqRead(); visRender(); }
 $('#btnSeq').addEventListener('click', () => { seqFill(); seqOv.hidden = false; });
-const seqClose = () => { seqRead(); seqFill(); pvStop(); seqOv.hidden = true; };
+const seqClose = () => { persist(); pvStop(); seqOv.hidden = true; };
 $('#btnSeqClose').addEventListener('click', seqClose);
 $('#btnSeqOk').addEventListener('click', seqClose);
 seqOv.addEventListener('click', e => { if (e.target === seqOv) seqClose(); });
-$('#btnSeqDefault').addEventListener('click', () => { S.seq = null; persist(); seqFill(); });
-if (S.seq) S.seq = normSeq(S.seq);
+$('#btnSeqDefault').addEventListener('click', () => { S.vis = VIS_DEFAULT.map(d => ({ ...d })); visChanged(true); });
+// settings from before: absolute HaiZeiten -> list
+if (!S.vis && S.seq) { const o = S.seq, d = SEQ_DEFAULT; S.vis = ['ws', 'wh', 'sub', 'kr', 'gr', 'ink', 'dv'].every(k => o[k] === d[k]) ? null : visFromOldSeq(o); }
+S.vis = normVis(S.vis) || VIS_DEFAULT.map(d => ({ ...d })); delete S.seq; seqCache = null;
 // test run: the same page again, small, in a frame, in time lapse
 function pvStop() { const box = $('#pvBox'); box.innerHTML = ''; box.hidden = true; $('#btnPv').textContent = 'Testlauf starten'; }
 function pvStart() {
   seqRead();
   const box = $('#pvBox'), f = document.createElement('iframe');
-  const cfg = { speed: +$('#pvSpeed').value, S: { sharkSeconds: S.sharkSeconds, seq: S.seq, threshold: S.threshold, fishSeconds: S.fishSeconds, tolerance: S.tolerance } };
+  const cfg = { speed: +$('#pvSpeed').value, S: { sharkSeconds: S.sharkSeconds, vis: S.vis, threshold: S.threshold, fishSeconds: S.fishSeconds, tolerance: S.tolerance } };
   f.title = 'Vorschau Testlauf';
   f.srcdoc = PRISTINE.replace(/<head[^>]*>/i, m => m + '<script>window.__PREVIEW=' + JSON.stringify(cfg).replace(/</g, '\\u003c') + ';<\/script>');
   box.innerHTML = ''; box.appendChild(f); box.hidden = false; $('#btnPv').textContent = 'Testlauf stoppen';
