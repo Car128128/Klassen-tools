@@ -1493,44 +1493,110 @@ function drawSub(g, e) {
 }
 
 /* Sea turtle: glides past slowly with long, calm strokes of its front flippers, a little up and down */
-function drawTurtle(g, e) {
-  const L = e.L, t = e.t, x = sweepX(e, t), st = Math.sin(t * 1.1), y = e.y0 + Math.sin(t * .35) * L * .06 - st * L * .02;
-  g.save(); g.translate(x, y); g.scale(e.dir, 1); g.rotate(Math.sin(t * .35 + 1) * .05 - st * .025);
-  const skin = '#8a9a5b', skinD = '#5f6f3a';
-  const flip = (px, py, len, w, ang, far) => {
-    g.save(); g.translate(px, py); g.rotate(ang);
-    g.fillStyle = far ? skinD : skin; g.beginPath(); g.moveTo(0, -w * .5); g.bezierCurveTo(-len * .3, -w * .9, -len * .8, -w * .4, -len, 0); g.bezierCurveTo(-len * .7, w * .2, -len * .3, w * .6, 0, w * .5); g.closePath(); g.fill();
-    if (!far) { g.fillStyle = 'rgba(60, 70, 30, .5)'; for (let k = 0; k < 7; k++) { g.beginPath(); g.ellipse(-len * (.15 + k * .11), (k % 2 - .5) * w * .2, w * .12, w * .09, 0, 0, 7); g.fill(); } }
-    g.restore();
+/* Sea turtle in watercolour style: domed shell with light scutes and cream seams, mosaic skin, big glossy eye.
+   One slow stroke (p) drives everything; each flipper bends with a lag towards its tip, so the motion flows. */
+const tHash = n => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
+const T_CELL = ['#8a5428', '#b06c32', '#c98a42', '#6e4122', '#d99c50', '#9c5e2c'];
+function turtlePaddle(g, L, px, py, len, w, a1, a2, far, seed) {
+  const N = 24, C = [], A = [];
+  let x = px, y = py;
+  for (let i = 0; i <= N; i++) { const s = i / N, a = a1 + a2 * s * s; C.push([x, y]); A.push(a); x += Math.cos(a) * len / N; y += Math.sin(a) * len / N; }
+  const wid = s => w * (s < .32 ? .6 + s / .32 * .4 : Math.max(.12, 1 - (s - .32) / .68 * .9));
+  const side = (i, sg) => { const s = i / N, a = A[i], h = wid(s) / 2 * sg; return [C[i][0] - Math.sin(a) * h, C[i][1] + Math.cos(a) * h]; };
+  const path = () => {
+    g.beginPath(); g.moveTo(...side(0, 1));
+    for (let i = 1; i <= N; i++) g.lineTo(...side(i, 1));
+    const e = C[N], a = A[N]; g.quadraticCurveTo(e[0] + Math.cos(a) * w * .14, e[1] + Math.sin(a) * w * .14, ...side(N, -1));
+    for (let i = N; i >= 0; i--) g.lineTo(...side(i, -1));
+    g.closePath();
   };
-  // far flippers
-  flip(L * .14, -L * .05, L * .42, L * .12, -2.2 + st * .55, true);
-  flip(-L * .28, -L * .02, L * .18, L * .08, -2.6 + st * .2, true);
-  // head and neck
-  g.fillStyle = skin; g.beginPath(); g.ellipse(L * .43, -L * .01, L * .12, L * .075, Math.sin(t * .5) * .08, 0, 7); g.fill();
-  g.fillStyle = 'rgba(60, 70, 30, .45)'; for (let k = 0; k < 6; k++) { g.beginPath(); g.ellipse(L * (.4 + (k % 3) * .04), -L * (.04 - Math.floor(k / 3) * .03), L * .018, L * .012, 0, 0, 7); g.fill(); }
-  g.fillStyle = '#1c1a12'; g.beginPath(); g.arc(L * .48, -L * .025, L * .013, 0, 7); g.fill();
-  g.fillStyle = 'rgba(255,255,255,.7)'; g.beginPath(); g.arc(L * .484, -L * .029, L * .004, 0, 7); g.fill();
-  g.strokeStyle = 'rgba(40, 40, 20, .6)'; g.lineWidth = Math.max(1, L * .005); g.beginPath(); g.moveTo(L * .54, L * .01); g.quadraticCurveTo(L * .5, L * .03, L * .45, L * .02); g.stroke();
-  // shell (carapace) with plates
-  const shell = () => { g.beginPath(); g.moveTo(L * .32, 0); g.bezierCurveTo(L * .28, -L * .2, -L * .05, -L * .26, -L * .3, -L * .12); g.quadraticCurveTo(-L * .38, -L * .02, -L * .3, L * .05); g.bezierCurveTo(-L * .1, L * .1, L * .2, L * .09, L * .32, 0); g.closePath(); };
-  shell(); const sg = g.createLinearGradient(0, -L * .25, 0, L * .08);
-  sg.addColorStop(0, '#8a6a32'); sg.addColorStop(.5, '#6e5226'); sg.addColorStop(1, '#4a3618'); g.fillStyle = sg; g.fill();
-  g.save(); shell(); g.clip();
-  g.strokeStyle = 'rgba(40, 26, 10, .7)'; g.lineWidth = Math.max(1.2, L * .008);
-  const plates = [[.12, -.12], [-.04, -.15], [-.18, -.1], [.2, -.04], [.04, -.05], [-.12, -.03], [-.25, -.02]];
-  for (const [px, py] of plates) {
-    g.fillStyle = 'rgba(190, 150, 80, .35)'; g.beginPath();
-    for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; g.lineTo(L * px + Math.cos(a) * L * .075, L * py + Math.sin(a) * L * .05); }
-    g.closePath(); g.fill(); g.stroke();
+  path(); g.fillStyle = '#f2e6cc'; g.fill();
+  g.save(); path(); g.clip();
+  const cs = w * .27;
+  for (let j = 0, r = 0; j < len; j += cs * .9, r++) {
+    const s = j / len, i = Math.min(N, Math.round(s * N)), a = A[i], wd = wid(s), n = Math.max(1, Math.round(wd / cs));
+    for (let m = 0; m < n; m++) {
+      const o = ((m + .5) / n - .5) * wd + (r % 2 ? cs * .2 : -cs * .2), hv = tHash(seed * 97 + r * 13 + m);
+      const cx = C[i][0] - Math.sin(a) * o, cy = C[i][1] + Math.cos(a) * o;
+      g.fillStyle = s < .22 && hv < .6 ? (hv < .3 ? '#6f8f6c' : '#86a07a') : T_CELL[Math.floor(hv * T_CELL.length)];
+      g.beginPath(); g.ellipse(cx, cy, cs * (.5 + hv * .06), cs * .44, a + hv, 0, 7); g.fill();
+    }
   }
-  g.fillStyle = 'rgba(255, 240, 200, .12)'; g.beginPath(); g.ellipse(L * .02, -L * .15, L * .2, L * .04, -.1, 0, 7); g.fill();
   g.restore();
-  // plastron rim
-  g.strokeStyle = '#d9c98a'; g.lineWidth = Math.max(2, L * .014); g.beginPath(); g.moveTo(-L * .3, L * .05); g.bezierCurveTo(-L * .1, L * .1, L * .2, L * .09, L * .32, 0); g.stroke();
-  // near flippers: the big front one sweeps slowly
-  flip(-L * .24, L * .05, L * .2, L * .09, 2.5 - st * .25, false);
-  flip(L * .16, L * .05, L * .5, L * .14, 2.25 - st * .6, false);
+  path(); g.strokeStyle = 'rgba(95, 55, 25, .4)'; g.lineWidth = Math.max(1, L * .004); g.stroke();
+  if (far) { path(); g.fillStyle = 'rgba(20, 50, 75, .32)'; g.fill(); }
+}
+function drawTurtle(g, e) {
+  const L = e.L, t = e.t, x = sweepX(e, t), p = t * .95, sp = Math.sin(p);
+  const y = e.y0 + Math.sin(t * .3) * L * .05 + Math.sin(p - 1.3) * L * .018;
+  g.save(); g.translate(x, y); g.scale(e.dir, 1); g.rotate(Math.sin(p - .7) * .035 + Math.sin(t * .3 + 1) * .03);
+  // far flippers (behind the body)
+  turtlePaddle(g, L, L * .17, -L * .05, L * .42, L * .12, .95 + .42 * Math.sin(p + .25), .75 + .35 * Math.sin(p - .9), true, 1);
+  turtlePaddle(g, L, -L * .27, L * .0, L * .16, L * .085, 2.75 + .18 * Math.sin(p + 2.3), .3 * Math.sin(p + 1.2), true, 2);
+  // belly
+  g.fillStyle = '#d6c27c'; g.beginPath(); g.ellipse(L * .02, L * .055, L * .27, L * .05, 0, 0, 7); g.fill();
+  // neck: pale green-blue with wrinkles
+  const nod = Math.sin(p * .5 + .4) * .05 + Math.sin(p - .5) * .02;
+  g.save(); g.translate(L * .24, -L * .03); g.rotate(nod);
+  g.beginPath(); g.moveTo(-L * .04, -L * .08); g.quadraticCurveTo(L * .1, -L * .1, L * .17, -L * .06); g.lineTo(L * .19, L * .045); g.quadraticCurveTo(L * .08, L * .1, -L * .06, L * .09); g.closePath();
+  const ng = g.createLinearGradient(0, -L * .09, 0, L * .09); ng.addColorStop(0, '#c9d8c6'); ng.addColorStop(.5, '#8fb2b6'); ng.addColorStop(1, '#cfc98c');
+  g.fillStyle = ng; g.fill();
+  g.strokeStyle = 'rgba(60, 95, 110, .35)'; g.lineWidth = Math.max(1, L * .003);
+  for (let k = 0; k < 6; k++) { g.beginPath(); g.moveTo(L * (.0 + k * .03), -L * .06); g.quadraticCurveTo(L * (-.02 + k * .03), L * .01, L * (.01 + k * .03), L * .07); g.stroke(); }
+  // head
+  const hx = L * .2, hy = -L * .015;
+  g.translate(hx - L * .06, hy); g.scale(1.25, 1.25); g.translate(-(hx - L * .06), -hy);
+  const headP = () => { g.beginPath(); g.moveTo(hx + L * .1, hy + L * .025); g.bezierCurveTo(hx + L * .12, hy - L * .03, hx + L * .07, hy - L * .085, hx - L * .01, hy - L * .08); g.bezierCurveTo(hx - L * .09, hy - L * .07, hx - L * .1, hy + L * .02, hx - L * .06, hy + L * .055); g.bezierCurveTo(hx - L * .01, hy + L * .075, hx + L * .07, hy + L * .06, hx + L * .1, hy + L * .025); g.closePath(); };
+  headP(); g.fillStyle = '#f1e3c4'; g.fill();
+  g.save(); headP(); g.clip();
+  g.fillStyle = '#f3e7cc'; g.beginPath(); g.ellipse(hx + L * .01, hy + L * .055, L * .1, L * .035, -.08, 0, 7); g.fill();
+  const ex = hx + L * .035, ey = hy - L * .022, cs = L * .022;
+  for (let r = 0; r < 7; r++) for (let c = 0; c < 9; c++) {
+    const cx = hx - L * .1 + c * cs + (r % 2) * cs * .5, cy = hy - L * .09 + r * cs * .85, hv = tHash(500 + r * 11 + c);
+    if (cy > hy + L * .02 - (cx - hx) * .25 || Math.hypot(cx - ex, cy - ey) < L * .042) continue;
+    g.fillStyle = cx > hx + L * .06 ? '#df9a52' : T_CELL[Math.floor(hv * T_CELL.length)];
+    g.beginPath(); g.ellipse(cx, cy, cs * .46, cs * .4, hv * 3, 0, 7); g.fill();
+  }
+  g.fillStyle = 'rgba(225, 150, 80, .55)'; g.beginPath(); g.ellipse(hx + L * .085, hy + L * .01, L * .03, L * .028, 0, 0, 7); g.fill();
+  g.restore();
+  headP(); g.strokeStyle = 'rgba(95, 55, 25, .45)'; g.lineWidth = Math.max(1, L * .004); g.stroke();
+  g.strokeStyle = 'rgba(90, 60, 35, .6)'; g.beginPath(); g.moveTo(hx + L * .1, hy + L * .028); g.quadraticCurveTo(hx + L * .05, hy + L * .045, hx - L * .01, hy + L * .035); g.stroke();
+  g.fillStyle = '#4a3020'; for (let k = 0; k < 2; k++) { g.beginPath(); g.arc(hx + L * (.094 - k * .008), hy - L * (.02 + k * .004), L * .003, 0, 7); g.fill(); }
+  // big glossy eye, blinks now and then
+  const bl = (t % 7.3) < .18 ? .15 : 1;
+  g.fillStyle = '#f6eedc'; g.beginPath(); g.ellipse(ex, ey, L * .032, L * .03 * bl, 0, 0, 7); g.fill();
+  g.strokeStyle = 'rgba(90, 55, 30, .6)'; g.stroke();
+  g.fillStyle = '#16120e'; g.beginPath(); g.ellipse(ex + L * .003, ey, L * .025, L * .024 * bl, 0, 0, 7); g.fill();
+  if (bl === 1) { g.fillStyle = 'rgba(255,255,255,.9)'; g.beginPath(); g.arc(ex + L * .011, ey - L * .009, L * .007, 0, 7); g.fill(); g.beginPath(); g.arc(ex - L * .006, ey + L * .009, L * .0035, 0, 7); g.fill(); }
+  g.restore();
+  // shell: orange rim scutes, domed top with light scutes and cream seams
+  const outer = () => { g.beginPath(); g.moveTo(L * .3, L * .02); g.bezierCurveTo(L * .27, -L * .2, L * .02, -L * .3, -L * .2, -L * .22); g.bezierCurveTo(-L * .33, -L * .17, -L * .39, -L * .04, -L * .34, L * .05); g.bezierCurveTo(-L * .2, L * .1, L * .15, L * .1, L * .3, L * .02); g.closePath(); };
+  const dome = () => { g.save(); g.translate(-L * .02, -L * .085); g.scale(.8, .74); g.translate(L * .02, L * .085); outer(); g.restore(); };
+  outer(); const rg = g.createLinearGradient(0, -L * .3, 0, L * .1); rg.addColorStop(0, '#c98440'); rg.addColorStop(1, '#a45f28'); g.fillStyle = rg; g.fill();
+  g.save(); outer(); g.clip();
+  for (let k = 0; k < 24; k++) { const a = k / 24 * Math.PI * 2, hv = tHash(700 + k); g.fillStyle = `rgba(${230 + hv * 20}, ${160 + hv * 40}, 90, .35)`; g.beginPath(); g.arc(-L * .02 + Math.cos(a) * L * .3, -L * .085 + Math.sin(a) * L * .2, L * .04, 0, 7); g.fill(); }
+  g.strokeStyle = '#f4e9d2'; g.lineWidth = Math.max(1.2, L * .007);
+  for (let k = 0; k < 22; k++) { const a = k / 22 * Math.PI * 2 + .1; g.beginPath(); g.moveTo(-L * .02, -L * .085); g.lineTo(-L * .02 + Math.cos(a) * L * .5, -L * .085 + Math.sin(a) * L * .5); g.stroke(); }
+  dome(); const dg = g.createLinearGradient(0, -L * .26, 0, L * .04); dg.addColorStop(0, '#9a6430'); dg.addColorStop(1, '#6e4220'); g.fillStyle = dg; g.fill();
+  g.save(); dome(); g.clip();
+  const cells = [[.16, -.15], [.03, -.2], [-.12, -.19], [-.25, -.12], [.19, -.03], [.05, -.07], [-.1, -.07], [-.24, -.02]];
+  cells.forEach(([u, v], i) => {
+    const cx = u * L, cy = v * L, sg = g.createRadialGradient(cx, cy, 0, cx, cy, L * .1);
+    sg.addColorStop(0, i % 3 === 1 ? '#f0d9a4' : '#e7b86c'); sg.addColorStop(.55, 'rgba(205, 140, 70, .65)'); sg.addColorStop(1, 'rgba(120, 70, 30, 0)');
+    g.fillStyle = sg; g.beginPath(); g.arc(cx, cy, L * .1, 0, 7); g.fill();
+    g.strokeStyle = 'rgba(110, 62, 26, .28)'; g.lineWidth = Math.max(1, L * .003);
+    for (let k = 0; k < 12; k++) { const a = k / 12 * Math.PI * 2 + i, r0 = L * .025, r1 = L * (.06 + tHash(i * 20 + k) * .03); g.beginPath(); g.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0); g.lineTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1); g.stroke(); }
+  });
+  g.strokeStyle = '#f4e9d2'; g.lineWidth = Math.max(1.5, L * .008); g.lineCap = 'round';
+  g.beginPath(); g.moveTo(L * .3, -L * .08); g.bezierCurveTo(L * .1, -L * .13, -L * .15, -L * .13, -L * .36, -L * .06); g.stroke();
+  for (const [a, b, c] of [[.1, .17, .12], [-.04, .01, -.06], [-.18, -.23, -.16]]) { g.beginPath(); g.moveTo(L * a, -L * .3); g.quadraticCurveTo(L * b, -L * .14, L * c, L * .05); g.stroke(); }
+  g.restore();
+  dome(); g.strokeStyle = '#f4e9d2'; g.lineWidth = Math.max(1.5, L * .009); g.stroke();
+  g.restore();
+  outer(); g.strokeStyle = 'rgba(110, 62, 26, .45)'; g.lineWidth = Math.max(1, L * .004); g.stroke();
+  // near flippers: the big front one sweeps slowly, its tip follows a little later
+  turtlePaddle(g, L, -L * .25, L * .05, L * .19, L * .1, 2.45 + .2 * Math.sin(p + 2), .35 * Math.sin(p + 1), false, 3);
+  turtlePaddle(g, L, L * .12, L * .06, L * .5, L * .15, 1.7 + .45 * sp, .2 + .4 * Math.sin(p - 1.1), false, 4);
   g.restore();
 }
 
