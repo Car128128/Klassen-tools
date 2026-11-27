@@ -120,6 +120,12 @@ button { cursor: pointer; }
 .card.info ul { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
 .small { font-size: 13px !important; color: var(--muted) !important; }
 .overlay#infoOverlay { place-items: start center; z-index: 40; }
+.overlay#seqOverlay { place-items: start center; z-index: 40; }
+.seq-grid { display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; align-items: center; background: var(--paper-2); border-radius: 14px; padding: 12px 14px; }
+.seq-grid label { font-weight: 700; font-size: 15px; }
+.seq-grid input { width: 5em; padding: 8px 10px; border-radius: 10px; border: 1px solid #c3d6df; font-size: 17px; font-variant-numeric: tabular-nums; background: #fff; color: var(--ink); }
+.seq-plan { font-size: 14px; line-height: 1.6; color: #223b4d; background: var(--paper-2); border-radius: 14px; padding: 12px 14px; }
+.seq-plan b { font-variant-numeric: tabular-nums; }
 .shark-set { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--paper-2); border-radius: 14px; padding: 12px 14px; }
 .shark-set label { font-weight: 700; }
 .shark-set input { width: 5.5em; padding: 8px 10px; border-radius: 10px; border: 1px solid #c3d6df; font-size: 17px; font-variant-numeric: tabular-nums; background: #fff; color: var(--ink); }
@@ -257,6 +263,7 @@ button { cursor: pointer; }
       <label for="sharkSec">HaiZeit: alle</label>
       <input type="number" id="sharkSec" min="1" max="3600" step="1" value="60" inputmode="numeric"> <span>Sekunden kommt ein Hai</span>
       <small>1 bis 3600 Sekunden. Jede ruhige HaiZeit bringt einen Besucher: erst Haie, dann weiße Haie, Wale, das U-Boot, Kraken und am Ende den Taucher. Flüchten alle Fische, beginnt es von vorn.</small>
+      <button type="button" class="btn" id="btnSeq">Einstellungen: Wann kommt welcher Besucher?</button>
     </div>
     <p class="err" id="micErr" hidden></p>
     <div class="btns">
@@ -283,7 +290,7 @@ button { cursor: pointer; }
       <h3>4. Keine Personendaten</h3>
       <p>Es gibt keine Konten, keine Namen, keine Profile von Kindern und keine Zuordnung zu einzelnen Personen. Die Ampel bewertet immer nur die Lautstärke im ganzen Raum.</p>
       <h3>5. Was auf dem Gerät bleibt</h3>
-      <p>Damit die Einstellungen nicht jedes Mal neu gemacht werden müssen, merkt sich der Browser auf diesem Gerät nur die Einstellungen: Lautstärke-Grenze, Wartezeit, HaiZeit, die Werte a, b und c und die Toleranz. Fische und Fotos werden nicht gespeichert. Das sind keine personenbezogenen Daten. Mit dem Knopf unten lässt sich das jederzeit löschen.</p>
+      <p>Damit die Einstellungen nicht jedes Mal neu gemacht werden müssen, merkt sich der Browser auf diesem Gerät nur die Einstellungen: Lautstärke-Grenze, Wartezeit, HaiZeit, die Reihenfolge der Besucher und die Toleranz. Fische und Fotos werden nicht gespeichert. Das sind keine personenbezogenen Daten. Mit dem Knopf unten lässt sich das jederzeit löschen.</p>
       <h3>6. Kamera für gemalte Fische</h3>
       <p>Die Kamera wird nur geöffnet, wenn jemand auf „Gemalten Fisch fotografieren“ tippt. Das Foto wird sofort auf diesem Gerät ausgeschnitten und nur als kleines Bild im Arbeitsspeicher behalten, solange die App offen ist. Es wird nicht gespeichert, nicht in die Fotos-Mediathek gelegt und nicht übertragen. „Gemalte Fische entfernen“ in den Einstellungen löscht die Bilder sofort. Bitte nur die Zeichnung fotografieren, ohne Gesichter und ohne Namen.</p>
       <h3>7. Mikrofonzugriff</h3>
@@ -310,6 +317,29 @@ button { cursor: pointer; }
 </div>
 
 
+
+<div class="overlay" id="seqOverlay" hidden>
+  <div class="card info" role="dialog" aria-labelledby="seqTitle">
+    <div class="info-head"><h1 id="seqTitle">Einstellungen: Besucher</h1>
+      <button class="iconbtn light" id="btnSeqClose" aria-label="Schließen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <p>Jede ruhige HaiZeit bringt einen Besucher. Hier legst du fest, in welcher HaiZeit welches große Ding kommt. Dazwischen kommen Haie, weiße Haie oder Wale. 0 heißt: kommt nicht.</p>
+    <div class="seq-grid">
+      <label for="seqWs">Weiße Haie ab HaiZeit</label><input type="number" id="seqWs" min="0" max="999" step="1" inputmode="numeric">
+      <label for="seqWh">Wale ab HaiZeit</label><input type="number" id="seqWh" min="0" max="999" step="1" inputmode="numeric">
+      <label for="seqSub">U-Boot in HaiZeit</label><input type="number" id="seqSub" min="0" max="999" step="1" inputmode="numeric">
+      <label for="seqKr">Kraken (schwimmt zum Bildschirm) in HaiZeit</label><input type="number" id="seqKr" min="0" max="999" step="1" inputmode="numeric">
+      <label for="seqGr">Grüner Kraken kommt in HaiZeit</label><input type="number" id="seqGr" min="1" max="999" step="1" inputmode="numeric">
+      <label for="seqInk">Grüner Kraken spritzt Tinte in HaiZeit</label><input type="number" id="seqInk" min="2" max="999" step="1" inputmode="numeric">
+      <label for="seqDv">Taucher putzt die Scheibe in HaiZeit</label><input type="number" id="seqDv" min="3" max="999" step="1" inputmode="numeric">
+    </div>
+    <div class="seq-plan" id="seqPlan"></div>
+    <div class="btns">
+      <button class="btn primary" id="btnSeqOk">Fertig</button>
+      <button class="btn" id="btnSeqDefault">Standard wiederherstellen</button>
+    </div>
+  </div>
+</div>
 
 <input type="file" id="photoInput" accept="image/*" capture="environment" hidden>
 <div class="overlay" id="photoOverlay" hidden>
@@ -396,7 +426,8 @@ const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: r
 
 /* ---------- Settings & persistence (local only) ---------- */
 const KEY = 'laermampel-riff-v2';
-const S = { threshold: 32, fishSeconds: 3, tolerance: 1, swimAway: true, goal: 40, sharkSeconds: 60, mA: 5, mB: 10, mC: 15 };
+const S = { threshold: 32, fishSeconds: 3, tolerance: 1, swimAway: true, goal: 40, sharkSeconds: 60, mA: 5, mB: 10, mC: 15, seq: null };
+const SEQ_DEFAULT = { ws: 5, wh: 11, sub: 15, kr: 19, gr: 25, ink: 28, dv: 31 };
 let saved = { species: [] };
 try {
   const raw = localStorage.getItem(KEY) || localStorage.getItem('laermampel-riff-v1');
@@ -1962,7 +1993,7 @@ function logic(dt) {
     // and the green octopus cannot come early when the HaiZeit is shorter than a visit
     if (st.sharkT >= S.sharkSeconds && !st.ev && !st.events.length && !(st.octo && st.octo.goInk)) {
       st.sharkT = 0; st.tick++;
-      visitorFor(((st.tick - 1) % 31) + 1);
+      visitorFor(((st.tick - 1) % seq().dv) + 1);
     }
     updateEvents(dt);
     updateOcto(dt);
@@ -2135,22 +2166,41 @@ function onLoud() {
   st.progress = 0;
 }
 /* The big visitors are the reward for a quiet class. Every HaiZeit without the limit being broken
-   (= all fish fled) counts one up and brings:
-   1-4 shark, 5-10 white shark, 11-14 whale, 15 submarine, 16-18 whale, 19 octopus (swims up to the screen),
-   20-24 whale, 25 green octopus that swims to and fro, 28 it inks the glass, 29-30 whale behind the inked glass,
-   31 the diver cleans it; then it starts again. */
+   (= all fish fled) counts one up. Which HaiZeit brings which visitor is set in "Einstellungen: Besucher"
+   (S.seq, default: 1-4 shark, 5-10 white shark, 11-14 whale, 15 submarine, 16-18 whale, 19 octopus,
+   20-24 whale, 25 green octopus swims to and fro, 28 it inks the glass, 29-30 whale, 31 the diver cleans it;
+   then it starts again). */
+function normSeq(q) {
+  const n = (v, d, lo) => { v = Math.round(+v); return Number.isFinite(v) ? clamp(v, lo, 999) : d; };
+  const D = SEQ_DEFAULT, o = {};
+  o.dv = n(q && q.dv, D.dv, 3);
+  o.ink = Math.min(n(q && q.ink, D.ink, 2), o.dv - 1);
+  o.gr = Math.min(n(q && q.gr, D.gr, 1), o.ink - 1);
+  o.ws = n(q && q.ws, D.ws, 0); o.wh = n(q && q.wh, D.wh, 0); o.sub = n(q && q.sub, D.sub, 0); o.kr = n(q && q.kr, D.kr, 0);
+  return o;
+}
+function seq() { return S.seq ? S.seq : SEQ_DEFAULT; }
+function fillKind(n, q) { // the ordinary visitor of a HaiZeit
+  if (q.wh > 0 && n >= q.wh) return 'whale';
+  if (q.ws > 0 && n >= q.ws) return 'bigshark';
+  return 'shark';
+}
+function seqKind(n, q) {
+  if (n === q.dv) return 'diver';
+  if (n === q.ink) return 'ink';
+  if (n === q.gr) return 'green';
+  if (n > q.gr && n < q.ink) return 'roam'; // the green octopus swims to and fro
+  if (n === q.kr) return 'kraken';
+  if (n === q.sub) return 'sub';
+  return fillKind(n, q);
+}
 function visitorFor(n) {
-  if (n <= 4) queueEvent('shark');
-  else if (n <= 10) queueEvent('bigshark');
-  else if (n <= 14) queueEvent('whale');
-  else if (n === 15) queueEvent('sub');
-  else if (n <= 18) queueEvent('whale');
-  else if (n === 19) queueEvent('kraken');
-  else if (n <= 24) queueEvent('whale');
-  else if (n === 25) greenOctoArrives();
-  else if (n === 28) { if (st.octo && st.octo.green && st.octo.state !== 'flee') st.octo.goInk = true; else queueEvent('inkpass'); }
-  else if (n === 29 || n === 30) queueEvent('whale');
-  else if (n === 31) queueEvent(st.veil && !st.veil.fading ? 'diver' : 'whale');
+  const q = seq(), k = seqKind(n, q);
+  if (k === 'diver') queueEvent(st.veil && !st.veil.fading ? 'diver' : fillKind(n, q));
+  else if (k === 'ink') { if (st.octo && st.octo.green && st.octo.state !== 'flee') st.octo.goInk = true; else queueEvent('inkpass'); }
+  else if (k === 'green') greenOctoArrives();
+  else if (k === 'roam') { if (!(st.octo && st.octo.green)) queueEvent(fillKind(n, q)); }
+  else queueEvent(k);
 }
 function greenOctoArrives() {
   const u = Math.min(W, H) * .12;
@@ -2431,13 +2481,40 @@ $('#btnReset').addEventListener('click', () => { $('#resetConfirm').hidden = fal
 $('#btnResetNo').addEventListener('click', () => { $('#resetConfirm').hidden = true; });
 $('#btnResetYes').addEventListener('click', () => { resetRound(); $('#resetConfirm').hidden = true; closeSheet(); say('Neue Runde! Das Riff wartet auf Fische.', 3); });
 
+/* ---------- Settings: which HaiZeit brings which visitor ---------- */
+const seqOv = $('#seqOverlay');
+const SEQ_IN = { ws: '#seqWs', wh: '#seqWh', sub: '#seqSub', kr: '#seqKr', gr: '#seqGr', ink: '#seqInk', dv: '#seqDv' };
+const SEQ_NAME = { shark: 'Hai', bigshark: 'weißer Hai', whale: 'Wal', sub: 'U-Boot', kraken: 'Kraken', green: 'grüner Kraken kommt', roam: 'grüner Kraken schwimmt hin und her', ink: 'grüner Kraken spritzt Tinte', diver: 'Taucher putzt' };
+function seqFill() { const q = seq(); for (const k in SEQ_IN) $(SEQ_IN[k]).value = q[k]; seqPlan(); }
+function seqPlan() {
+  const q = seq(), parts = []; let a = 1, last = seqKind(1, q);
+  for (let n = 2; n <= q.dv + 1; n++) {
+    const k = n <= q.dv ? seqKind(n, q) : null;
+    if (k !== last || ['green', 'ink', 'diver', 'sub', 'kraken'].includes(k)) { parts.push('<b>' + (a === n - 1 ? a : a + '–' + (n - 1)) + '</b> ' + SEQ_NAME[last]); a = n; last = k; }
+  }
+  const lost = [['kr', 'kraken', 'Der Kraken'], ['sub', 'sub', 'Das U-Boot']].filter(([k, kind]) => q[k] > 0 && (q[k] > q.dv || seqKind(q[k], q) !== kind)).map(x => x[2]);
+  $('#seqPlan').innerHTML = 'Ablauf: ' + parts.join(' · ') + '. Danach beginnt es wieder bei 1.' + (lost.length ? '<br><b>Achtung:</b> ' + lost.join(' und ') + ' kommt so nicht, weil die HaiZeit schon belegt ist (oder hinter dem Taucher liegt).' : '');
+}
+function seqRead() {
+  const q = {}; for (const k in SEQ_IN) q[k] = $(SEQ_IN[k]).value;
+  S.seq = normSeq(q); persist(); seqPlan();
+}
+for (const k in SEQ_IN) $(SEQ_IN[k]).addEventListener('change', () => { seqRead(); seqFill(); });
+$('#btnSeq').addEventListener('click', () => { seqFill(); seqOv.hidden = false; });
+const seqClose = () => { seqRead(); seqFill(); seqOv.hidden = true; };
+$('#btnSeqClose').addEventListener('click', seqClose);
+$('#btnSeqOk').addEventListener('click', seqClose);
+seqOv.addEventListener('click', e => { if (e.target === seqOv) seqClose(); });
+$('#btnSeqDefault').addEventListener('click', () => { S.seq = null; persist(); seqFill(); });
+if (S.seq) S.seq = normSeq(S.seq);
+
 /* ---------- Info & privacy ---------- */
 const infoOv = $('#infoOverlay');
 $('#btnInfo1').addEventListener('click', () => { infoOv.hidden = false; });
 $('#btnInfo2').addEventListener('click', () => { infoOv.hidden = false; });
 $('#btnInfoClose').addEventListener('click', () => { infoOv.hidden = true; });
 infoOv.addEventListener('click', e => { if (e.target === infoOv) infoOv.hidden = true; });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') infoOv.hidden = true; });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { infoOv.hidden = true; if (!seqOv.hidden) seqClose(); } });
 $('#btnWipe').addEventListener('click', () => {
   noStore = true;
   try { localStorage.removeItem(KEY); } catch (e) {}
