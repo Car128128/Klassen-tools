@@ -1035,7 +1035,7 @@ function updateEvents(dt) {
     if (e.bubT <= 0 && e.d) { e.bubT = 2.4; const D = H * .32 * e.d.s, ca = Math.cos(e.d.tilt), sa = Math.sin(e.d.tilt); for (let k = 0; k < 6; k++) { const b = spawnBubble(e.d.x + (.27 * ca + .62 * sa) * D + (Math.random() - .5) * .05 * D, e.d.y + (.27 * sa - .62 * ca) * D, true); b.vx = (.5 - Math.random()) * 30 * U; } }
   }
   if (st.veil && !st.veil.fading && st.veil.a < 1 && !(e.kind === 'diver' && e.t >= 15)) st.veil.a = Math.min(1, st.veil.a + dt * 2.5);
-  if (e.t >= e.dur) { st.ev = null; if (e.kind === 'inkpass' && st.veil && !st.veil.fading) st.events.unshift({ kind: 'diver' }); } // the diver comes straight after the ink
+  if (e.t >= e.dur) st.ev = null;
 }
 function sweepX(e, t) { const p = t * e.v; return e.dir > 0 ? -e.L * .6 + p : W + e.L * .6 - p; }
 function subGeom(e) { return { x: sweepX(e, Math.max(0, e.t)), y: e.y0 + Math.sin(e.t * .3) * 6 * U }; }
@@ -1960,7 +1960,7 @@ function logic(dt) {
     if (lv < 5) st.silentT += dt; else st.silentT = 0;
     if (st.sharkT >= S.sharkSeconds) {
       st.sharkT -= S.sharkSeconds; st.tick++;
-      visitorFor(((st.tick - 1) % 28) + 1);
+      visitorFor(((st.tick - 1) % 31) + 1);
     }
     updateEvents(dt);
     updateOcto(dt);
@@ -2135,7 +2135,8 @@ function onLoud() {
 /* The big visitors are the reward for a quiet class. Every HaiZeit without the limit being broken
    (= all fish fled) counts one up and brings:
    1-4 shark, 5-10 white shark, 11-14 whale, 15 submarine, 16-18 whale, 19 octopus (swims up to the screen),
-   20-24 whale, 25 green octopus that swims to and fro, 28 it inks the glass and the diver cleans it; then it starts again. */
+   20-24 whale, 25 green octopus that swims to and fro, 28 it inks the glass, 29-30 whale behind the inked glass,
+   31 the diver cleans it; then it starts again. */
 function visitorFor(n) {
   if (n <= 4) queueEvent('shark');
   else if (n <= 10) queueEvent('bigshark');
@@ -2146,6 +2147,8 @@ function visitorFor(n) {
   else if (n <= 24) queueEvent('whale');
   else if (n === 25) greenOctoArrives();
   else if (n === 28) { if (st.octo && st.octo.green && st.octo.state !== 'flee') st.octo.goInk = true; else queueEvent('inkpass'); }
+  else if (n === 29 || n === 30) queueEvent('whale');
+  else if (n === 31) queueEvent(st.veil && !st.veil.fading ? 'diver' : 'whale');
 }
 function greenOctoArrives() {
   const u = Math.min(W, H) * .12;
