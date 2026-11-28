@@ -1689,12 +1689,15 @@ const GV = (() => {
             e.y0 + f.oy + Math.sin(t * .29 * f.w + f.p * 1.7) * e.L * .7 + Math.sin(t * 1.1 + f.p) * e.L * .12];
   }
   function drawLanterns(g, e) {
-    const t = e.t, L = e.L;
+    // only six fish at a time (performance): three waves, each crossing from the other side
+    const t = e.t, L = e.L, wi = Math.min(2, Math.floor(t / e.wave));
+    const w = { L, margin: e.margin, v: e.v, y0: e.y0, t: t - wi * e.wave, dir: wi % 2 ? -e.dir : e.dir };
     for (const f of e.school) {
-      const [x, y] = lanternPos(e, f, t), [x2, y2] = lanternPos(e, f, t + .05), sp = Math.hypot(x2 - x, y2 - y) / .05;
-      const head = Math.atan2(y2 - y, (x2 - x) * e.dir), beat = t * (5 + sp / L * 2) + f.p;
+      if (f.g !== wi) continue;
+      const [x, y] = lanternPos(w, f, t), [x2, y2] = lanternPos(w, f, t + .05), sp = Math.hypot(x2 - x, y2 - y) / .05;
+      const head = Math.atan2(y2 - y, (x2 - x) * w.dir), beat = t * (5 + sp / L * 2) + f.p;
       const fl = .5 + .5 * Math.pow(Math.max(0, Math.sin(t * 1.3 - f.ox / L * .7)), 3);
-      g.save(); g.translate(x, y); g.scale(e.dir, 1); g.rotate(clamp(head, -.6, .6));
+      g.save(); g.translate(x, y); g.scale(w.dir, 1); g.rotate(clamp(head, -.6, .6));
       drawLanternFish(g, L * f.s, beat, fl);
       g.restore();
     }
@@ -1869,7 +1872,7 @@ const GV = (() => {
     { k: 'angler', glow: true, nm: 'Anglerfisch', sub: 'Tiefsee-Anglerfisch: der Leuchtköder an der Angel schwingt bei jeder Bewegung nach, einmal schnappt er zu', make: () => { const L = clamp(Math.min(W, H) * .96, 450, 960); return baseEvent(L, 34, .5, .9, .5); }, draw: drawAngler },
     { k: 'comb', glow: true, nm: 'Rippenqualle', sub: 'glasklar, über ihre acht Wimpernreihen laufen Regenbogen-Wellen, manchmal leuchtet sie innen blau', make: () => { const L = clamp(Math.min(W, H) * .45, 210, 450); return baseEvent(L, 32, .45, 1, .5); }, draw: drawCombJelly },
     { k: 'squid', glow: true, nm: 'Leuchtkalmare', sub: 'sechs Glühwürmchen-Kalmare schießen mit Rückstoß voran und gleiten, blaue Lichtpunkte funkeln, drei große leuchten an den Armspitzen', make: () => { const L = clamp(Math.min(W, H) * .44, 200, 440), e = baseEvent(L, 28, .34, 6); e.trio = [{ dx: 0, dy: 0, s: 1, off: 0, j: 0, seed: 1 }, { dx: -1.2, dy: .7, s: .8, off: .9, j: .3, seed: 2 }, { dx: -2.1, dy: -.4, s: .7, off: 1.6, j: -.2, seed: 3 }, { dx: -3.1, dy: .45, s: .85, off: .4, j: .1, seed: 4 }, { dx: -4.1, dy: -.55, s: .75, off: 1.2, j: -.1, seed: 5 }, { dx: -5.1, dy: .25, s: .9, off: 2.1, j: .2, seed: 6 }]; return e; }, draw: drawSquids },
-    { k: 'lantern', glow: true, nm: 'Laternenfische', sub: 'ein Schwarm aus achtzehn kleinen Fischen, die sich umeinander schlängeln; Lichterreihen am Bauch, Blitzwellen laufen durch den Schwarm', make: () => { const L = clamp(Math.min(W, H) * .15, 75, 165), e = baseEvent(L, 26, .45, 7.5); e.school = []; for (let i = 0; i < 18; i++) { const j = i % 9, k = Math.floor(i / 9); e.school.push({ ox: -(j % 3) * L * 1.6 - Math.floor(j / 3) * L * .8 - k * L * 2.7, oy: (Math.floor(j / 3) - 1) * L * 1.1 + (j % 3) * L * .3 + (k ? L * .55 : 0), w: .8 + hash(i) * .5, p: hash(i + 9) * TAU, s: .85 + hash(i + 40) * .3 }); } return e; }, draw: drawLanterns },
+    { k: 'lantern', glow: true, nm: 'Laternenfische', sub: 'drei Schwärme aus je sechs kleinen Fischen, abwechselnd von links und rechts, die sich umeinander schlängeln; Lichterreihen am Bauch, Blitzwellen laufen durch den Schwarm', make: () => { const L = clamp(Math.min(W, H) * .15, 75, 165), e = baseEvent(L, 54, .45, 6); e.wave = 18; e.v = (W + 12 * L) / e.wave; e.school = []; for (let i = 0; i < 18; i++) { const j = i % 6, r = Math.floor(j / 3); e.school.push({ g: Math.floor(i / 6), ox: -(j % 3) * L * 1.6 - r * L * .8, oy: (r - .5) * L * 1.3 + (j % 3) * L * .3, w: .8 + hash(i) * .5, p: hash(i + 9) * TAU, s: .85 + hash(i + 40) * .3 }); } return e; }, draw: drawLanterns },
     { k: 'atolla', glow: true, nm: 'Kronenqualle', sub: 'tiefrot, pulsiert langsam; am Rand läuft ein Ring aus blauem Licht wie ein Rad, ein sehr langer Fangfaden schleppt nach', make: () => { const L = clamp(Math.min(W, H) * .26, 120, 280), e = baseEvent(L, 34, .38, 2); e.y0 = Math.min(H * .3 + L * .9, sandY - L * .2); /* it pulses upwards, so it starts lower */ e.yo = 0; e.vy = 0; e.lc = 0; return e; }, draw: drawAtolla }
   ];
   const BY = {}; LIST.forEach(v => { BY['g_' + v.k] = v; });
@@ -1877,7 +1880,7 @@ const GV = (() => {
     LIST, has: kind => !!BY[kind], glow: kind => !!(BY[kind] && BY[kind].glow), name: kind => BY[kind] && BY[kind].nm,
     make: kind => { const e = BY[kind].make(); e.kind = kind; e.ph = 0; return e; },
     draw: (g, e) => { const dt = clamp(e.t - (e._lt === undefined ? e.t : e._lt), 0, .1); e._lt = e.t; BY[e.kind].draw(g, e, dt); },
-    fishStep, dur: kind => kind === 'g_jaw' ? clamp(S.sharkSeconds, 8, 120) * 6 + 4.4 : ({ manta: 26, jelly: 36, seahorse: 38, wshark: 38, bottle: 30, puffer: 32, angler: 34, comb: 32, squid: 28, lantern: 26, atolla: 34 })[kind.slice(2)] || 30
+    fishStep, dur: kind => kind === 'g_jaw' ? clamp(S.sharkSeconds, 8, 120) * 6 + 4.4 : ({ manta: 26, jelly: 36, seahorse: 38, wshark: 38, bottle: 30, puffer: 32, angler: 34, comb: 32, squid: 28, lantern: 54, atolla: 34 })[kind.slice(2)] || 30
   };
 })();
 
