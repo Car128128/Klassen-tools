@@ -313,7 +313,7 @@ body.preview .hud, body.preview .overlay, body.preview .paused-tag, body.preview
     <div class="shark-set">
       <label for="sharkSec">Bonus: alle</label>
       <input type="number" id="sharkSec" min="1" max="3600" step="1" value="60" inputmode="numeric"> <span>Sekunden</span>
-      <small>1 bis 3600 Sekunden. Jeder ruhige Bonus bringt einen Besucher: erst Haie, dann weiße Haie, Wale, U-Boote, Kraken und am Ende den Taucher. Flüchten alle Fische, beginnt es von vorn.</small>
+      <small>1 bis 3600 Sekunden. Jeder ruhige Bonus bringt einen Besucher: erst Haie, dann weiße Haie, Wale, U-Boote, Kraken und am Ende den grünen Kraken. Flüchten alle Fische, beginnt es von vorn.</small>
       <small>Die lila Anemone im Riff zeigt mit Luftblasen, wie viele Boni es noch bis zum nächsten neuen Besucher sind: 4 Blasen übereinander = noch 4 Boni.</small>
       <button type="button" class="btn" id="btnSeq">Einstellungen: Wann kommt welcher Besucher?</button>
     </div>
@@ -376,7 +376,7 @@ body.preview .hud, body.preview .overlay, body.preview .paused-tag, body.preview
       <button class="iconbtn light" id="btnSeqClose" aria-label="Schließen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
     <div class="rnd-box">
-      <label class="rnd-sw"><input type="checkbox" id="rndOn"><span><b>Zufallsmodus</b><small>Besucher kommen in zufälliger Reihenfolge, jede Runde neu gemischt. Wird es zu laut, beginnt die Runde in derselben Reihenfolge von vorn. Dazwischen kommen nur Haie. Der Taucher putzt immer 3 Boni nach der Tinte. Haken weg = kommt nicht.</small></span></label>
+      <label class="rnd-sw"><input type="checkbox" id="rndOn"><span><b>Zufallsmodus</b><small>Besucher kommen in zufälliger Reihenfolge, jede Runde neu gemischt. Wird es zu laut, beginnt die Runde in derselben Reihenfolge von vorn. Dazwischen kommen nur Haie. Haken weg = kommt nicht.</small></span></label>
       <div class="rnd-gap" id="rndGap" hidden>
         <span>Abstand zwischen zwei Besuchern:</span>
         <span class="rnd-range"><span class="vis-gap"><button type="button" data-r="rMin" data-d="-1" aria-label="weniger">−</button><input type="number" id="rMin" min="1" max="99" inputmode="numeric" aria-label="mindestens Boni"><button type="button" data-r="rMin" data-d="1" aria-label="mehr">+</button></span>
@@ -1477,63 +1477,69 @@ const GV = (() => {
     if (t < tIn) f = 0;
     else if (t < tIn + gulpT) { const k = (t - tIn) / gulpT * 4, n = Math.floor(k), fr = k - n; f = (n + smoother(fr / .7)) / 4; mouth = fr < .45 ? .9 : .2; }
     else if (t < tR) { f = 1; mouth = .05; } // cheeks full, the mouth pressed shut
-    else { const k = (t - tR) / 3; f = 1 - smoother(k); mouth = k < 1 ? .9 : .3; }
+    else { const k = (t - tR) / 4; f = 1 - smoother(k); mouth = k < 1 ? .9 : .3; }
     if (e.face === undefined) e.face = D;
-    let x, y, rot, dirS;
+    let x, y, rot, psi, sc = 1;
     if (t < tR) {
       x = xAt(t); const vx = (xAt(t + .05) - x) / .05;
       if (Math.abs(vx) > L * .05) e.face += (Math.sign(vx) - e.face) * Math.min(1, dt * 3);
       y = e.y0 + Math.sin(t * .8) * L * .07 - f * L * .05; rot = Math.sin(t * .8 + .5) * .06 + (t > t1 ? Math.sin(t * 2.6) * .05 : 0);
-      dirS = Math.abs(e.face) < .08 ? .08 * Math.sign(e.face || 1) : e.face; e.fx = x; e.fy = y;
-    } else { // like a balloon let go: tail first (the air leaves through the mouth), zigzagging and tumbling, up and away
-      if (!e.fly) e.fly = { x: e.fx, y: e.fy, k: 0, base: Math.atan2(-.45, -Math.sign(e.face || D) * .9) };
+      psi = lerp(.5, Math.PI - .5, (1 - clamp(e.face, -1, 1)) / 2); // it turns in depth: right, towards us, left
+      e.fx = x; e.fy = y; e.psi = psi;
+    } else { /* like a balloon that was let go: the air rushes out of the mouth, so it shoots off tail first,
+                faster and faster, in swinging curves, tumbling, shrinking, and pulls a trail of bubbles */
+      if (!e.fly) e.fly = { x: e.fx, y: e.fy, k: 0, ang: Math.atan2(-.5, -Math.sign(e.face || D) * .85), v: 0 };
       const F = e.fly; F.k += dt;
-      const ang = F.base + .9 * Math.sin(F.k * 7) + .45 * Math.sin(F.k * 13.7 + 1), sp = Math.max(W, H) * .4 * sm(F.k / .3) * (.45 + .55 * f);
-      F.x += Math.cos(ang) * sp * dt; F.y += Math.sin(ang) * sp * dt;
-      x = F.x; y = F.y; rot = ang + Math.PI; dirS = 1;
+      F.ang += (2.4 * Math.sin(F.k * 1.5 + .4) + 1.5 * Math.sin(F.k * 3.9 + 2)) * dt; // the curves
+      F.v = Math.max(W, H) * (.06 + .22 * F.k); // speeds up all the time
+      F.x += Math.cos(F.ang) * F.v * dt; F.y += Math.sin(F.ang) * F.v * dt - H * .06 * dt;
+      x = F.x; y = F.y; rot = F.ang + Math.PI; psi = e.psi + F.k * 3.2; sc = 1 - .62 * smoother(F.k / 3.6);
     }
-    const out = t > tR && t < tR + 3.2;
-    if (out && Math.random() < dt * 22) { const rx0 = L * .3 * (1 + .7 * f), [bx, by] = toWorld(x, y, Math.sign(dirS), rot, rx0 * 1.02, L * .02), ca = Math.cos(rot), sa = Math.sin(rot); e.bub.push({ x: bx, y: by, vx: ca * L * (1 + Math.random()) * Math.sign(dirS), vy: sa * L * (1 + Math.random()) - L * .2 * Math.random(), t0: t }); }
-    e.bub = e.bub.filter(b => t - b.t0 < 1.6);
-    for (const b of e.bub) { b.x += b.vx * dt; b.y += b.vy * dt; b.vx *= Math.pow(.2, dt); b.vy *= Math.pow(.2, dt); b.vy -= L * .5 * dt; const k = (t - b.t0) / 1.6; g.strokeStyle = `rgba(255,255,255,${.75 * (1 - k)})`; g.lineWidth = 1.2; g.beginPath(); g.arc(b.x, b.y, 2 + k * 4, 0, TAU); g.stroke(); }
-    g.save(); g.translate(x, y); g.scale(dirS, 1); g.rotate(rot);
-    const rx = L * .3 * (1 + .7 * f), ry = L * .19 * (1 + .7 * f) * (1 + .25 * f); // +70 %, and a little rounder
-    // tail fin: steers, folds a bit when puffed
-    const tw = Math.sin(t * 3.2) * .25, tk = 1 - .45 * f;
-    g.save(); g.translate(-rx * .92, 0); g.rotate(tw * (1 - f)); g.fillStyle = '#d2a845';
-    g.beginPath(); g.moveTo(L * .02, 0); g.quadraticCurveTo(-L * .08 * tk, -L * .09 * tk, -L * .13 * tk, -L * .07 * tk); g.quadraticCurveTo(-L * .11 * tk, 0, -L * .13 * tk, L * .07 * tk); g.quadraticCurveTo(-L * .08 * tk, L * .09 * tk, L * .02, 0); g.fill();
-    g.strokeStyle = 'rgba(120, 85, 30, .4)'; g.lineWidth = 1; for (let k = -2; k <= 2; k++) { g.beginPath(); g.moveTo(0, 0); g.lineTo(-L * .12 * tk, k * L * .03 * tk); g.stroke(); }
-    g.restore();
-    // back and belly fins: they row in turn (that is how puffers swim)
-    for (const s of [-1, 1]) { const a = Math.sin(t * 7 + (s > 0 ? Math.PI : 0)) * .45; g.save(); g.translate(-rx * .55, s * ry * .82); g.rotate(s * (.5 + a)); g.fillStyle = 'rgba(214, 178, 82, .9)'; g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(-L * .05, s * L * .02, -L * .07, s * L * .06); g.quadraticCurveTo(-L * .02, s * L * .05, L * .02, s * L * .01); g.closePath(); g.fill(); g.restore(); }
-    // spines rise as it fills up
-    if (f > .04) { g.strokeStyle = 'rgba(115, 85, 40, .9)'; g.lineCap = 'round'; for (let k = 0; k < 36; k++) { const a = k / 36 * TAU + .05, c = Math.cos(a), s = Math.sin(a), len = L * .075 * Math.pow(f, 1.4) * (.7 + .3 * hash(k)); g.lineWidth = Math.max(1, L * .009 * (1 - .4 * hash(k + 5))); g.beginPath(); g.moveTo(c * rx * .96, s * ry * .96); g.lineTo(c * (rx + len), s * (ry + len)); g.stroke(); } }
-    // body: brown back with spots and saddles, white belly
-    const bg = g.createLinearGradient(0, -ry, 0, ry); bg.addColorStop(0, '#b8913c'); bg.addColorStop(.5, '#e5cb78'); bg.addColorStop(.66, '#f6edcf'); bg.addColorStop(1, '#fdf9ee');
-    g.fillStyle = bg; g.beginPath(); g.ellipse(0, 0, rx, ry, 0, 0, TAU); g.fill();
-    g.save(); g.beginPath(); g.ellipse(0, 0, rx, ry, 0, 0, TAU); g.clip();
-    g.fillStyle = 'rgba(95, 65, 25, .35)'; for (const sx of [-.45, .05]) { g.beginPath(); g.ellipse(rx * sx, -ry * .75, rx * .2, ry * .45, 0, 0, TAU); g.fill(); }
-    g.fillStyle = 'rgba(100, 70, 28, .6)'; for (let k = 0; k < 26; k++) { const a = hash(k) * TAU, r = Math.sqrt(hash(k + 40)); const px = Math.cos(a) * r * rx * .9, py = -Math.abs(Math.sin(a) * r) * ry * .85; g.beginPath(); g.arc(px, py, L * (.011 + hash(k + 9) * .009) * (1 + .5 * f), 0, TAU); g.fill(); }
-    g.fillStyle = 'rgba(255,255,255,.25)'; g.beginPath(); g.ellipse(rx * .1, -ry * .55, rx * .5, ry * .14, -.1, 0, TAU); g.fill();
-    g.restore();
-    vol3D(g, () => { g.beginPath(); g.ellipse(0, 0, rx, ry, 0, 0, TAU); }, 0, 0, rx, ry, .6, .62, .3, .45);
-    // puffed cheeks: round and taut while it holds the air
-    if (f > .05) { const cr = L * .1 * f, cxk = rx * .66, cyk = ry * .26, cg = g.createRadialGradient(cxk - cr * .3, cyk - cr * .35, cr * .1, cxk, cyk, cr);
-      cg.addColorStop(0, 'rgba(255, 252, 240, .95)'); cg.addColorStop(.7, 'rgba(246, 232, 192, .85)'); cg.addColorStop(1, 'rgba(210, 180, 110, 0)');
-      g.fillStyle = cg; g.beginPath(); g.arc(cxk, cyk, cr, 0, TAU); g.fill();
-      g.strokeStyle = `rgba(150, 115, 50, ${.4 * f})`; g.lineWidth = Math.max(1, L * .004); g.beginPath(); g.arc(cxk, cyk, cr * .85, -.2, 2.3); g.stroke(); }
-    // side fin: whirrs fast like a little propeller
-    g.fillStyle = 'rgba(232, 200, 110, .85)'; g.save(); g.translate(rx * .28, ry * .12); g.rotate(-.4 + Math.sin(t * 14) * .5); g.beginPath(); g.ellipse(-L * .04, 0, L * .05, L * .022 * (.5 + .5 * Math.abs(Math.cos(t * 14))), 0, 0, TAU); g.fill(); g.restore();
-    // big eye that looks around
-    const ex = rx * .55, ey = -ry * .3, lk = Math.floor(t / 1.7), la = lerp(hash(lk * 3) * TAU, hash(lk * 3 + 3) * TAU, smoother(((t / 1.7) % 1) * 3));
-    g.fillStyle = '#fff'; g.beginPath(); g.arc(ex, ey, L * .055, 0, TAU); g.fill();
-    g.strokeStyle = 'rgba(120, 90, 30, .5)'; g.lineWidth = 1; g.stroke();
-    const pxo = ex + L * .008 + Math.cos(la) * L * .012, pyo = ey + Math.sin(la) * L * .01;
-    g.fillStyle = '#1c3a2a'; g.beginPath(); g.arc(pxo, pyo, L * .033, 0, TAU); g.fill();
-    g.fillStyle = '#fff'; g.beginPath(); g.arc(pxo + L * .01, pyo - L * .012, L * .009, 0, TAU); g.fill();
-    // beak mouth, opens to gulp and to blow the water out
-    g.fillStyle = '#9d7533'; g.beginPath(); g.ellipse(rx * .99, ry * .1, L * .026, L * (.01 + .022 * mouth), 0, 0, TAU); g.fill();
-    g.fillStyle = '#3a2a12'; g.beginPath(); g.ellipse(rx * 1.0, ry * .1, L * .012, L * .016 * mouth, 0, 0, TAU); g.fill();
+    const Lt = lightLocal(rot, 1), cam = cam3D(psi, .5 / L, .18), items = [];
+    const ra = L * .3 * (1 + .7 * f), rc = L * .19 * (1 + .7 * f) * (1 + .25 * f), rb = rc * .94; // +70 %, and a little rounder
+    const ell = d => { const n = v3n(d[0], d[1], d[2]); return [[ra * n[0], rc * n[1], rb * n[2]], v3n(n[0] / ra, n[1] / rc, n[2] / rb)]; };
+    // air out of the mouth: a dense trail of bubbles behind it
+    const mP = cam.p(ell([1, .12, 0])[0]), cR = Math.cos(rot), sR = Math.sin(rot), mx = x + sc * (mP[0] * cR - mP[1] * sR), my = y + sc * (mP[0] * sR + mP[1] * cR);
+    if (t > tR && t < tR + 4.6) for (let i = 0; i < 3; i++) if (Math.random() < dt * 22) { const r = Math.random(), F = e.fly, bk = F.v * (.25 + .2 * r);
+      e.bub.push({ x: mx + (Math.random() - .5) * L * .03, y: my + (Math.random() - .5) * L * .03, vx: -Math.cos(F.ang) * bk + (Math.random() - .5) * L * .5, vy: -Math.sin(F.ang) * bk + (Math.random() - .5) * L * .5, t0: t, s: (1.5 + 4 * Math.random()) * (.5 + .5 * sc) * Math.max(1, L / 300) }); }
+    e.bub = e.bub.filter(b => t - b.t0 < 2.6);
+    for (const b of e.bub) { b.x += b.vx * dt; b.y += b.vy * dt; b.vx *= Math.pow(.15, dt); b.vy *= Math.pow(.15, dt); b.vy -= L * .35 * dt; const k = (t - b.t0) / 2.6, r = b.s * (1 + k * 1.2);
+      g.strokeStyle = `rgba(255,255,255,${.8 * (1 - k)})`; g.lineWidth = 1.2; g.beginPath(); g.arc(b.x, b.y, r, 0, TAU); g.stroke();
+      g.fillStyle = `rgba(255,255,255,${.55 * (1 - k)})`; g.beginPath(); g.arc(b.x - r * .35, b.y - r * .35, r * .3, 0, TAU); g.fill(); }
+    g.save(); g.translate(x, y); g.rotate(rot); g.scale(sc, sc);
+    // body: an ellipsoid mesh, brown back, yellow flanks, white belly
+    const NU = 26, NA = 36, TOP = [176, 136, 56], MID = [229, 203, 120], BEL = [252, 247, 232], grid = [];
+    for (let i = 0; i <= NU; i++) { const u = i / NU * Math.PI, row = []; for (let k = 0; k < NA; k++) { const a = k / NA * TAU, d = [Math.cos(u), -Math.cos(a) * Math.sin(u), Math.sin(a) * Math.sin(u)], [P, N] = ell(d); row.push({ p: cam.p(P), n: cam.r(N), m: -d[1] }); } grid.push(row); }
+    for (let i = 0; i < NU; i++) for (let k = 0; k < NA; k++) { const A = grid[i][k], B = grid[i][(k + 1) % NA], C = grid[i + 1][(k + 1) % NA], Dd = grid[i + 1][k];
+      const n = v3n(A.n[0] + B.n[0] + C.n[0] + Dd.n[0], A.n[1] + B.n[1] + C.n[1] + Dd.n[1], A.n[2] + B.n[2] + C.n[2] + Dd.n[2]); if (n[2] < -.08) continue;
+      const m = (A.m + B.m + C.m + Dd.m) / 4, base = m > .05 ? mix3(MID, TOP, Math.min(1, (m - .05) / .55)) : mix3(BEL, MID, clamp((m + .45) / .5, 0, 1));
+      items.push({ z: (A.p[2] + B.p[2] + C.p[2] + Dd.p[2]) / 4, p: [A.p[0], A.p[1], B.p[0], B.p[1], C.p[0], C.p[1], Dd.p[0], Dd.p[1]], c: shade3D(base, n, Lt, .32, .42) }); }
+    // saddles and spots on the back, painted onto the round surface
+    for (const [dx, dy, dz, r] of [[-.45, -.85, .35, .2], [.05, -.9, .4, .22], [-.45, -.85, -.35, .2], [.05, -.9, -.4, .22]]) { const [P, N] = ell([dx, dy, dz]); decal3D(g, items, cam, P, N, ra * r, rc * r * 1.4, 'rgba(95, 65, 25, .3)', 1); }
+    for (let k = 0; k < 34; k++) { const a = hash(k) * TAU, h = -.15 - .8 * hash(k + 40), d = [Math.cos(a) * .9, h, Math.sin(a)], [P, N] = ell(d), r = L * (.011 + hash(k + 9) * .009) * (1 + .5 * f); decal3D(g, items, cam, P, N, r, r, 'rgba(100, 70, 28, .6)', 2); }
+    // spines stand up as it fills; they really stick out of the ball, also round its edge
+    if (f > .04) for (let k = 0; k < 90; k++) { const yy = 1 - 2 * (k + .5) / 90, rr = Math.sqrt(1 - yy * yy), a = k * 2.39996, d = [rr * Math.cos(a), yy, rr * Math.sin(a)];
+      if (d[0] > .8) continue; // not on the face
+      const [P, N] = ell(d), len = L * .085 * Math.pow(f, 1.4) * (.7 + .3 * hash(k)), Q = [P[0] + N[0] * len, P[1] + N[1] * len, P[2] + N[2] * len], p0 = cam.p(P), p1 = cam.p(Q), w = Math.max(1, L * .01 * (1 - .4 * hash(k + 5)));
+      items.push({ z: p1[2] - len * .3, f: () => { g.strokeStyle = 'rgba(110, 80, 38, .95)'; g.lineCap = 'round'; g.lineWidth = w; g.beginPath(); g.moveTo(p0[0], p0[1]); g.lineTo(p1[0], p1[1]); g.stroke(); } }); }
+    // fins: tail (wags, folds a bit when puffed), back and belly fins (they row in turn), side fins (whirr)
+    const tw = Math.sin(t * 3.2) * .35 * (1 - f), tk = 1 - .45 * f, ct = Math.cos(tw), st0 = Math.sin(tw), tx0 = -ra * .9;
+    const tail = [[.02, 0], [-.08, -.09], [-.13, -.075], [-.11, 0], [-.13, .075], [-.08, .09]].map(([u, v]) => [tx0 + u * L * tk * ct, v * L * tk, -u * L * tk * st0]);
+    poly3D(items, cam, tail, [210, 168, 69], Lt, .2);
+    for (const s of [-1, 1]) { const [P] = ell([-.55, s * .82, 0]), fl = Math.sin(t * 7 + (s > 0 ? Math.PI : 0)) * .45 * L * .06;
+      poly3D(items, cam, [[P[0] + L * .03, P[1], 0], [P[0] - L * .04, P[1] + s * L * .07, fl], [P[0] - L * .07, P[1] + s * L * .03, fl * .8], [P[0] - L * .02, P[1] - s * L * .01, 0]], [214, 178, 82], Lt, .2); }
+    for (const s of [-1, 1]) { const [P] = ell([.3, .12, s * .95]), w = Math.sin(t * 14 + s) * .9, cw = Math.cos(w), sw = Math.sin(w);
+      poly3D(items, cam, [P, [P[0] - L * .09, P[1] - L * .035 * cw, P[2] + s * L * .035 * sw], [P[0] - L * .1, P[1] + L * .02 * cw, P[2] - s * L * .02 * sw + s * L * .02], [P[0] - L * .02, P[1] + L * .025, P[2]]], [232, 200, 110], Lt, .2); }
+    // puffed cheeks
+    if (f > .05) for (const s of [-1, 1]) { const [P, N] = ell([.72, .28, s * .55]); decal3D(g, items, cam, P, N, L * .085 * f, L * .07 * f, 'rgba(255, 252, 238, .3)', 1); }
+    // big eyes that look around, on both sides of the head
+    const lk = Math.floor(t / 1.7), la = lerp(hash(lk * 3) * TAU, hash(lk * 3 + 3) * TAU, smoother(((t / 1.7) % 1) * 3));
+    for (const s of [-1, 1]) { const [P, N] = ell([.62, -.36, s * .62]), off = (q, k) => [P[0] + N[0] * q + Math.cos(la) * L * k, P[1] + N[1] * q + Math.sin(la) * L * k, P[2] + N[2] * q];
+      decal3D(g, items, cam, P, N, L * .058, L * .058, '#fff', 3); decal3D(g, items, cam, off(L * .004, .012), N, L * .034, L * .034, '#1c3a2a', 4);
+      decal3D(g, items, cam, off(L * .006, .012), N, L * .01, L * .01, 'rgba(255,255,255,.9)', 5); }
+    // beak mouth at the front: opens to gulp, and wide while the air rushes out
+    { const [P, N] = ell([1, .12, 0]); decal3D(g, items, cam, P, N, L * .045, L * (.016 + .03 * mouth), '#9d7533', 2); decal3D(g, items, cam, P, N, L * .024, L * .024 * mouth, '#3a2a12', 3); }
+    paint3D(g, items);
     g.restore();
   }
   
@@ -1859,7 +1865,7 @@ const GV = (() => {
     { k: 'seahorse', nm: 'Seepferdchen', sub: 'zwei Seepferdchen, aufrecht, die Rückenflosse flattert, der Schwanz rollt sich, jedes Auge schaut für sich umher', make: () => { const L = clamp(Math.min(W, H) * .51, 238, 510), e = baseEvent(L, 38, .44, 1.4); e.pair = [{ dx: 0, dy: 0, s: 1, off: 0, col: ['#f4b13e', '#d9821f', 'rgba(150, 80, 20, .45)', '#ffd98a'] }, { dx: -.8, dy: .3, s: .8, off: 1.7, col: ['#f0806a', '#cc5242', 'rgba(140, 40, 30, .4)', '#ffc2b0'] }]; return e; }, draw: drawSeahorses },
     { k: 'wshark', nm: 'Walhai', sub: 'riesig und ruhig, die Schwanzflosse schwingt, das breite Maul filtert, zwei Schiffshalter fahren mit', make: () => { const L = clamp(Math.min(W, H) * 1.1, 420, 1100); return baseEvent(L, 38, .45, .6, .2); }, draw: drawWhaleShark },
     { k: 'bottle', nm: 'Flaschenpost', sub: 'Gegenstand: treibt mit der Strömung und schaukelt schwer nach, die Luft im Glas bleibt immer oben, ein Algenband weht mit', make: () => { const L = clamp(Math.min(W, H) * .18, 80, 170), e = baseEvent(L, 30, .4, 1.4); e.bubbles = []; e.lastB = 0; e.rot = .25; e.rv = 0; return e; }, draw: drawBottle },
-    { k: 'puffer', nm: 'Kugelfisch', sub: 'rudert in die Mitte, bläst sich dort um 70 % auf, schwimmt mit dicken Backen zweimal hin und her und fliegt dann wie ein losgelassener Luftballon aus dem Bild', make: () => { const L = clamp(Math.min(W, H) * .44, 200, 440), e = baseEvent(L, 32, .45, .8); e.bub = []; return e; }, draw: drawPuffer },
+    { k: 'puffer', nm: 'Kugelfisch', sub: 'rudert in die Mitte, bläst sich dort um 70 % auf, schwimmt mit dicken Backen zweimal hin und her, lässt dann die Luft ab und saust wie ein losgelassener Luftballon in Kurven davon, wird dabei kleiner und zieht Luftblasen hinter sich her', make: () => { const L = clamp(Math.min(W, H) * .44, 200, 440), e = baseEvent(L, 32, .45, .8); e.bub = []; return e; }, draw: drawPuffer },
     { k: 'angler', glow: true, nm: 'Anglerfisch', sub: 'Tiefsee-Anglerfisch: der Leuchtköder an der Angel schwingt bei jeder Bewegung nach, einmal schnappt er zu', make: () => { const L = clamp(Math.min(W, H) * .96, 450, 960); return baseEvent(L, 34, .5, .9, .5); }, draw: drawAngler },
     { k: 'comb', glow: true, nm: 'Rippenqualle', sub: 'glasklar, über ihre acht Wimpernreihen laufen Regenbogen-Wellen, manchmal leuchtet sie innen blau', make: () => { const L = clamp(Math.min(W, H) * .45, 210, 450); return baseEvent(L, 32, .45, 1, .5); }, draw: drawCombJelly },
     { k: 'squid', glow: true, nm: 'Leuchtkalmare', sub: 'sechs Glühwürmchen-Kalmare schießen mit Rückstoß voran und gleiten, blaue Lichtpunkte funkeln, drei große leuchten an den Armspitzen', make: () => { const L = clamp(Math.min(W, H) * .44, 200, 440), e = baseEvent(L, 28, .34, 6); e.trio = [{ dx: 0, dy: 0, s: 1, off: 0, j: 0, seed: 1 }, { dx: -1.2, dy: .7, s: .8, off: .9, j: .3, seed: 2 }, { dx: -2.1, dy: -.4, s: .7, off: 1.6, j: -.2, seed: 3 }, { dx: -3.1, dy: .45, s: .85, off: .4, j: .1, seed: 4 }, { dx: -4.1, dy: -.55, s: .75, off: 1.2, j: -.1, seed: 5 }, { dx: -5.1, dy: .25, s: .9, off: 2.1, j: .2, seed: 6 }]; return e; }, draw: drawSquids },
@@ -2368,10 +2374,10 @@ function drawDolphins(g, e) {
   for (const m of e.pod) {
     const [x, y] = dolphinPos(e, m, t), [x2, y2] = dolphinPos(e, m, t + .03);
     if (x < -e.Ld * 1.5 || x > W + e.Ld * 1.5) continue;
-    let roll = 1; for (const t0 of m.rolls) { const k = (t - t0) / 1.3; if (k > 0 && k < 1) roll = Math.cos(sm(k) * Math.PI * 2); }
+    let roll = 0; for (const t0 of m.rolls) { const k = (t - t0) / 1.3; if (k > 0 && k < 1) roll = sm(k) * Math.PI * 2; } // a real roll round its long axis
     const head = Math.atan2(y2 - y, (x2 - x) * e.dir);
-    g.save(); g.translate(x, y); g.scale(e.dir, 1); g.rotate(head); g.scale(1, Math.abs(roll) < .12 ? .12 * Math.sign(roll || 1) : roll);
-    drawDolphin(g, e.Ld * m.s, t * 6 + m.ph);
+    g.save(); g.translate(x, y); g.scale(e.dir, 1); g.rotate(head);
+    drawDolphin(g, e.Ld * m.s, t * 6 + m.ph, roll, .38 + .2 * Math.sin(t * .45 + m.ph), lightLocal(head, e.dir));
     g.restore();
   }
 }
@@ -2382,37 +2388,84 @@ function vol3D(g, path, cx, cy, rx, ry, hi, sh, hx, hy) {
   gr.addColorStop(0, `rgba(255,255,255,${hi})`); gr.addColorStop(.38, 'rgba(255,255,255,0)'); gr.addColorStop(.7, 'rgba(0,10,25,0)'); gr.addColorStop(1, `rgba(0,10,25,${sh})`);
   g.fillStyle = gr; g.fillRect(-rx * 1.3, -rx * 1.3, rx * 2.6, rx * 2.6); g.restore();
 }
-function drawDolphin(g, L, ph) {
-  const kick = Math.sin(ph) * .09; // up-and-down fluke stroke
-  const yb = s => Math.sin(ph - s * 2.4) * L * .03 * s * s; // body follows the stroke towards the tail
-  // pectoral fin (far side, behind the body)
-  g.fillStyle = '#4e6a80'; g.beginPath(); g.moveTo(L * .14, L * .07); g.quadraticCurveTo(L * .05, L * .2, -L * .04, L * .22); g.quadraticCurveTo(L * .06, L * .12, L * .06, L * .07); g.closePath(); g.fill();
-  // flukes
-  g.save(); g.translate(-L * .5, yb(1)); g.rotate(kick * 2.4);
-  g.fillStyle = '#4f6d84'; g.beginPath(); g.moveTo(L * .04, 0); g.quadraticCurveTo(-L * .05, -L * .03, -L * .14, -L * .12); g.quadraticCurveTo(-L * .09, 0, -L * .14, L * .12); g.quadraticCurveTo(-L * .05, L * .03, L * .04, 0); g.fill();
-  g.restore();
-  // dorsal fin
-  { const dg = g.createLinearGradient(-L * .02, -L * .1, -L * .1, -L * .24); dg.addColorStop(0, '#5f7d94'); dg.addColorStop(1, '#344b5e'); g.fillStyle = dg; } g.beginPath(); g.moveTo(L * .02, -L * .1 + yb(.5)); g.quadraticCurveTo(-L * .04, -L * .24, -L * .14, -L * .25); g.quadraticCurveTo(-L * .08, -L * .16, -L * .12, -L * .08 + yb(.6)); g.closePath(); g.fill();
-  // body: beak at +x, tail stock at -x
-  const P = [[.56, .0], [.5, -.015], [.42, -.04], [.36, -.085], [.25, -.115], [.1, -.12], [-.1, -.1], [-.3, -.06], [-.46, -.022], [-.5, -.01]];
-  const B = [[-.5, .012], [-.44, .03], [-.28, .065], [-.1, .1], [.1, .11], [.26, .09], [.36, .06], [.42, .03], [.5, .018], [.56, .006]];
-  g.beginPath();
-  P.forEach(([u, v], i) => { const s = (.56 - u) / 1.06, X = u * L, Y = v * L + yb(s); i ? g.lineTo(X, Y) : g.moveTo(X, Y); });
-  B.forEach(([u, v]) => { const s = (.56 - u) / 1.06; g.lineTo(u * L, v * L + yb(s)); });
-  g.closePath();
-  const bg = g.createLinearGradient(0, -L * .12, 0, L * .11);
-  bg.addColorStop(0, '#4d6a82'); bg.addColorStop(.42, '#7f9bb0'); bg.addColorStop(.58, '#c9d7e0'); bg.addColorStop(1, '#eef3f6');
-  g.fillStyle = bg; g.fill();
-  const bodyP = () => { g.beginPath(); P.forEach(([u, v], i) => { const s = (.56 - u) / 1.06; g[i ? 'lineTo' : 'moveTo'](u * L, v * L + yb(s)); }); B.forEach(([u, v]) => { const s = (.56 - u) / 1.06; g.lineTo(u * L, v * L + yb(s)); }); g.closePath(); };
-  vol3D(g, bodyP, L * .04, 0, L * .56, L * .13, .55, .6, .25, .55);
-  g.save(); bodyP(); g.clip(); g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = L * .012; g.lineCap = 'round'; g.beginPath(); g.moveTo(L * .38, -L * .06 + yb(.17)); g.quadraticCurveTo(L * .1, -L * .115 + yb(.43), -L * .25, -L * .06 + yb(.76)); g.stroke(); g.restore();
-  bodyP(); g.strokeStyle = 'rgba(30, 45, 60, .35)'; g.lineWidth = Math.max(1, L * .006); g.stroke();
-  // near pectoral fin, eye, smile and blowhole
-  { const fg = g.createLinearGradient(L * .18, L * .06, L * .06, L * .2); fg.addColorStop(0, '#7f9bb0'); fg.addColorStop(1, '#3f5a70'); g.fillStyle = fg; } g.beginPath(); g.moveTo(L * .2, L * .06); g.quadraticCurveTo(L * .14, L * .17, L * .05, L * .2); g.quadraticCurveTo(L * .12, L * .1, L * .12, L * .06); g.closePath(); g.fill();
-  g.fillStyle = '#1c2630'; g.beginPath(); g.arc(L * .33, -L * .03, L * .016, 0, 7); g.fill();
-  g.fillStyle = 'rgba(255,255,255,.8)'; g.beginPath(); g.arc(L * .335, -L * .036, L * .005, 0, 7); g.fill();
-  g.strokeStyle = 'rgba(30, 40, 50, .55)'; g.lineWidth = Math.max(1, L * .007); g.beginPath(); g.moveTo(L * .55, L * .005); g.quadraticCurveTo(L * .47, L * .03, L * .4, L * .012); g.stroke();
-  g.fillStyle = 'rgba(30,40,50,.5)'; g.beginPath(); g.ellipse(L * .22, -L * .118, L * .012, L * .005, 0, 0, 7); g.fill();
+/* ---------- small 3D toolkit: the dolphins and the pufferfish are real 3D bodies ----------
+   local frame: x = forward, y = down (as on the canvas), z = towards the viewer. Each body is a mesh of small
+   faces, lit from top-left-front, sorted back to front; fins are flat 3D shapes; eyes, spots and mouths are
+   painted onto the curved surface, so they shrink and squash as the body turns away. */
+function v3n(x, y, z) { const l = Math.hypot(x, y, z) || 1; return [x / l, y / l, z / l]; }
+function lightLocal(rot, mx) { // the light of the screen, seen from a body that was mirrored (mx) and then rotated by rot
+  const x = -.45 * mx, y = -.72, c = Math.cos(rot), s = Math.sin(rot); return v3n(x * c + y * s, -x * s + y * c, .55);
+}
+function cam3D(psi, persp, tilt) { // turn round the vertical axis (psi), look a little from above (tilt), a little perspective
+  const c = Math.cos(psi), s = Math.sin(psi), ct = Math.cos(tilt || 0), st = Math.sin(tilt || 0);
+  const r = v => { const X = v[0] * c - v[2] * s, Z = v[0] * s + v[2] * c; return [X, v[1] * ct + Z * st, -v[1] * st + Z * ct]; };
+  return { r, p: v => { const q = r(v), k = 1 / (1 - q[2] * persp); return [q[0] * k, q[1] * k, q[2]]; } };
+}
+function shade3D(rgb, n, Lt, spec, amb) { // Lambert light and a wet highlight; n is already turned towards the camera
+  const d = n[0] * Lt[0] + n[1] * Lt[1] + n[2] * Lt[2], hx = Lt[0], hy = Lt[1], hz = Lt[2] + 1, hl = Math.hypot(hx, hy, hz);
+  const sp = Math.pow(Math.max(0, (n[0] * hx + n[1] * hy + n[2] * hz) / hl), 30) * spec * 255, k = (amb === undefined ? .34 : amb) + .78 * Math.max(0, d);
+  return 'rgb(' + Math.min(255, rgb[0] * k + sp | 0) + ',' + Math.min(255, rgb[1] * k + sp | 0) + ',' + Math.min(255, rgb[2] * k + sp | 0) + ')';
+}
+function mix3(a, b, k) { return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k]; }
+function poly3D(items, cam, pts, rgb, Lt, spec) { // a flat face (fin): lit from whichever side we see
+  const q = pts.map(cam.p); let z = 0; const f = []; for (const p of q) { f.push(p[0], p[1]); z += p[2]; }
+  const a = pts[0], b = pts[1 % pts.length], c = pts[Math.floor(pts.length / 2)];
+  let n = cam.r(v3n((b[1] - a[1]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[1] - a[1]), (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]), (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])));
+  if (n[2] < 0) n = [-n[0], -n[1], -n[2]];
+  items.push({ z: z / q.length, p: f, c: shade3D(rgb, n, Lt, spec, .45) });
+}
+function decal3D(g, items, cam, P, N, rw, rh, col, dz) { // an ellipse painted on the surface at P (normal N)
+  if (cam.r(N)[2] <= .03) return;
+  let t1 = Math.hypot(N[0], N[2]) < .05 ? [1, 0, 0] : v3n(N[2], 0, -N[0]);
+  const t2 = [N[1] * t1[2] - N[2] * t1[1], N[2] * t1[0] - N[0] * t1[2], N[0] * t1[1] - N[1] * t1[0]];
+  const c = cam.p(P), a = cam.p([P[0] + t1[0] * rw, P[1] + t1[1] * rw, P[2] + t1[2] * rw]), b = cam.p([P[0] + t2[0] * rh, P[1] + t2[1] * rh, P[2] + t2[2] * rh]);
+  items.push({ z: c[2] + (dz || 0), f: () => { g.save(); g.transform(a[0] - c[0], a[1] - c[1], b[0] - c[0], b[1] - c[1], c[0], c[1]); g.beginPath(); g.arc(0, 0, 1, 0, Math.PI * 2); g.restore(); g.fillStyle = col; g.fill(); } });
+}
+function paint3D(g, items) {
+  items.sort((a, b) => a.z - b.z); g.lineJoin = 'round';
+  for (const it of items) { if (it.f) { it.f(); continue; } const p = it.p; g.fillStyle = g.strokeStyle = it.c; g.lineWidth = 1; g.beginPath(); g.moveTo(p[0], p[1]); for (let i = 2; i < p.length; i += 2) g.lineTo(p[i], p[i + 1]); g.closePath(); g.fill(); g.stroke(); }
+}
+// dolphin body: [x along the body in L (beak at +.56), radius, height of the centre line]
+const DOL_PROF = (() => { const K = [[-.5, .02, 0], [-.42, .032, 0], [-.3, .055, -.004], [-.16, .088, -.008], [-.02, .108, -.01], [.12, .116, -.008], [.24, .106, -.004], [.32, .086, .004], [.37, .068, .012], [.41, .048, .02], [.45, .03, .022], [.51, .022, .02], [.565, .008, .02]], out = [];
+  for (let i = 0; i < K.length - 1; i++) for (let j = 0; j < 4; j++) { const k = j / 4, a = K[i], b = K[i + 1], e = k * k * (3 - 2 * k); out.push([a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * e, a[2] + (b[2] - a[2]) * k]); }
+  out.push(K[K.length - 1]); return out; })();
+const DOL_DARK = [70, 98, 124], DOL_MID = [126, 154, 176], DOL_BELLY = [236, 241, 245];
+function drawDolphin(g, L, ph, roll, psi, Lt) {
+  const TAU = Math.PI * 2, kick = Math.sin(ph) * .09, cr = Math.cos(roll), sr = Math.sin(roll), U = [0, -cr, sr], Wv = [0, sr, cr];
+  const cam = cam3D(psi, .55 / L, .32), items = [], NA = 24;
+  const yb = s => Math.sin(ph - s * 2.4) * .03 * s * s; // the stroke runs down the body towards the flukes (+ = down)
+  const P3 = (x, up, sd) => [x * L, (up * U[1] + sd * Wv[1]) * L, (up * U[2] + sd * Wv[2]) * L];
+  const N3 = (nf, up, sd) => v3n(nf, up * U[1] + sd * Wv[1], up * U[2] + sd * Wv[2]);
+  const cu = x => -yb((.565 - x) / 1.065);
+  const rings = DOL_PROF.map(([x, r, oy], i) => {
+    const pr = DOL_PROF[Math.max(0, i - 1)], nx = DOL_PROF[Math.min(DOL_PROF.length - 1, i + 1)], slope = (nx[1] - pr[1]) / ((nx[0] - pr[0]) || 1), c0 = cu(x) - oy, ring = [];
+    for (let k = 0; k < NA; k++) { const a = k / NA * TAU, ca = Math.cos(a), sa = Math.sin(a), N = N3(-slope * .8, ca, sa / .86);
+      ring.push({ p: cam.p(P3(x, c0 + ca * r * 1.15, sa * r * 1.02)), n: cam.r(N), m: ca }); }
+    return ring;
+  });
+  for (let i = 0; i < rings.length - 1; i++) for (let k = 0; k < NA; k++) {
+    const A = rings[i][k], B = rings[i][(k + 1) % NA], C = rings[i + 1][(k + 1) % NA], D = rings[i + 1][k];
+    const n = v3n(A.n[0] + B.n[0] + C.n[0] + D.n[0], A.n[1] + B.n[1] + C.n[1] + D.n[1], A.n[2] + B.n[2] + C.n[2] + D.n[2]);
+    if (n[2] < -.08) continue;
+    const m = (A.m + B.m) / 2, base = m > .15 ? mix3(DOL_MID, DOL_DARK, Math.min(1, (m - .15) / .45)) : mix3(DOL_BELLY, DOL_MID, Math.max(0, Math.min(1, (m + .35) / .5)));
+    items.push({ z: (A.p[2] + B.p[2] + C.p[2] + D.p[2]) / 4, p: [A.p[0], A.p[1], B.p[0], B.p[1], C.p[0], C.p[1], D.p[0], D.p[1]], c: shade3D(base, n, Lt, .3, .45) });
+  }
+  const at = (x, up, sd) => P3(x, cu(x) + up, sd);
+  // dorsal fin (stands up from the back), pectoral fins (out to the sides), flukes (flat, beat up and down)
+  const qc = (p0, p1, p2, n) => { const o = []; for (let j = 0; j <= n; j++) { const k = j / n, a = (1 - k) * (1 - k), b = 2 * k * (1 - k), c = k * k; o.push([a * p0[0] + b * p1[0] + c * p2[0], a * p0[1] + b * p1[1] + c * p2[1]]); } return o; };
+  const dor = qc([.04, .09], [-.04, .25], [-.15, .25], 6).concat(qc([-.15, .25], [-.09, .16], [-.13, .08], 5).slice(1));
+  poly3D(items, cam, dor.map(([x, up]) => at(x, up, 0)), DOL_DARK, Lt, .3);
+  for (const s of [-1, 1]) { const fl = Math.sin(ph * .5 + s) * .02;
+    poly3D(items, cam, [at(.22, -.07, s * .085), at(.13, -.15 + fl, s * .15), at(.03, -.2 + fl, s * .19), at(.07, -.15 + fl, s * .14), at(.13, -.08, s * .09)], DOL_MID, Lt, .3); }
+  const fa = kick * 2.4, fc = Math.cos(fa), fs = Math.sin(fa), ft = (dx, sd) => at(-.49 + dx * fc, -dx * fs, sd);
+  const flk = [[0, 0], [-.04, .06], [-.11, .15], [-.16, .17], [-.13, .08], [-.12, 0]]; const fl2 = flk.concat(flk.slice(1, -1).reverse().map(([a, b]) => [a, -b]));
+  poly3D(items, cam, fl2.map(([dx, sd]) => ft(dx, sd)), DOL_DARK, Lt, .3);
+  // eyes and the smile, painted on the head
+  const surf = (x, a, k) => { const i = DOL_PROF.findIndex(q => q[0] >= x), [, r, oy] = DOL_PROF[Math.max(0, i)], ca = Math.cos(a), sa = Math.sin(a); return [at(x, ca * r * 1.15 * k - oy, sa * r * 1.02 * k), N3(0, ca, sa / .86)]; };
+  for (const s of [1, -1]) { const [P, N] = surf(.33, s * 1.3, 1); decal3D(g, items, cam, P, N, L * .017, L * .015, '#141c24', L * .01);
+    decal3D(g, items, cam, [P[0] + L * .004, P[1] - L * .005, P[2]], N, L * .005, L * .005, 'rgba(255,255,255,.85)', L * .012);
+    const sm0 = surf(.5, s * 1.85, 1.0), sm1 = surf(.44, s * 1.95, 1.0); decal3D(g, items, cam, [(sm0[0][0] + sm1[0][0]) / 2, (sm0[0][1] + sm1[0][1]) / 2, (sm0[0][2] + sm1[0][2]) / 2], sm0[1], L * .055, L * .004, 'rgba(30,40,50,.55)', L * .01); }
+  paint3D(g, items);
 }
 
 /* The submarine close to the glass: a huge hull glides past from right to left; behind each big porthole there is a little cabin */
@@ -3257,7 +3310,7 @@ let pvLabT = 0;
 function pvLabelUpdate(dt) {
   if ((pvLabT -= dt) > 0) return; pvLabT = .25;
   const q = seq(), n = st.tick ? ((st.tick - 1) % q.len) + 1 : 0, ev = st.ev ? (st.ev.big ? 'bigshark' : st.ev.kind) : null;
-  const NAME = { shark: 'Hai', bigshark: 'weißer Hai', whale: 'Wal', sub: 'U-Boot', subnear: 'U-Boot ganz nah', dolphins: 'Delfine', turtle: 'Schildkröte', kraken: 'Kraken', inkpass: 'grüner Kraken spritzt Tinte', diver: 'Taucher' };
+  const NAME = { shark: 'Hai', bigshark: 'weißer Hai', whale: 'Wal', sub: 'U-Boot', subnear: 'U-Boot ganz nah', dolphins: 'Delfine', turtle: 'Schildkröte', kraken: 'Kraken', inkpass: 'grüner Kraken spritzt Tinte', diver: 'grüner Kraken: Scheibe wird geputzt' };
   const lab = $('#pvLabel'); if (!lab) return;
   lab.textContent = (n ? 'Bonus ' + n + ' von ' + q.len + ' · Unterrichtszeit ca. ' + fmtDur(seqTimes().at[n] + Math.min(st.sharkT, S.sharkSeconds)) : 'Start · erster Bonus läuft') +
     (ev ? ' · jetzt: ' + (NAME[ev] || GV.name(ev)) : st.octo && st.octo.green ? ' · grüner Kraken schwimmt hin und her' : '') + ' · nächster neuer Besucher in ' + nextNewIn() + (nextNewIn() === 1 ? ' Bonus' : ' Boni') + ' · ' + PREVIEW.speed + '-fach';
@@ -3485,7 +3538,7 @@ const VIS_META = {
   sub:  { nm: 'U-Boot', sub: 'fährt von links durchs Riff', col: '#5c6b70' },
   kr:   { nm: 'Kraken', sub: 'schwimmt zum Bildschirm', col: '#ef6a1f' },
   near: { nm: 'U-Boot ganz nah', sub: 'von rechts, Blick in die Fenster', col: '#c9a23a' },
-  gr:   { nm: 'Grüner Kraken', sub: 'kommt und schwimmt hin und her', col: '#4caf50' },
+  gr:   { nm: 'Grüner Kraken', sub: 'schwimmt hin und her, spritzt nach 3 Boni Tinte an die Scheibe, 2 Boni später ist sie wieder sauber', rsub: 'spritzt Tinte, 2 Boni später ist die Scheibe wieder sauber', col: '#4caf50' },
   ink:  { nm: 'Tinte', sub: 'grüner Kraken spritzt an die Scheibe', col: '#2b2b3a' },
   dv:   { nm: 'Taucher', sub: 'putzt die Scheibe', col: '#b87333' },
   manta:    { nm: 'Mantarochen', sub: 'gleitet mit langen Flügelschlägen', col: '#3c5167' },
@@ -3502,13 +3555,15 @@ const VIS_META = {
 };
 const GKEYS = ['manta', 'jelly', 'seahorse', 'wshark', 'bottle', 'puffer', 'angler', 'comb', 'squid', 'lantern', 'atolla'];
 // the gallery visitors are off in the fixed order (on) but on in random mode (ron)
-const VIS_DEFAULT = [['ws', 5], ['dol', 3], ['wh', 3], ['tur', 2], ['sub', 2], ['kr', 4], ['near', 3], ['gr', 3], ['ink', 3], ['dv', 3]].map(([k, gap]) => ({ k, gap, on: true, ron: true }))
+const VIS_DEFAULT = [['ws', 5], ['dol', 3], ['wh', 3], ['tur', 2], ['sub', 2], ['kr', 4], ['near', 3], ['gr', 3]].map(([k, gap]) => ({ k, gap, on: true, ron: true }))
   .concat(GKEYS.map(k => ({ k, gap: 3, on: false, ron: true })));
 const visOn = it => S.rnd ? it.ron : it.on;
+// the green octopus brings its ink and the diver along: they are not listed on their own any more
+const GR_INK = 3, GR_DV = 2, GR_SPAN = GR_INK + GR_DV, VIS_HIDDEN = ['ink', 'dv'];
 function normVis(v) {
   if (!Array.isArray(v)) return null;
   const seen = new Set(), out = [];
-  for (const it of v) if (it && VIS_META[it.k] && !seen.has(it.k)) { seen.add(it.k); out.push({ k: it.k, gap: clamp(Math.round(+it.gap) || 1, 1, 99), on: it.on !== false, ron: it.ron === undefined ? it.on !== false : it.ron !== false }); }
+  for (const it of v) if (it && VIS_META[it.k] && !VIS_HIDDEN.includes(it.k) && !seen.has(it.k)) { seen.add(it.k); out.push({ k: it.k, gap: clamp(Math.round(+it.gap) || 1, 1, 99), on: it.on !== false, ron: it.ron === undefined ? it.on !== false : it.ron !== false }); }
   // a visitor that is new in this version goes to its usual place, without moving the others
   VIS_DEFAULT.forEach((d, i) => {
     if (seen.has(d.k)) return;
@@ -3526,7 +3581,7 @@ function visFromOldSeq(q) { // settings from the previous version (absolute HaiZ
 }
 function seqFromVis(v) {
   const q = { len: 1 }; for (const k in VIS_META) q[k] = 0; let n = 0;
-  for (const it of v) if (it.on) { n += it.gap; q[it.k] = n; }
+  for (const it of v) if (it.on) { n += it.gap; q[it.k] = n; if (it.k === 'gr') { q.ink = n + GR_INK; q.dv = n + GR_SPAN; n += GR_SPAN; } }
   q.len = Math.max(1, n); return q;
 }
 /* random mode: the switched-on visitors come in a new random order every round, with rMin..rMax Boni between
@@ -3534,17 +3589,12 @@ function seqFromVis(v) {
 function seqRandom(v) {
   /* the green octopus and its ink stay together; the diver comes exactly 3 Boni after the ink, and while the
      glass is dirty other visitors may come in between */
-  const on = v.filter(it => it.ron).map(it => it.k), block = ['gr', 'ink'].filter(k => on.includes(k)), hasDv = on.includes('dv');
-  const items = on.filter(k => !block.includes(k) && !(k === 'dv' && block.length)).map(k => [k]); if (block.length) items.push(block);
+  const on = v.filter(it => it.ron).map(it => it.k);
+  const items = on.map(k => [k]);
   for (let i = items.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [items[i], items[j]] = [items[j], items[i]]; }
   const lo = clamp(Math.round(S.rMin) || 1, 1, 99), hi = Math.max(lo, clamp(Math.round(S.rMax) || lo, 1, 99)), gap = () => lo + Math.floor(Math.random() * (hi - lo + 1));
   const pos = {}; let n = 0;
-  for (const it of items) for (const k of it) { n += gap(); pos[k] = n; }
-  if (hasDv && block.length) {
-    let tgt = (pos.ink || pos.gr) + 3;
-    while (Object.values(pos).includes(tgt)) for (const k in pos) if (pos[k] >= tgt) pos[k]++; // make room: later visitors move one Bonus back
-    pos.dv = tgt;
-  }
+  for (const it of items) for (const k of it) { n += gap(); pos[k] = n; if (k === 'gr') { pos.ink = n + GR_INK; pos.dv = n + GR_SPAN; n += GR_SPAN; } }
   const q = { len: 1 }; for (const k in VIS_META) q[k] = 0;
   for (const k in pos) q[k] = pos[k];
   q.len = Math.max(1, ...Object.values(pos)); q.rnd = true; q.order = Object.keys(pos).sort((a, b) => pos[a] - pos[b]); return q;
