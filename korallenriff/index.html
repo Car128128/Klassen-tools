@@ -1313,9 +1313,9 @@ const GV = (() => {
     g.save(); g.translate(x, y); g.scale(dir, 1); g.rotate(.12 + Math.sin(t * .7) * .06);
     const curl = .5 + .5 * Math.sin(t * .55);
     const P = [[.02, -.36], [-.05, -.28], [-.085, -.16], [-.075, -.02], [-.035, .08], [0, .14]].map(([a, b]) => [a * L, b * L]);
-    const Wd = [.06, .075, .095, .1, .085, .06];
+    const Wd = [.08, .1, .128, .135, .115, .08];
     let [px, py] = P[P.length - 1], a = Math.PI / 2 + .25, step = L * .035;
-    for (let i = 0; i < 14; i++) { a -= .1 + .26 * curl * i / 14; px += Math.cos(a) * step; py += Math.sin(a) * step; step *= .93; P.push([px, py]); Wd.push(.055 * (1 - i / 15) + .008); }
+    for (let i = 0; i < 14; i++) { a -= .1 + .26 * curl * i / 14; px += Math.cos(a) * step; py += Math.sin(a) * step; step *= .93; P.push([px, py]); Wd.push(.074 * (1 - i / 15) + .011); }
     // side(1) = back, side(-1) = belly (the belly bulges)
     const side = sg => P.map(([px2, py2], i) => { const [qx, qy] = P[Math.min(P.length - 1, i + 1)], [rx, ry] = P[Math.max(0, i - 1)], ang = Math.atan2(qy - ry, qx - rx), w = Wd[i] * L * .5 * (sg < 0 && i > 1 && i < 6 ? 1.4 : 1); return [px2 - Math.sin(ang) * w * sg, py2 + Math.cos(ang) * w * sg]; });
     const A = side(1), B = side(-1);
@@ -1331,13 +1331,23 @@ const GV = (() => {
     const bg = g.createLinearGradient(-L * .12, 0, L * .06, 0); bg.addColorStop(0, col[1]); bg.addColorStop(.6, col[0]); bg.addColorStop(1, col[3]); g.fillStyle = bg; g.fill();
     g.strokeStyle = col[2]; g.lineWidth = Math.max(1, L * .006);
     for (let i = 1; i < P.length - 2; i++) { g.beginPath(); g.moveTo(...A[i]); g.lineTo(...B[i]); g.stroke(); }
+    { const bodyP = () => { g.beginPath(); A.forEach(([a1, b1], i) => g[i ? 'lineTo' : 'moveTo'](a1, b1)); for (let i = B.length - 1; i >= 0; i--) g.lineTo(...B[i]); g.closePath(); };
+      g.save(); bodyP(); g.clip(); g.lineCap = 'round'; g.lineJoin = 'round';
+      const mid = (k, f) => P.map((q, i) => [q[0] * (1 - f) + (k < 0 ? B : A)[i][0] * f, q[1] * (1 - f) + (k < 0 ? B : A)[i][1] * f]);
+      const line = pts => { g.beginPath(); pts.forEach((q, i) => g[i ? 'lineTo' : 'moveTo'](...q)); };
+      line(A); g.strokeStyle = 'rgba(40, 15, 0, .35)'; g.lineWidth = L * .03; g.stroke(); // shadow on the back edge
+      line(B); g.strokeStyle = 'rgba(40, 15, 0, .25)'; g.lineWidth = L * .025; g.stroke();
+      line(mid(-1, .35)); g.strokeStyle = 'rgba(255, 250, 230, .4)'; g.lineWidth = L * .028; g.stroke(); // round highlight
+      line(mid(-1, .35)); g.strokeStyle = 'rgba(255, 255, 255, .35)'; g.lineWidth = L * .009; g.stroke();
+      g.restore(); }
     // little bony knobs along the back
     g.fillStyle = col[1];
     for (let i = 1; i < P.length - 4; i += 1) { const [kx, ky] = A[i]; g.beginPath(); g.arc(kx, ky, L * .008, 0, TAU); g.fill(); }
     // head: quick snap now and then, the eye looks around on its own
     const sn = t % 6.5, snap = sn < .1 ? -.28 * sn / .1 : sn < .8 ? -.28 * (1 - smoother((sn - .1) / .7)) : 0;
     g.save(); g.translate(.02 * L, -.38 * L); g.rotate(Math.sin(t * .8) * .05 + snap);
-    g.fillStyle = col[0]; g.beginPath(); g.ellipse(0, 0, L * .065, L * .05, -.2, 0, TAU); g.fill();
+    g.fillStyle = col[0]; g.beginPath(); g.ellipse(0, 0, L * .08, L * .062, -.2, 0, TAU); g.fill();
+    vol3D(g, () => { g.beginPath(); g.ellipse(0, 0, L * .08, L * .062, -.2, 0, TAU); }, 0, 0, L * .08, L * .062, .5, .45, .1, .5);
     g.beginPath(); g.moveTo(L * .03, -L * .02); g.lineTo(L * .15, L * .0); g.quadraticCurveTo(L * .167, L * .015, L * .15, L * .03); g.lineTo(L * .03, L * .03); g.closePath(); g.fill();
     g.strokeStyle = col[2]; g.lineWidth = Math.max(1, L * .004); g.beginPath(); g.moveTo(L * .05, L * .025); g.lineTo(L * .14, L * .026); g.stroke();
     g.fillStyle = col[2]; g.beginPath(); for (let k = 0; k < 4; k++) { g.moveTo(-L * .03 + k * L * .02, -L * .045); g.lineTo(-L * .02 + k * L * .02, -L * .075 - (k % 2) * L * .01); g.lineTo(-L * .01 + k * L * .02, -L * .045); } g.fill();
@@ -1447,25 +1457,47 @@ const GV = (() => {
   }
   
   /* =====================================================================================================
-     6. Pufferfish: rows with its back and belly fins, the little side fins whirr, the eyes look around.
-        Halfway it gets a fright: it gulps water in four gulps, the spines stand up; later it lets the water
-        out of its mouth in a stream of bubbles and darts on.
+     6. Pufferfish: rows with its back and belly fins to the middle of the picture. There it gulps water in
+        four gulps and blows up by 70 %, the spines stand up, the cheeks are round and full. Puffed up it swims
+        to and fro twice, back to the middle, then lets the air rush out of its mouth and, like a balloon that
+        was let go, whizzes tail first, zigzagging and tumbling, out of the picture.
      ===================================================================================================== */
   function drawPuffer(g, e, dt) {
-    const L = e.L, t = e.t, T0 = e.dur * .4, gulpT = 2.2, holdT = 3.4, outT = 1.8;
+    const L = e.L, t = e.t, D = e.dir, cx = W / 2, tIn = 6, gulpT = 2.2, t1 = tIn + gulpT + .6, segs = [2.2, 3.6, 3.6, 3.6, 2.2];
+    const tR = t1 + segs.reduce((a, b) => a + b, 0) + .8, amp = Math.max(W * .1, Math.min(W * .28, W * .5 - L * .62));
+    const xAt = tt => {
+      if (tt < tIn) return lerp(D > 0 ? -L * .9 : W + L * .9, cx, 1 - Math.pow(1 - tt / tIn, 2));
+      if (tt < t1) return cx;
+      const P = [cx, cx + D * amp, cx - D * amp, cx + D * amp, cx - D * amp, cx];
+      let u = tt - t1;
+      for (let i = 0; i < segs.length; i++) { if (u < segs[i]) return lerp(P[i], P[i + 1], smoother(u / segs[i])); u -= segs[i]; }
+      return cx;
+    };
     let f, mouth = .15 + .1 * Math.sin(t * 2.3);
-    if (t < T0) f = 0;
-    else if (t < T0 + gulpT) { const k = (t - T0) / gulpT * 4, n = Math.floor(k), fr = k - n; f = (n + smoother(fr / .7)) / 4; mouth = fr < .45 ? .9 : .2; }
-    else if (t < T0 + gulpT + holdT) f = 1;
-    else { const k = (t - T0 - gulpT - holdT) / outT; f = 1 - smoother(k); mouth = k < 1 ? .7 : mouth; }
-    const out = t > T0 + gulpT + holdT && t < T0 + gulpT + holdT + outT, dart = t > T0 + gulpT + holdT ? Math.exp(-(t - T0 - gulpT - holdT - outT * .6) * 1.5) : 0;
-    e.x += e.dir * e.v * dt * (1 - .8 * f + 1.5 * clamp(dart, 0, 1) * (1 - f));
-    const y = e.y0 + Math.sin(t * .8) * L * .07 - f * L * .05, rot = Math.sin(t * .8 + .5) * .06;
-    if (out && Math.random() < dt * 14) { const rx0 = L * .3 * (1 + .25 * f), [bx, by] = toWorld(e.x, y, e.dir, rot, rx0 * 1.02, L * .02); e.bub.push({ x: bx, y: by, vx: e.dir * L * (1 + Math.random()), vy: -L * .2 * Math.random(), t0: t }); }
+    if (t < tIn) f = 0;
+    else if (t < tIn + gulpT) { const k = (t - tIn) / gulpT * 4, n = Math.floor(k), fr = k - n; f = (n + smoother(fr / .7)) / 4; mouth = fr < .45 ? .9 : .2; }
+    else if (t < tR) { f = 1; mouth = .05; } // cheeks full, the mouth pressed shut
+    else { const k = (t - tR) / 3; f = 1 - smoother(k); mouth = k < 1 ? .9 : .3; }
+    if (e.face === undefined) e.face = D;
+    let x, y, rot, dirS;
+    if (t < tR) {
+      x = xAt(t); const vx = (xAt(t + .05) - x) / .05;
+      if (Math.abs(vx) > L * .05) e.face += (Math.sign(vx) - e.face) * Math.min(1, dt * 3);
+      y = e.y0 + Math.sin(t * .8) * L * .07 - f * L * .05; rot = Math.sin(t * .8 + .5) * .06 + (t > t1 ? Math.sin(t * 2.6) * .05 : 0);
+      dirS = Math.abs(e.face) < .08 ? .08 * Math.sign(e.face || 1) : e.face; e.fx = x; e.fy = y;
+    } else { // like a balloon let go: tail first (the air leaves through the mouth), zigzagging and tumbling, up and away
+      if (!e.fly) e.fly = { x: e.fx, y: e.fy, k: 0, base: Math.atan2(-.45, -Math.sign(e.face || D) * .9) };
+      const F = e.fly; F.k += dt;
+      const ang = F.base + .9 * Math.sin(F.k * 7) + .45 * Math.sin(F.k * 13.7 + 1), sp = Math.max(W, H) * .4 * sm(F.k / .3) * (.45 + .55 * f);
+      F.x += Math.cos(ang) * sp * dt; F.y += Math.sin(ang) * sp * dt;
+      x = F.x; y = F.y; rot = ang + Math.PI; dirS = 1;
+    }
+    const out = t > tR && t < tR + 3.2;
+    if (out && Math.random() < dt * 22) { const rx0 = L * .3 * (1 + .7 * f), [bx, by] = toWorld(x, y, Math.sign(dirS), rot, rx0 * 1.02, L * .02), ca = Math.cos(rot), sa = Math.sin(rot); e.bub.push({ x: bx, y: by, vx: ca * L * (1 + Math.random()) * Math.sign(dirS), vy: sa * L * (1 + Math.random()) - L * .2 * Math.random(), t0: t }); }
     e.bub = e.bub.filter(b => t - b.t0 < 1.6);
-    for (const b of e.bub) { b.x += b.vx * dt; b.y += b.vy * dt; b.vx *= Math.pow(.2, dt); b.vy -= L * .5 * dt; const k = (t - b.t0) / 1.6; g.strokeStyle = `rgba(255,255,255,${.75 * (1 - k)})`; g.lineWidth = 1.2; g.beginPath(); g.arc(b.x, b.y, 2 + k * 4, 0, TAU); g.stroke(); }
-    g.save(); g.translate(e.x, y); g.scale(e.dir, 1); g.rotate(rot);
-    const rx = L * .3 * (1 + .25 * f), ry = L * .19 * (1 + .75 * f);
+    for (const b of e.bub) { b.x += b.vx * dt; b.y += b.vy * dt; b.vx *= Math.pow(.2, dt); b.vy *= Math.pow(.2, dt); b.vy -= L * .5 * dt; const k = (t - b.t0) / 1.6; g.strokeStyle = `rgba(255,255,255,${.75 * (1 - k)})`; g.lineWidth = 1.2; g.beginPath(); g.arc(b.x, b.y, 2 + k * 4, 0, TAU); g.stroke(); }
+    g.save(); g.translate(x, y); g.scale(dirS, 1); g.rotate(rot);
+    const rx = L * .3 * (1 + .7 * f), ry = L * .19 * (1 + .7 * f) * (1 + .25 * f); // +70 %, and a little rounder
     // tail fin: steers, folds a bit when puffed
     const tw = Math.sin(t * 3.2) * .25, tk = 1 - .45 * f;
     g.save(); g.translate(-rx * .92, 0); g.rotate(tw * (1 - f)); g.fillStyle = '#d2a845';
@@ -1484,6 +1516,12 @@ const GV = (() => {
     g.fillStyle = 'rgba(100, 70, 28, .6)'; for (let k = 0; k < 26; k++) { const a = hash(k) * TAU, r = Math.sqrt(hash(k + 40)); const px = Math.cos(a) * r * rx * .9, py = -Math.abs(Math.sin(a) * r) * ry * .85; g.beginPath(); g.arc(px, py, L * (.011 + hash(k + 9) * .009) * (1 + .5 * f), 0, TAU); g.fill(); }
     g.fillStyle = 'rgba(255,255,255,.25)'; g.beginPath(); g.ellipse(rx * .1, -ry * .55, rx * .5, ry * .14, -.1, 0, TAU); g.fill();
     g.restore();
+    vol3D(g, () => { g.beginPath(); g.ellipse(0, 0, rx, ry, 0, 0, TAU); }, 0, 0, rx, ry, .6, .62, .3, .45);
+    // puffed cheeks: round and taut while it holds the air
+    if (f > .05) { const cr = L * .1 * f, cxk = rx * .66, cyk = ry * .26, cg = g.createRadialGradient(cxk - cr * .3, cyk - cr * .35, cr * .1, cxk, cyk, cr);
+      cg.addColorStop(0, 'rgba(255, 252, 240, .95)'); cg.addColorStop(.7, 'rgba(246, 232, 192, .85)'); cg.addColorStop(1, 'rgba(210, 180, 110, 0)');
+      g.fillStyle = cg; g.beginPath(); g.arc(cxk, cyk, cr, 0, TAU); g.fill();
+      g.strokeStyle = `rgba(150, 115, 50, ${.4 * f})`; g.lineWidth = Math.max(1, L * .004); g.beginPath(); g.arc(cxk, cyk, cr * .85, -.2, 2.3); g.stroke(); }
     // side fin: whirrs fast like a little propeller
     g.fillStyle = 'rgba(232, 200, 110, .85)'; g.save(); g.translate(rx * .28, ry * .12); g.rotate(-.4 + Math.sin(t * 14) * .5); g.beginPath(); g.ellipse(-L * .04, 0, L * .05, L * .022 * (.5 + .5 * Math.abs(Math.cos(t * 14))), 0, 0, TAU); g.fill(); g.restore();
     // big eye that looks around
@@ -1548,6 +1586,10 @@ const GV = (() => {
     const fl = .7 + .3 * Math.sin(t * 1.7) + (hash(Math.floor(t * 8)) > .93 ? -.25 : 0), r = L * .045;
     const lg = g.createRadialGradient(lu.x - r * .2, lu.y - r * .2, 0, lu.x, lu.y, r);
     lg.addColorStop(0, `rgba(235, 255, 250, ${fl})`); lg.addColorStop(.45, `rgba(110, 250, 230, ${.85 * fl + .1})`); lg.addColorStop(1, `rgba(40, 150, 150, ${.6 * fl + .2})`);
+    // a wide, softly breathing aura of light round the lure
+    { const ar = r * (6 + .9 * Math.sin(t * 1.3)), ag = g.createRadialGradient(lu.x, lu.y, r * .4, lu.x, lu.y, ar);
+      ag.addColorStop(0, `rgba(140, 255, 238, ${.45 * fl})`); ag.addColorStop(.3, `rgba(90, 230, 220, ${.22 * fl})`); ag.addColorStop(.65, `rgba(60, 200, 205, ${.06 * fl})`); ag.addColorStop(1, 'rgba(60, 200, 205, 0)');
+      g.save(); g.globalCompositeOperation = 'lighter'; g.fillStyle = ag; g.beginPath(); g.arc(lu.x, lu.y, ar, 0, TAU); g.fill(); lightSpot(g, lu.x, lu.y, r * 2.4, '120, 255, 235', fl * .45); g.restore(); }
     g.fillStyle = lg; g.beginPath(); g.ellipse(lu.x, lu.y, r * .9, r, 0, 0, TAU); g.fill();
     g.save(); g.globalCompositeOperation = 'lighter'; lightSpot(g, lu.x, lu.y, r * .95, '120, 255, 235', fl * .8); g.restore();
     g.strokeStyle = 'rgba(150, 255, 240, .5)'; g.lineWidth = 1; for (let k = 0; k < 3; k++) { g.beginPath(); g.moveTo(lu.x, lu.y + r * .8); g.quadraticCurveTo(lu.x + (k - 1) * r * .6, lu.y + r * 1.4, lu.x + (k - 1) * r * .9 + Math.sin(t * 2 + k) * r * .2, lu.y + r * 1.9); g.stroke(); }
@@ -1602,7 +1644,7 @@ const GV = (() => {
     }
   }
   function drawSquid(g, x, y, L, t, u, jet, dir, seed) {
-    const open = u < .22 ? .25 : .25 + .75 * smoother((u - .22) / .4), sq = 1 - .16 * jet;
+    const open = u < .22 ? .25 : .25 + .75 * smoother((u - .22) / .4), sq = (1 - .16 * jet) * 1.4;
     g.save(); g.translate(x, y); g.scale(dir, 1); g.rotate(Math.sin(t * .6 + seed) * .07);
     // arms (trail behind, open in the glide, close during the jet)
     const arms = [];
@@ -1610,7 +1652,7 @@ const GV = (() => {
       for (let i = 0; i <= 10; i++) { const s = i / 10, a = Math.PI + sp * (.4 + s) + Math.sin(t * 3 - s * 4 + k) * .12 * s; pts.push([-L * .14 + Math.cos(a) * len * s, Math.sin(a) * len * s]); }
       arms.push(pts); }
     g.strokeStyle = 'rgba(170, 70, 75, .75)'; g.lineCap = 'round';
-    arms.forEach((pts, k) => { for (let i = 1; i < pts.length; i++) { g.lineWidth = Math.max(.8, L * .022 * (1 - i / 11)); g.beginPath(); g.moveTo(...pts[i - 1]); g.lineTo(...pts[i]); g.stroke(); } });
+    arms.forEach((pts, k) => { for (let i = 1; i < pts.length; i++) { g.lineWidth = Math.max(.8, L * .03 * (1 - i / 11)); g.beginPath(); g.moveTo(...pts[i - 1]); g.lineTo(...pts[i]); g.stroke(); } });
     // fins at the mantle tip, waving in the glide
     const fw = Math.sin(t * 7) * (1 - jet) * .5;
     g.fillStyle = 'rgba(190, 95, 95, .75)';
@@ -1618,9 +1660,11 @@ const GV = (() => {
     // mantle: torpedo, squeezes with the jet
     const mantle = () => { g.beginPath(); g.moveTo(L * .52, 0); g.bezierCurveTo(L * .4, -L * .075 * sq, L * .1, -L * .085 * sq, -L * .02, -L * .07 * sq); g.lineTo(-L * .02, L * .07 * sq); g.bezierCurveTo(L * .1, L * .085 * sq, L * .4, L * .075 * sq, L * .52, 0); g.closePath(); };
     mantle(); const mg = g.createLinearGradient(0, -L * .08, 0, L * .08); mg.addColorStop(0, 'rgba(165, 70, 70, .9)'); mg.addColorStop(1, 'rgba(215, 140, 130, .85)'); g.fillStyle = mg; g.fill();
+    vol3D(g, mantle, L * .25, 0, L * .29, L * .11 * sq, .55, .6, .2, .55);
     g.save(); mantle(); g.clip(); g.fillStyle = 'rgba(110, 30, 40, .5)'; for (let k = 0; k < 30; k++) { g.beginPath(); g.arc(L * (hash(seed + k) * .5), L * (hash(seed + k + 30) - .5) * .15, L * .007 * (.5 + hash(k)), 0, TAU); g.fill(); } g.restore();
     // head with big eyes
-    g.fillStyle = 'rgba(180, 90, 85, .9)'; g.beginPath(); g.ellipse(-L * .07, 0, L * .08, L * .06, 0, 0, TAU); g.fill();
+    g.fillStyle = 'rgba(180, 90, 85, .9)'; g.beginPath(); g.ellipse(-L * .07, 0, L * .09, L * .08, 0, 0, TAU); g.fill();
+    vol3D(g, () => { g.beginPath(); g.ellipse(-L * .07, 0, L * .09, L * .08, 0, 0, TAU); }, -L * .07, 0, L * .09, L * .08, .45, .55, .1, .5);
     g.fillStyle = '#101826'; g.beginPath(); g.arc(-L * .07, -L * .01, L * .032, 0, TAU); g.fill();
     g.fillStyle = 'rgba(160, 210, 255, .8)'; g.beginPath(); g.arc(-L * .062, -L * .02, L * .009, 0, TAU); g.fill();
     // lights: small twinkling ones on the mantle and head, three big ones at the arm tips
@@ -1632,7 +1676,7 @@ const GV = (() => {
     g.restore();
   }
   
-  /* 10. Lanternfish: a school of nine small silver fish that weave in and out of each other.
+  /* 10. Lanternfish: a school of eighteen small silver fish that weave in and out of each other.
          Rows of lights along the belly; a wave of flashes runs through the school. */
   function lanternPos(e, f, t) {
     return [sweepX(e) + e.dir * (f.ox + Math.sin(t * .37 * f.w + f.p) * e.L * .9 + Math.sin(t * .83 + f.p * 2) * e.L * .25),
@@ -1677,6 +1721,8 @@ const GV = (() => {
     const R = e.L, t = e.t, T = 3.4, c = jPulse(t / T), dc = c - e.lc; e.lc = c;
     if (dc > 0 && dt > 0) e.vy -= dc * R * 1.1;
     e.vy += (R * .08 - e.yo * .3) * dt; e.vy *= Math.pow(.4, dt); e.yo += e.vy * dt;
+    { const yLo = R * .7 + H * .03, yHi = Math.max(yLo, Math.min(H, SANDY()) - R * 1.0); // stays between top and bottom of the picture
+      if (e.y0 + e.yo < yLo) { e.yo = yLo - e.y0; if (e.vy < 0) e.vy *= -.3; } else if (e.y0 + e.yo > yHi) { e.yo = yHi - e.y0; if (e.vy > 0) e.vy = 0; } }
     const x = sweepX(e) + Math.sin(t * .31) * R * .4, y = e.y0 + e.yo;
     const rx = R * (1 - .2 * c), ry = R * .3 * (1 - .12 * c), dome = R * (.5 + .12 * c), my = y + R * .15;
     // tentacles from the rim, and the one long one
@@ -1808,17 +1854,17 @@ const GV = (() => {
   }
 
   const LIST = [
-    { k: 'manta', nm: 'Mantarochen', sub: 'gleitet mit langen Flügelschlägen, jede Flosse schwingt wie eine Welle bis zur Spitze, mal schlagend, mal gleitend', make: () => { const L = clamp(Math.min(W, H) * .5, 240, 560); return baseEvent(L, 26, .48, .7, .45); }, draw: drawManta },
-    { k: 'jelly', nm: 'Ohrenquallen', sub: 'drei Ohrenquallen pumpen sich hoch und sinken langsam, die Fäden und Mundarme schwingen weich nach', make: () => { const L = clamp(Math.min(W, H) * .085, 42, 95), e = baseEvent(L, 36, .32, 4); e.group = [{ dx: 0, dy: 0, s: 1, off: 0 }, { dx: -1.9, dy: 1.4, s: .75, off: 1.1 }, { dx: -3.5, dy: -.4, s: .62, off: 1.9 }].map(j => ({ ...j, yo: 0, vy: 0, lc: 0 })); return e; }, draw: drawJellies },
-    { k: 'seahorse', nm: 'Seepferdchen', sub: 'zwei Seepferdchen, aufrecht, die Rückenflosse flattert, der Schwanz rollt sich, jedes Auge schaut für sich umher', make: () => { const L = clamp(Math.min(W, H) * .3, 140, 300), e = baseEvent(L, 38, .42, 1.4); e.pair = [{ dx: 0, dy: 0, s: 1, off: 0, col: ['#f4b13e', '#d9821f', 'rgba(150, 80, 20, .45)', '#ffd98a'] }, { dx: -.8, dy: .3, s: .8, off: 1.7, col: ['#f0806a', '#cc5242', 'rgba(140, 40, 30, .4)', '#ffc2b0'] }]; return e; }, draw: drawSeahorses },
+    { k: 'manta', nm: 'Mantarochen', sub: 'gleitet mit langen Flügelschlägen, jede Flosse schwingt wie eine Welle bis zur Spitze, mal schlagend, mal gleitend', make: () => { const L = clamp(Math.min(W, H) * 1.0, 480, 1120); return baseEvent(L, 26, .48, .7, .45); }, draw: drawManta },
+    { k: 'jelly', nm: 'Ohrenquallen', sub: 'sechs Ohrenquallen pumpen sich hoch und sinken langsam, die Fäden und Mundarme schwingen weich nach', make: () => { const L = clamp(Math.min(W, H) * .085, 42, 95), e = baseEvent(L, 36, .32, 9.5); e.group = [{ dx: 0, dy: 0, s: 1, off: 0 }, { dx: -1.9, dy: 1.4, s: .75, off: 1.1 }, { dx: -3.5, dy: -.4, s: .62, off: 1.9 }, { dx: -5.2, dy: 1.0, s: .7, off: 2.6 }, { dx: -6.8, dy: -1.1, s: .85, off: .5 }, { dx: -8.4, dy: .6, s: .6, off: 3.3 }].map(j => ({ ...j, yo: 0, vy: 0, lc: 0 })); return e; }, draw: drawJellies },
+    { k: 'seahorse', nm: 'Seepferdchen', sub: 'zwei Seepferdchen, aufrecht, die Rückenflosse flattert, der Schwanz rollt sich, jedes Auge schaut für sich umher', make: () => { const L = clamp(Math.min(W, H) * .51, 238, 510), e = baseEvent(L, 38, .44, 1.4); e.pair = [{ dx: 0, dy: 0, s: 1, off: 0, col: ['#f4b13e', '#d9821f', 'rgba(150, 80, 20, .45)', '#ffd98a'] }, { dx: -.8, dy: .3, s: .8, off: 1.7, col: ['#f0806a', '#cc5242', 'rgba(140, 40, 30, .4)', '#ffc2b0'] }]; return e; }, draw: drawSeahorses },
     { k: 'wshark', nm: 'Walhai', sub: 'riesig und ruhig, die Schwanzflosse schwingt, das breite Maul filtert, zwei Schiffshalter fahren mit', make: () => { const L = clamp(Math.min(W, H) * 1.1, 420, 1100); return baseEvent(L, 38, .45, .6, .2); }, draw: drawWhaleShark },
     { k: 'bottle', nm: 'Flaschenpost', sub: 'Gegenstand: treibt mit der Strömung und schaukelt schwer nach, die Luft im Glas bleibt immer oben, ein Algenband weht mit', make: () => { const L = clamp(Math.min(W, H) * .18, 80, 170), e = baseEvent(L, 30, .4, 1.4); e.bubbles = []; e.lastB = 0; e.rot = .25; e.rv = 0; return e; }, draw: drawBottle },
-    { k: 'puffer', nm: 'Kugelfisch', sub: 'rudert mit Rücken- und Bauchflosse, erschrickt, schluckt Wasser in vier Zügen, stellt die Stacheln auf und lässt das Wasser später wieder heraus', make: () => { const L = clamp(Math.min(W, H) * .22, 100, 220), e = baseEvent(L, 32, .45, .8); e.x = e.dir > 0 ? -L * .8 : W + L * .8; e.bub = []; return e; }, draw: drawPuffer },
-    { k: 'angler', glow: true, nm: 'Anglerfisch', sub: 'Tiefsee-Anglerfisch: der Leuchtköder an der Angel schwingt bei jeder Bewegung nach, einmal schnappt er zu', make: () => { const L = clamp(Math.min(W, H) * .32, 150, 320); return baseEvent(L, 34, .5, .9, .3); }, draw: drawAngler },
-    { k: 'comb', glow: true, nm: 'Rippenqualle', sub: 'glasklar, über ihre acht Wimpernreihen laufen Regenbogen-Wellen, manchmal leuchtet sie innen blau', make: () => { const L = clamp(Math.min(W, H) * .3, 140, 300); return baseEvent(L, 32, .45, 1, .5); }, draw: drawCombJelly },
-    { k: 'squid', glow: true, nm: 'Leuchtkalmare', sub: 'drei Glühwürmchen-Kalmare schießen mit Rückstoß voran und gleiten, blaue Lichtpunkte funkeln, drei große leuchten an den Armspitzen', make: () => { const L = clamp(Math.min(W, H) * .22, 100, 220), e = baseEvent(L, 28, .42, 3); e.trio = [{ dx: 0, dy: 0, s: 1, off: 0, j: 0, seed: 1 }, { dx: -1.2, dy: .7, s: .8, off: .9, j: .3, seed: 2 }, { dx: -2.1, dy: -.4, s: .7, off: 1.6, j: -.2, seed: 3 }]; return e; }, draw: drawSquids },
-    { k: 'lantern', glow: true, nm: 'Laternenfische', sub: 'ein Schwarm aus neun kleinen Fischen, die sich umeinander schlängeln; Lichterreihen am Bauch, Blitzwellen laufen durch den Schwarm', make: () => { const L = clamp(Math.min(W, H) * .1, 50, 110), e = baseEvent(L, 26, .45, 5); e.school = []; for (let i = 0; i < 9; i++) e.school.push({ ox: -(i % 3) * L * 1.6 - Math.floor(i / 3) * L * .8, oy: (Math.floor(i / 3) - 1) * L * 1.1 + (i % 3) * L * .3, w: .8 + hash(i) * .5, p: hash(i + 9) * TAU, s: .85 + hash(i + 20) * .3 }); return e; }, draw: drawLanterns },
-    { k: 'atolla', glow: true, nm: 'Kronenqualle', sub: 'tiefrot, pulsiert langsam; am Rand läuft ein Ring aus blauem Licht wie ein Rad, ein sehr langer Fangfaden schleppt nach', make: () => { const L = clamp(Math.min(W, H) * .13, 60, 140), e = baseEvent(L, 34, .36, 2); e.yo = 0; e.vy = 0; e.lc = 0; return e; }, draw: drawAtolla }
+    { k: 'puffer', nm: 'Kugelfisch', sub: 'rudert in die Mitte, bläst sich dort um 70 % auf, schwimmt mit dicken Backen zweimal hin und her und fliegt dann wie ein losgelassener Luftballon aus dem Bild', make: () => { const L = clamp(Math.min(W, H) * .44, 200, 440), e = baseEvent(L, 32, .45, .8); e.bub = []; return e; }, draw: drawPuffer },
+    { k: 'angler', glow: true, nm: 'Anglerfisch', sub: 'Tiefsee-Anglerfisch: der Leuchtköder an der Angel schwingt bei jeder Bewegung nach, einmal schnappt er zu', make: () => { const L = clamp(Math.min(W, H) * .96, 450, 960); return baseEvent(L, 34, .5, .9, .5); }, draw: drawAngler },
+    { k: 'comb', glow: true, nm: 'Rippenqualle', sub: 'glasklar, über ihre acht Wimpernreihen laufen Regenbogen-Wellen, manchmal leuchtet sie innen blau', make: () => { const L = clamp(Math.min(W, H) * .45, 210, 450); return baseEvent(L, 32, .45, 1, .5); }, draw: drawCombJelly },
+    { k: 'squid', glow: true, nm: 'Leuchtkalmare', sub: 'sechs Glühwürmchen-Kalmare schießen mit Rückstoß voran und gleiten, blaue Lichtpunkte funkeln, drei große leuchten an den Armspitzen', make: () => { const L = clamp(Math.min(W, H) * .44, 200, 440), e = baseEvent(L, 28, .34, 6); e.trio = [{ dx: 0, dy: 0, s: 1, off: 0, j: 0, seed: 1 }, { dx: -1.2, dy: .7, s: .8, off: .9, j: .3, seed: 2 }, { dx: -2.1, dy: -.4, s: .7, off: 1.6, j: -.2, seed: 3 }, { dx: -3.1, dy: .45, s: .85, off: .4, j: .1, seed: 4 }, { dx: -4.1, dy: -.55, s: .75, off: 1.2, j: -.1, seed: 5 }, { dx: -5.1, dy: .25, s: .9, off: 2.1, j: .2, seed: 6 }]; return e; }, draw: drawSquids },
+    { k: 'lantern', glow: true, nm: 'Laternenfische', sub: 'ein Schwarm aus achtzehn kleinen Fischen, die sich umeinander schlängeln; Lichterreihen am Bauch, Blitzwellen laufen durch den Schwarm', make: () => { const L = clamp(Math.min(W, H) * .15, 75, 165), e = baseEvent(L, 26, .45, 7.5); e.school = []; for (let i = 0; i < 18; i++) { const j = i % 9, k = Math.floor(i / 9); e.school.push({ ox: -(j % 3) * L * 1.6 - Math.floor(j / 3) * L * .8 - k * L * 2.7, oy: (Math.floor(j / 3) - 1) * L * 1.1 + (j % 3) * L * .3 + (k ? L * .55 : 0), w: .8 + hash(i) * .5, p: hash(i + 9) * TAU, s: .85 + hash(i + 40) * .3 }); } return e; }, draw: drawLanterns },
+    { k: 'atolla', glow: true, nm: 'Kronenqualle', sub: 'tiefrot, pulsiert langsam; am Rand läuft ein Ring aus blauem Licht wie ein Rad, ein sehr langer Fangfaden schleppt nach', make: () => { const L = clamp(Math.min(W, H) * .26, 120, 280), e = baseEvent(L, 34, .38, 2); e.y0 = Math.min(H * .3 + L * .9, sandY - L * .2); /* it pulses upwards, so it starts lower */ e.yo = 0; e.vy = 0; e.lc = 0; return e; }, draw: drawAtolla }
   ];
   const BY = {}; LIST.forEach(v => { BY['g_' + v.k] = v; });
   return {
@@ -1863,11 +1909,11 @@ function startEvent(kind) {
     return { kind, t: 0, dir: -1, L, v, R, D, N, dur: (W + 1.2 * L) / v, y0: H * .5, ph: 0, bubT: 0 };
   }
   if (kind === 'turtle') { // big, slow and majestic
-    const L = clamp(Math.min(W, H) * .5, 240, 560), d = Math.random() < .5 ? 1 : -1, dur = 40;
-    return { kind, t: 0, dir: d, L, dur, v: (W + L * 1.6) / dur, y0: Math.min(H * .38, sandY - L * .6), ph: 0 };
+    const L = clamp(Math.min(W, H) * .75, 360, 840), d = Math.random() < .5 ? 1 : -1, dur = 40; // +50 %
+    return { kind, t: 0, dir: d, L, dur, v: (W + L * 1.6) / dur, y0: Math.max(L * .34, Math.min(H * .4, sandY - L * .45)), ph: 0 };
   }
   if (kind === 'dolphins') { // a pod of five, looping and rolling as they pass
-    const Ld = clamp(Math.min(W, H) * .2, 110, 260), d = Math.random() < .5 ? 1 : -1, dur = 22;
+    const Ld = clamp(Math.min(W, H) * .34, 187, 442), d = Math.random() < .5 ? 1 : -1, dur = 22; // +70 %
     const pod = [0, 1, 2, 3, 4].map(j => ({ dx: -j * Ld * .75 - (j % 2) * Ld * .3, dy: [0, -.9, .8, -.3, .4][j] * Ld * .7, s: .85 + (j % 3) * .1, ph: j * 1.3,
       loops: [3.2 + j * .45, 13.5 + j * .35], rolls: [8.2 + j * .3, 17.5 + j * .25] }));
     return { kind, t: 0, dir: d, Ld, pod, dur, v: (W + Ld * 7) / dur, y0: Math.min(H * .36, sandY - Ld * 1.6), ph: 0 };
@@ -1905,13 +1951,14 @@ function updateEvents(dt) {
 function sweepX(e, t) { const p = t * e.v; return e.dir > 0 ? -e.L * .6 + p : W + e.L * .6 - p; }
 function subGeom(e) { return { x: sweepX(e, Math.max(0, e.t)), y: e.y0 + Math.sin(e.t * .3) * 6 * U }; }
 function shakeAmount() {
-  const e = st.ev; if (!e || e.kind !== 'sub') return 0;
+  const e = st.ev; if (!e || (e.kind !== 'sub' && e.kind !== 'subnear')) return 0;
+  const fadeIn = e.kind === 'subnear' ? sm(e.t / 2.5) : 1; // the near one rumbles up while it approaches
   if (e.t < 0) return sm((e.t + e.pre) / e.pre);
   const g = subGeom(e), back = g.x - e.dir * e.L * .5, front = g.x + e.dir * e.L * .5;
   const lo = Math.min(back, front), hi = Math.max(back, front);
-  if (hi >= 0 && lo <= W) return 1;
+  if (hi >= 0 && lo <= W) return fadeIn;
   const dist = lo > W ? lo - W : -hi;       // how far the boat is outside the picture
-  return 1 - sm(dist / (5 * e.v));
+  return fadeIn * (1 - sm(dist / (5 * e.v)));
 }
 
 function drawVisitorBehindReef(g) {
@@ -2328,6 +2375,13 @@ function drawDolphins(g, e) {
     g.restore();
   }
 }
+/* 3D look: inside a path, a soft highlight top-front and darker edges all round, so the body looks round */
+function vol3D(g, path, cx, cy, rx, ry, hi, sh, hx, hy) {
+  g.save(); path(); g.clip(); g.translate(cx, cy); g.scale(1, ry / rx);
+  const gr = g.createRadialGradient(rx * (hx === undefined ? .2 : hx), -rx * (hy === undefined ? .4 : hy), rx * .04, 0, 0, rx * 1.08);
+  gr.addColorStop(0, `rgba(255,255,255,${hi})`); gr.addColorStop(.38, 'rgba(255,255,255,0)'); gr.addColorStop(.7, 'rgba(0,10,25,0)'); gr.addColorStop(1, `rgba(0,10,25,${sh})`);
+  g.fillStyle = gr; g.fillRect(-rx * 1.3, -rx * 1.3, rx * 2.6, rx * 2.6); g.restore();
+}
 function drawDolphin(g, L, ph) {
   const kick = Math.sin(ph) * .09; // up-and-down fluke stroke
   const yb = s => Math.sin(ph - s * 2.4) * L * .03 * s * s; // body follows the stroke towards the tail
@@ -2338,7 +2392,7 @@ function drawDolphin(g, L, ph) {
   g.fillStyle = '#4f6d84'; g.beginPath(); g.moveTo(L * .04, 0); g.quadraticCurveTo(-L * .05, -L * .03, -L * .14, -L * .12); g.quadraticCurveTo(-L * .09, 0, -L * .14, L * .12); g.quadraticCurveTo(-L * .05, L * .03, L * .04, 0); g.fill();
   g.restore();
   // dorsal fin
-  g.fillStyle = '#4a667c'; g.beginPath(); g.moveTo(L * .02, -L * .1 + yb(.5)); g.quadraticCurveTo(-L * .04, -L * .24, -L * .14, -L * .25); g.quadraticCurveTo(-L * .08, -L * .16, -L * .12, -L * .08 + yb(.6)); g.closePath(); g.fill();
+  { const dg = g.createLinearGradient(-L * .02, -L * .1, -L * .1, -L * .24); dg.addColorStop(0, '#5f7d94'); dg.addColorStop(1, '#344b5e'); g.fillStyle = dg; } g.beginPath(); g.moveTo(L * .02, -L * .1 + yb(.5)); g.quadraticCurveTo(-L * .04, -L * .24, -L * .14, -L * .25); g.quadraticCurveTo(-L * .08, -L * .16, -L * .12, -L * .08 + yb(.6)); g.closePath(); g.fill();
   // body: beak at +x, tail stock at -x
   const P = [[.56, .0], [.5, -.015], [.42, -.04], [.36, -.085], [.25, -.115], [.1, -.12], [-.1, -.1], [-.3, -.06], [-.46, -.022], [-.5, -.01]];
   const B = [[-.5, .012], [-.44, .03], [-.28, .065], [-.1, .1], [.1, .11], [.26, .09], [.36, .06], [.42, .03], [.5, .018], [.56, .006]];
@@ -2349,9 +2403,12 @@ function drawDolphin(g, L, ph) {
   const bg = g.createLinearGradient(0, -L * .12, 0, L * .11);
   bg.addColorStop(0, '#4d6a82'); bg.addColorStop(.42, '#7f9bb0'); bg.addColorStop(.58, '#c9d7e0'); bg.addColorStop(1, '#eef3f6');
   g.fillStyle = bg; g.fill();
-  g.strokeStyle = 'rgba(30, 45, 60, .35)'; g.lineWidth = Math.max(1, L * .006); g.stroke();
+  const bodyP = () => { g.beginPath(); P.forEach(([u, v], i) => { const s = (.56 - u) / 1.06; g[i ? 'lineTo' : 'moveTo'](u * L, v * L + yb(s)); }); B.forEach(([u, v]) => { const s = (.56 - u) / 1.06; g.lineTo(u * L, v * L + yb(s)); }); g.closePath(); };
+  vol3D(g, bodyP, L * .04, 0, L * .56, L * .13, .55, .6, .25, .55);
+  g.save(); bodyP(); g.clip(); g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = L * .012; g.lineCap = 'round'; g.beginPath(); g.moveTo(L * .38, -L * .06 + yb(.17)); g.quadraticCurveTo(L * .1, -L * .115 + yb(.43), -L * .25, -L * .06 + yb(.76)); g.stroke(); g.restore();
+  bodyP(); g.strokeStyle = 'rgba(30, 45, 60, .35)'; g.lineWidth = Math.max(1, L * .006); g.stroke();
   // near pectoral fin, eye, smile and blowhole
-  g.fillStyle = '#5b7890'; g.beginPath(); g.moveTo(L * .2, L * .06); g.quadraticCurveTo(L * .14, L * .17, L * .05, L * .2); g.quadraticCurveTo(L * .12, L * .1, L * .12, L * .06); g.closePath(); g.fill();
+  { const fg = g.createLinearGradient(L * .18, L * .06, L * .06, L * .2); fg.addColorStop(0, '#7f9bb0'); fg.addColorStop(1, '#3f5a70'); g.fillStyle = fg; } g.beginPath(); g.moveTo(L * .2, L * .06); g.quadraticCurveTo(L * .14, L * .17, L * .05, L * .2); g.quadraticCurveTo(L * .12, L * .1, L * .12, L * .06); g.closePath(); g.fill();
   g.fillStyle = '#1c2630'; g.beginPath(); g.arc(L * .33, -L * .03, L * .016, 0, 7); g.fill();
   g.fillStyle = 'rgba(255,255,255,.8)'; g.beginPath(); g.arc(L * .335, -L * .036, L * .005, 0, 7); g.fill();
   g.strokeStyle = 'rgba(30, 40, 50, .55)'; g.lineWidth = Math.max(1, L * .007); g.beginPath(); g.moveTo(L * .55, L * .005); g.quadraticCurveTo(L * .47, L * .03, L * .4, L * .012); g.stroke();
@@ -2448,36 +2505,56 @@ function drawCabin(g, i, R, t) {
   g.fillStyle = bg; g.fillRect(-R, -R, R * 2, R * 2);
   g.fillStyle = '#8a5a2e'; g.fillRect(-R, R * .62, R * 2, R); g.strokeStyle = 'rgba(60,30,10,.35)'; g.lineWidth = R * .015; for (let k = -3; k <= 3; k++) { g.beginPath(); g.moveTo(k * R * .3, R * .62); g.lineTo(k * R * .45, R); g.stroke(); }
   const s = R * .55;
-  if (i === 0) { // the captain at the wheel
-    cabinPerson(g, 0, -R * .05, s, { shirt: '#1f3a68', beard: '#d9d4c8', cap: true });
-    g.save(); g.translate(0, R * .58); g.rotate(Math.sin(t * .8) * .5); g.strokeStyle = '#6b3d16'; g.lineWidth = R * .06;
-    g.beginPath(); g.arc(0, 0, R * .3, 0, 7); g.stroke();
-    for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(a) * R * .42, Math.sin(a) * R * .42); g.stroke(); }
-    g.fillStyle = '#8a5320'; g.beginPath(); g.arc(0, 0, R * .07, 0, 7); g.fill(); g.restore();
-  } else if (i === 1) { // a sailor waving at the class
-    cabinPerson(g, 0, -R * .02, s, { shirt: '#ffffff', stripes: '#2a5bb8', hair: '#5a3a1a', wave: t });
-  } else if (i === 2) { // a researcher with a fish bowl
-    cabinPerson(g, -R * .25, 0, s * .95, { shirt: '#f4f4f0', glasses: true, hair: '#b8b0a0' });
-    g.fillStyle = 'rgba(140, 200, 255, .55)'; g.beginPath(); g.arc(R * .45, R * .35, R * .26, 0, 7); g.fill();
+  if (i === 0) { // the captain at the wheel, seen from the side: he and the wheel face forward, where the boat is going (left)
+    const F = -1, coat = '#1f3a68', skin = '#f1c6a0', bx = R * .22, by = -R * .08;
+    const wx = bx + F * R * .55, wy = R * .2, wr = R * .36, turn = Math.sin(t * .8) * .6, wk = .24; // the wheel stands across the boat, so we see it nearly edge-on
+    const hand = (k) => [wx + F * wr * wk * .15, wy - wr * (.62 - k * .5)];
+    const arm = (k, col) => { const [hx, hy] = hand(k); g.strokeStyle = col; g.lineWidth = s * .15; g.lineCap = 'round'; g.beginPath(); g.moveTo(bx + F * s * .06, by + s * .38); g.quadraticCurveTo(bx + F * s * .36, by + s * .62, hx, hy); g.stroke(); g.fillStyle = skin; g.beginPath(); g.arc(hx, hy, s * .075, 0, 7); g.fill(); };
+    arm(.7, '#162b4f');                                                                                         // far arm
+    g.fillStyle = coat; g.beginPath(); g.ellipse(bx, by + s * .78, s * .34, s * .56, 0, 0, 7); g.fill();       // body from the side
+    g.fillStyle = '#e3b23c'; for (let k = 0; k < 3; k++) { g.beginPath(); g.arc(bx + F * s * .3, by + s * (.5 + k * .2), s * .03, 0, 7); g.fill(); } // buttons at the front
+    g.fillStyle = skin; g.fillRect(bx - s * .08, by - s * .04, s * .16, s * .16);                             // neck
+    g.beginPath(); g.arc(bx, by - s * .25, s * .27, 0, 7); g.fill();                                          // head
+    g.beginPath(); g.moveTo(bx + F * s * .24, by - s * .32); g.lineTo(bx + F * s * .38, by - s * .2); g.lineTo(bx + F * s * .24, by - s * .16); g.closePath(); g.fill(); // nose
+    g.fillStyle = '#d9d4c8'; g.beginPath(); g.moveTo(bx + F * s * .28, by - s * .16); g.quadraticCurveTo(bx + F * s * .3, by + s * .06, bx + F * s * .02, by + s * .04); g.quadraticCurveTo(bx - F * s * .2, by - s * .02, bx - F * s * .16, by - s * .2); g.closePath(); g.fill(); // beard
+    g.fillStyle = '#2a1d12'; g.beginPath(); g.arc(bx + F * s * .15, by - s * .3, s * .035, 0, 7); g.fill();  // eye, looking ahead
+    g.fillStyle = '#ffffff'; g.beginPath(); g.ellipse(bx, by - s * .47, s * .3, s * .12, 0, Math.PI, 0); g.fill(); g.fillRect(bx - s * .28, by - s * .53, s * .56, s * .09); // cap
+    g.fillStyle = '#1b1b1b'; g.fillRect(bx - s * .28, by - s * .46, s * .56, s * .05); g.beginPath(); g.ellipse(bx + F * s * .34, by - s * .43, s * .16, s * .04, 0, 0, 7); g.fill(); // band and peak, pointing forward
+    g.fillStyle = '#e3b23c'; g.beginPath(); g.arc(bx + F * s * .22, by - s * .5, s * .045, 0, 7); g.fill();
+    // the wheel's stand, then the wheel: rim, spokes with handles, hub
+    g.fillStyle = '#5a3416'; g.fillRect(wx - R * .035, wy, R * .07, R * .5);
+    g.strokeStyle = '#6b3d16'; g.lineCap = 'round';
+    for (let k = 0; k < 8; k++) { const a = turn + k * Math.PI / 4, px = Math.sin(a) * wr * wk, py = Math.cos(a) * wr;
+      g.lineWidth = R * .035; g.beginPath(); g.moveTo(wx, wy); g.lineTo(wx + px * 1.3, wy + py * 1.3); g.stroke();
+      g.fillStyle = '#8a5320'; g.beginPath(); g.arc(wx + px * 1.3, wy + py * 1.3, R * .03, 0, 7); g.fill(); }
+    g.lineWidth = R * .055; g.beginPath(); g.ellipse(wx, wy, wr * wk, wr, 0, 0, 7); g.stroke();
+    g.fillStyle = '#8a5320'; g.beginPath(); g.ellipse(wx, wy, R * .04, R * .06, 0, 0, 7); g.fill();
+    arm(.15, coat);                                                                                             // near arm on the wheel
+  } else if (i === 1) { // an empty cabin: a sea chart on the wall and a lamp that sways with the boat
+    g.fillStyle = '#efe2bf'; g.fillRect(-R * .55, -R * .45, R * .9, R * .62); g.strokeStyle = '#8a6a3a'; g.lineWidth = R * .03; g.strokeRect(-R * .55, -R * .45, R * .9, R * .62);
+    g.strokeStyle = 'rgba(60, 110, 150, .6)'; g.lineWidth = R * .015; g.beginPath(); g.moveTo(-R * .45, -R * .1); g.bezierCurveTo(-R * .25, -R * .35, -R * .05, R * .05, R * .25, -R * .2); g.stroke();
+    g.strokeStyle = '#c0392b'; g.lineWidth = R * .03; g.beginPath(); g.moveTo(R * .1, -R * .05); g.lineTo(R * .2, R * .05); g.moveTo(R * .2, -R * .05); g.lineTo(R * .1, R * .05); g.stroke();
+    g.save(); g.translate(R * .62, -R * .95); g.rotate(Math.sin(t * 1.1) * .25); g.strokeStyle = '#3a2a1a'; g.lineWidth = R * .02; g.beginPath(); g.moveTo(0, 0); g.lineTo(0, R * .55); g.stroke();
+    g.fillStyle = '#c9973a'; g.beginPath(); g.moveTo(-R * .14, R * .7); g.lineTo(R * .14, R * .7); g.lineTo(R * .07, R * .55); g.lineTo(-R * .07, R * .55); g.closePath(); g.fill();
+    g.fillStyle = 'rgba(255, 245, 190, .9)'; g.beginPath(); g.arc(0, R * .74, R * .06, 0, 7); g.fill(); g.restore();
+  } else if (i === 2) { // the lab: a fish bowl on the table, nobody there
+    g.fillStyle = '#6b4a2a'; g.fillRect(-R * .7, R * .6, R * 1.4, R * .06);
+    g.fillStyle = 'rgba(140, 200, 255, .55)'; g.beginPath(); g.arc(0, R * .32, R * .3, 0, 7); g.fill();
     g.strokeStyle = 'rgba(255,255,255,.8)'; g.lineWidth = R * .02; g.stroke();
-    const fx = R * .45 + Math.sin(t * 1.5) * R * .12; g.fillStyle = '#ff8a1e'; g.beginPath(); g.ellipse(fx, R * .38, R * .07, R * .045, 0, 0, 7); g.fill();
-    g.beginPath(); g.moveTo(fx - Math.sign(Math.cos(t * 1.5)) * R * .06, R * .38); g.lineTo(fx - Math.sign(Math.cos(t * 1.5)) * R * .12, R * .33); g.lineTo(fx - Math.sign(Math.cos(t * 1.5)) * R * .12, R * .43); g.closePath(); g.fill();
-    g.fillStyle = '#6b4a2a'; g.fillRect(R * .1, R * .6, R * .8, R * .06);
-  } else if (i === 3) { // someone fast asleep in a bunk
+    const fx = Math.sin(t * 1.5) * R * .14, fd = Math.sign(Math.cos(t * 1.5)); g.fillStyle = '#ff8a1e'; g.beginPath(); g.ellipse(fx, R * .36, R * .08, R * .05, 0, 0, 7); g.fill();
+    g.beginPath(); g.moveTo(fx - fd * R * .07, R * .36); g.lineTo(fx - fd * R * .14, R * .3); g.lineTo(fx - fd * R * .14, R * .42); g.closePath(); g.fill();
+  } else if (i === 3) { // the bunks, neatly made
     g.fillStyle = '#6b4a2a'; g.fillRect(-R, R * .05, R * 2, R * .1); g.fillRect(-R, R * .55, R * 2, R * .08);
-    g.fillStyle = '#ffffff'; g.beginPath(); g.ellipse(-R * .5, R * .02, R * .2, R * .1, 0, 0, 7); g.fill();
-    g.fillStyle = '#f1c6a0'; g.beginPath(); g.arc(-R * .45, -R * .06, R * .14, 0, 7); g.fill();
-    g.fillStyle = '#c0504d'; g.beginPath(); g.ellipse(R * .2, R * .02, R * .6, R * .14, 0, Math.PI, 0); g.fill();
-    g.strokeStyle = '#3a2a1a'; g.lineWidth = R * .02; g.beginPath(); g.arc(-R * .48, -R * .07, R * .03, .2, Math.PI - .2); g.stroke();
-    g.fillStyle = '#3a4a8a'; g.font = '700 ' + Math.round(R * .2) + 'px system-ui, sans-serif';
-    for (let k = 0; k < 3; k++) { const q = (t * .5 + k / 3) % 1; g.globalAlpha = 1 - q; g.fillText('z', -R * .35 + q * R * .5, -R * .25 - q * R * .5); }
-    g.globalAlpha = 1;
-  } else if (i === 4) { // the cook stirring a pot
-    cabinPerson(g, -R * .15, -R * .02, s, { shirt: '#ffffff', chef: true, beard: null });
-    g.fillStyle = '#5a5f66'; g.beginPath(); g.moveTo(R * .05, R * .3); g.lineTo(R * .75, R * .3); g.lineTo(R * .68, R * .68); g.lineTo(R * .12, R * .68); g.closePath(); g.fill();
-    g.strokeStyle = '#8a5320'; g.lineWidth = R * .04; g.beginPath(); g.moveTo(R * .4 + Math.sin(t * 3) * R * .12, R * .32); g.lineTo(R * .2, -R * .05); g.stroke();
+    g.fillStyle = '#ffffff'; g.beginPath(); g.ellipse(-R * .5, R * .0, R * .2, R * .09, 0, 0, 7); g.fill();
+    g.fillStyle = '#c0504d'; g.fillRect(-R * .25, -R * .07, R * 1.1, R * .12);
+    g.fillStyle = '#ffffff'; g.beginPath(); g.ellipse(-R * .5, R * .5, R * .2, R * .08, 0, 0, 7); g.fill();
+    g.fillStyle = '#3a6fb0'; g.fillRect(-R * .25, R * .43, R * 1.1, R * .12);
+  } else if (i === 4) { // the galley: the soup simmers on its own
+    g.fillStyle = '#3a3f46'; g.fillRect(-R * .55, R * .62, R * 1.1, R * .1);
+    g.fillStyle = '#5a5f66'; g.beginPath(); g.moveTo(-R * .35, R * .25); g.lineTo(R * .35, R * .25); g.lineTo(R * .28, R * .62); g.lineTo(-R * .28, R * .62); g.closePath(); g.fill();
+    g.strokeStyle = '#8a5320'; g.lineWidth = R * .04; g.beginPath(); g.moveTo(R * .1, R * .27); g.lineTo(R * .3, -R * .1); g.stroke();
     g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = R * .04;
-    for (let k = 0; k < 3; k++) { const q = (t * .4 + k / 3) % 1, x = R * (.25 + k * .2); g.globalAlpha = 1 - q; g.beginPath(); g.moveTo(x, R * .25 - q * R * .6); g.quadraticCurveTo(x + R * .08, R * .15 - q * R * .6, x, R * .05 - q * R * .6); g.stroke(); }
+    for (let k = 0; k < 3; k++) { const q = (t * .4 + k / 3) % 1, x = R * (-.2 + k * .2); g.globalAlpha = 1 - q; g.beginPath(); g.moveTo(x, R * .2 - q * R * .6); g.quadraticCurveTo(x + R * .08, R * .1 - q * R * .6, x, -q * R * .6); g.stroke(); }
     g.globalAlpha = 1;
   } else { // a cat looking out
     g.fillStyle = '#6b4a2a'; g.fillRect(-R, R * .5, R * 2, R * .08);
@@ -3412,11 +3489,11 @@ const VIS_META = {
   ink:  { nm: 'Tinte', sub: 'grüner Kraken spritzt an die Scheibe', col: '#2b2b3a' },
   dv:   { nm: 'Taucher', sub: 'putzt die Scheibe', col: '#b87333' },
   manta:    { nm: 'Mantarochen', sub: 'gleitet mit langen Flügelschlägen', col: '#3c5167' },
-  jelly:    { nm: 'Ohrenquallen', sub: 'drei Quallen pumpen und treiben', col: '#b9a3e0' },
+  jelly:    { nm: 'Ohrenquallen', sub: 'sechs Quallen pumpen und treiben', col: '#b9a3e0' },
   seahorse: { nm: 'Seepferdchen', sub: 'zwei Seepferdchen, aufrecht', col: '#f4b13e' },
   wshark:   { nm: 'Walhai', sub: 'riesig und ruhig, mit Schiffshaltern', col: '#3d5d71' },
   bottle:   { nm: 'Flaschenpost', sub: 'treibt schaukelnd vorbei', col: '#5aa987' },
-  puffer:   { nm: 'Kugelfisch', sub: 'erschrickt und bläst sich auf', col: '#e5cb78' },
+  puffer:   { nm: 'Kugelfisch', sub: 'bläst sich auf, fliegt wie ein Ballon davon', col: '#e5cb78' },
   angler:   { nm: 'Anglerfisch', sub: 'leuchtet: Köder an der Angel', col: '#2fd6c4' },
   comb:     { nm: 'Rippenqualle', sub: 'leuchtet: Regenbogen-Wellen', col: '#8fd0ff' },
   squid:    { nm: 'Leuchtkalmare', sub: 'leuchten: blaue Lichtpunkte', col: '#c25a5a' },
