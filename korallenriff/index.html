@@ -1193,7 +1193,7 @@ const GV = (() => {
     if (a <= 0.01 || r <= 0) return;
     const gr = g.createRadialGradient(x, y, 0, x, y, r);
     gr.addColorStop(0, `rgba(255,255,255,${Math.min(1, a)})`); gr.addColorStop(.25, `rgba(${rgb},${a})`); gr.addColorStop(.6, `rgba(${rgb},${a * .35})`); gr.addColorStop(1, `rgba(${rgb},0)`);
-    g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+    g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); g.fill(); // twice: double glow
   }
   
   /* ---------- soft chains (tentacles, arms, seaweed): each point keeps its speed and follows the one before ---------- */
@@ -1571,7 +1571,7 @@ const GV = (() => {
     g.strokeStyle = 'rgba(200, 220, 245, .22)'; g.lineWidth = Math.max(1, L * .01); g.beginPath(); g.moveTo(0, -ry * .3); g.lineTo(0, ry * .9); g.stroke();
     // soft blue glow inside, now and then
     const bl = Math.max(0, Math.sin(t * .7)) ** 6;
-    if (bl > .02) { g.save(); g.globalCompositeOperation = 'lighter'; const gg = g.createRadialGradient(0, ry * .1, 0, 0, ry * .1, ry * .9); gg.addColorStop(0, `rgba(90, 200, 255, ${.35 * bl})`); gg.addColorStop(1, 'rgba(90, 200, 255, 0)'); g.fillStyle = gg; g.fillRect(-rx, -ry, 2 * rx, 2 * ry); g.restore(); }
+    if (bl > .02) { g.save(); g.globalCompositeOperation = 'lighter'; const gg = g.createRadialGradient(0, ry * .1, 0, 0, ry * .1, ry * .9); gg.addColorStop(0, `rgba(90, 200, 255, ${.7 * bl})`); gg.addColorStop(1, 'rgba(90, 200, 255, 0)'); g.fillStyle = gg; g.fillRect(-rx, -ry, 2 * rx, 2 * ry); g.restore(); }
     // eight comb rows: the plates beat in waves and split the light into rainbow colours
     g.save(); g.globalCompositeOperation = 'lighter';
     for (let k = 0; k < 8; k++) {
@@ -1581,7 +1581,7 @@ const GV = (() => {
         const s = .08 + i / 25 * .8, yy = -ry + s * 2 * ry, wdt = Math.sqrt(Math.max(0, 1 - (2 * s - 1) ** 2)), xx = Math.sin(phi) * rx * .92 * wdt;
         const wave = .5 + .5 * Math.sin(s * 16 - t * 7 + k * .8), hue = (s * 420 - t * 160 + k * 45) % 360;
         g.fillStyle = `hsla(${hue}, 100%, ${55 + wave * 15}%, ${(.25 + .7 * wave) * vis})`;
-        g.beginPath(); g.ellipse(xx, yy, L * .009 * (.6 + .4 * Math.abs(Math.cos(phi))), L * .006, 0, 0, TAU); g.fill();
+        g.beginPath(); g.ellipse(xx, yy, L * .009 * (.6 + .4 * Math.abs(Math.cos(phi))), L * .006, 0, 0, TAU); g.fill(); g.fill();
       }
     }
     g.restore();
@@ -1820,7 +1820,6 @@ const GV = (() => {
     { k: 'lantern', glow: true, nm: 'Laternenfische', sub: 'ein Schwarm aus neun kleinen Fischen, die sich umeinander schlängeln; Lichterreihen am Bauch, Blitzwellen laufen durch den Schwarm', make: () => { const L = clamp(Math.min(W, H) * .1, 50, 110), e = baseEvent(L, 26, .45, 5); e.school = []; for (let i = 0; i < 9; i++) e.school.push({ ox: -(i % 3) * L * 1.6 - Math.floor(i / 3) * L * .8, oy: (Math.floor(i / 3) - 1) * L * 1.1 + (i % 3) * L * .3, w: .8 + hash(i) * .5, p: hash(i + 9) * TAU, s: .85 + hash(i + 20) * .3 }); return e; }, draw: drawLanterns },
     { k: 'atolla', glow: true, nm: 'Kronenqualle', sub: 'tiefrot, pulsiert langsam; am Rand läuft ein Ring aus blauem Licht wie ein Rad, ein sehr langer Fangfaden schleppt nach', make: () => { const L = clamp(Math.min(W, H) * .13, 60, 140), e = baseEvent(L, 34, .36, 2); e.yo = 0; e.vy = 0; e.lc = 0; return e; }, draw: drawAtolla }
   ];
-  LIST.push({ k: 'jaw', nm: 'Kieferfisch', sub: 'saugt 80 % der Fische ein, spuckt sie nach 3 Boni wieder aus', make: () => { const L = clamp(Math.min(W, H) * .5, 240, 560), B = clamp(S.sharkSeconds, 8, 120), e = baseEvent(L, B * 6 + 4.4, .48, .7, .3); e.dir = 1; e.face = 1; e.ph2 = 0; e.mouth = 0; e.cd = 0; e.B = B; return e; }, draw: drawJaw });
   const BY = {}; LIST.forEach(v => { BY['g_' + v.k] = v; });
   return {
     LIST, has: kind => !!BY[kind], glow: kind => !!(BY[kind] && BY[kind].glow), name: kind => BY[kind] && BY[kind].nm,
@@ -2409,13 +2408,15 @@ function drawSubNear(g, e) {
     g.strokeStyle = 'rgba(255,255,255,.45)'; g.lineWidth = R * .07; g.lineCap = 'round'; g.beginPath(); g.arc(0, 0, R * .8, 3.6, 4.3); g.stroke();
     g.restore();
   }
-  // bow light
-  const lx = bow - D * .18, lr = R * .32;
+  // bow light: a lamp right at the nose, shining forward
+  const lx = bow + D * .02, lr = R * .32, bl = L * .8;
   g.save(); g.globalCompositeOperation = 'lighter';
+  const cone = g.createLinearGradient(lx, 0, lx + bl, 0); cone.addColorStop(0, 'rgba(255, 248, 215, .4)'); cone.addColorStop(1, 'rgba(255, 245, 200, 0)');
+  g.fillStyle = cone; g.beginPath(); g.moveTo(lx, -lr * .8); g.lineTo(lx + bl, -lr * 8); g.lineTo(lx + bl, lr * 8); g.lineTo(lx, lr * .8); g.closePath(); g.fill();
   const lg2 = g.createRadialGradient(lx, 0, 0, lx, 0, lr * 4); lg2.addColorStop(0, 'rgba(255, 250, 225, .6)'); lg2.addColorStop(1, 'rgba(255, 245, 200, 0)');
   g.fillStyle = lg2; g.beginPath(); g.arc(lx, 0, lr * 4, 0, 7); g.fill(); g.restore();
-  g.fillStyle = '#1e2629'; g.beginPath(); g.arc(lx, 0, lr * 1.2, 0, 7); g.fill();
-  g.fillStyle = '#fff6cf'; g.beginPath(); g.arc(lx, 0, lr, 0, 7); g.fill();
+  g.fillStyle = '#1e2629'; g.beginPath(); g.ellipse(lx - lr * .2, 0, lr * .75, lr * 1.25, 0, 0, 7); g.fill();
+  g.fillStyle = '#fff6cf'; g.beginPath(); g.ellipse(lx, 0, lr * .5, lr, 0, 0, 7); g.fill();
   g.restore();
 }
 /* tiny people and things behind the portholes; drawn around (0,0) inside a circle of radius R */
@@ -3416,14 +3417,13 @@ const VIS_META = {
   wshark:   { nm: 'Walhai', sub: 'riesig und ruhig, mit Schiffshaltern', col: '#3d5d71' },
   bottle:   { nm: 'Flaschenpost', sub: 'treibt schaukelnd vorbei', col: '#5aa987' },
   puffer:   { nm: 'Kugelfisch', sub: 'erschrickt und bläst sich auf', col: '#e5cb78' },
-  jaw:      { nm: 'Kieferfisch', sub: 'saugt Fische ein und spuckt sie wieder aus', col: '#7d7a4e' },
   angler:   { nm: 'Anglerfisch', sub: 'leuchtet: Köder an der Angel', col: '#2fd6c4' },
   comb:     { nm: 'Rippenqualle', sub: 'leuchtet: Regenbogen-Wellen', col: '#8fd0ff' },
   squid:    { nm: 'Leuchtkalmare', sub: 'leuchten: blaue Lichtpunkte', col: '#c25a5a' },
   lantern:  { nm: 'Laternenfische', sub: 'leuchten: Schwarm mit Lichterreihen', col: '#46aaff' },
   atolla:   { nm: 'Kronenqualle', sub: 'leuchtet: blauer Lichtring', col: '#9a1530' }
 };
-const GKEYS = ['manta', 'jelly', 'seahorse', 'wshark', 'bottle', 'puffer', 'jaw', 'angler', 'comb', 'squid', 'lantern', 'atolla'];
+const GKEYS = ['manta', 'jelly', 'seahorse', 'wshark', 'bottle', 'puffer', 'angler', 'comb', 'squid', 'lantern', 'atolla'];
 // the gallery visitors are off in the fixed order (on) but on in random mode (ron)
 const VIS_DEFAULT = [['ws', 5], ['dol', 3], ['wh', 3], ['tur', 2], ['sub', 2], ['kr', 4], ['near', 3], ['gr', 3], ['ink', 3], ['dv', 3]].map(([k, gap]) => ({ k, gap, on: true, ron: true }))
   .concat(GKEYS.map(k => ({ k, gap: 3, on: false, ron: true })));
@@ -3970,5 +3970,4 @@ requestAnimationFrame(frame);
 })();
 </script>
 
-</body>
-</html>
+</body></html>

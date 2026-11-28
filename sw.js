@@ -1,5 +1,5 @@
 // Hält die Klassen-Tools offline verfügbar. Lädt nur Dateien dieser Seite.
-const CACHE = 'klassen-tools-84c50dc15d';
+const CACHE = 'klassen-tools-fdf1603616';
 const FILES = ["./", "index.html", "laermampel/", "laermampel/index.html", "laermampel/manifest.webmanifest", "laermampel/icon-180.png", "laermampel/icon-192.png", "laermampel/icon-512.png", "korallenriff/", "korallenriff/index.html", "korallenriff/manifest.webmanifest", "korallenriff/icon-180.png", "korallenriff/icon-192.png", "korallenriff/icon-512.png", "fluesterriff/", "fluesterriff/index.html", "fluesterriff/manifest.webmanifest", "fluesterriff/icon-180.png", "fluesterriff/icon-192.png", "fluesterriff/icon-512.png", "fluesterriff-realistisch/", "fluesterriff-realistisch/index.html", "fluesterriff-realistisch/manifest.webmanifest", "fluesterriff-realistisch/icon-180.png", "fluesterriff-realistisch/icon-192.png", "fluesterriff-realistisch/icon-512.png"];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));
